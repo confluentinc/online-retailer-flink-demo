@@ -1,0 +1,6 @@
+email="azamzam@confluent.io"
+confluent_cloud_api_key = "23BB2MFWBFBOGSNK"
+confluent_cloud_api_secret = "9A8hpsCscRr9rN0OWLSe8sau0kWYBKfanDKMS6Ylg575QhOzBkQ+NPta/p6DWJbH"
+snowflake_account="diihmbr-mh83060"
+snowflake_username="azamzam"
+snowflake_password="ngIlAaMsm6*"
