@@ -23,10 +23,7 @@ We use Terraform to deploy all the necessary resources. The script deploys the f
    2. User with 2048 Public and Private key and the associated Role
 
 ```bash
-├── assets                                <-- Directory that holds demo assests
-│   ├── usecase1.png                      <-- Architecture Diagram for use case 1
-│   ├── usecase2.png                      <-- Architecture Diagram for use case 2
-│   ├── usecase3.png                      <-- Architecture Diagram for use case 3
+├── assets                                <-- Directory that holds screenshots
 └── Code                                  <-- Directory that holds demo code and dockerfile
 │   ├── payments-app                      <-- Payments App code and dockerfile
 │   ├── postgres-data-feeder              <-- DB Feeder code and dockerfile
@@ -40,6 +37,8 @@ We use Terraform to deploy all the necessary resources. The script deploys the f
 │   ├── variables.tf                      <-- Terraform variables file
 │   ├── terraform.tfvars                  <-- UPDATE THIS FILE TO DEFINE YOUR VARIABLES
 │   ├── schemas                           <-- Directory that holds payments topic avro schema
+│   ├── demo-destroy.sh                   <-- Shell script to destroy demo infrastructure
+│   ├── demo-provision.sh                 <-- Shell script to provision demo infrastructure
 └── README.md
 ```
 
@@ -72,15 +71,10 @@ cd online-retailer-flink-demo/terraform
 ```
 3. Update the ```terraform.tfvars```:
 
-4. Use Terraform CLI to deploy solution
+4. Run the following script to provision demo infrastructure
 
 ```
-terraform init
-
-terraform plan
-
-terraform apply --auto-approve
-
+./demo-provision.sh
 ```
 
 >Note: The terraform script will take around 20 minutes to deploy.
@@ -309,10 +303,9 @@ The rules were already created by Terraform, there is no need to do anything her
 2. This should be encrypted, the Symmetric Key was already created by the Terraform in AWS KMS. The key ARN was also immported to Confluent by Terraform. We just need to create the rule in Confluent
    
    In the [`payments`](    
-   https://confluent.cloud/go/topics) Topic UI, select **Data Contracts**. Notice that the field is already tagged as `PII`.
-    ![Architecture](./assets/usecase3_datacontract.png)
+   https://confluent.cloud/go/topics) Topic UI, select **Data Contracts** then click **Evolve**. Tag `cc_number` field as `PII`.
 
-3. Click **Evovle**, then **Rules** and then **+ Add rules** button. Configure as the following:
+3. Click **Rules** and then **+ Add rules** button. Configure as the following:
    * Category: Data Encryption Rule
    * Rule name: `Encrypt_PII`
    * Encrypt fields with: `PII`
@@ -431,6 +424,12 @@ This data can be made available seamlessly to your Data lake query engines using
 ## Clean-up
 Once you are finished with this demo, remember to destroy the resources you created, to avoid incurring in charges. You can always spin it up again anytime you want.
 
+First delete the Snowflake connector as it was created outside Terraform:
+
+```
+confluent connect cluster delete <CONNECTOR_ID> --cluster <CLUSTER_ID> --environment <ENVIRONMENT_ID> --force
+```
+
 To destroy all the resources created run the command below from the ```terraform``` directory:
 
 ```
@@ -438,3 +437,4 @@ To destroy all the resources created run the command below from the ```terraform
 
 ```
 > **Note: If you run terraform destroy instead of the provided shell script, the ECR repositories in AWS will not be deleted.**
+
