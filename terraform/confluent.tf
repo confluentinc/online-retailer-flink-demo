@@ -349,7 +349,8 @@ resource "confluent_schema" "avro-payments" {
   }
   depends_on = [
     confluent_tag.pii_tag,
-    confluent_role_binding.app-manager-kafka-cluster-admin
+    confluent_role_binding.app-manager-kafka-cluster-admin,
+    confluent_schema_registry_kek.aws_key
   ]
 }
 
@@ -371,6 +372,7 @@ resource "confluent_schema_registry_kek" "aws_key" {
   name = "CSFLE_Key"
   kms_type = "aws-kms"
   kms_key_id = aws_kms_key.kms_key.arn
+  hard_delete = true
 }
 
 
