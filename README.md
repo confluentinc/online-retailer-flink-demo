@@ -332,8 +332,70 @@ The rules were already created by Terraform, there is no need to do anything her
 
 #### **Analyzing Daily Sales Trends using Confluent Cloud for Apache Flink**
 
+1. Back in the SQL Workspace**, we'll create a new table that will hold all completed orders.
+   ```
+   CREATE TABLE completed_orders (
+        order_id INT,
+        customerid INT,
+        customername STRING,
+        address STRING,
+        amount DOUBLE,
+        confirmation_code STRING,
+        ts TIMESTAMP_LTZ(3)
+    ); 
+   ```
+2. Next, we will enhance the payment data by joining it with customer and order information. This will provide a complete view of each transaction:
+   ```
+   INSERT INTO completed_orders
+    SELECT 
+        pymt.order_id,
+        cust.customerid,
+        cust.customername,
+        cust.address,
+        pymt.amount, 
+        pymt.confirmation_code, 
+        pymt.ts
+        
+    FROM 
+        payments pymt
+    JOIN 
+        `shiftleft.public.customers` cust ON pymt.customer_id = cust.customerid
+    JOIN 
+        `shiftleft.public.orders` ord ON pymt.order_id = ord.orderid
+   ```
 
+3. After enriching the data, the next step is to create a revenue_summary table. This table will hold aggregated revenue data, helping to track and visualize sales over specific time intervals:
+   ```
+   CREATE TABLE revenue_summary (
+        window_start TIMESTAMP(3),
+        window_end TIMESTAMP(3),
+        total_revenue DECIMAL(10, 2)
+    );
 
+   ```
+
+4. Finally, we calculate the total revenue within fixed 5-second windows by summing the amount from completed_orders. This is done using the TUMBLE function, which groups data into 5-second intervals, providing a clear view of sales trends over time:
+
+    ```
+    INSERT INTO revenue_summary
+    SELECT 
+        window_start, 
+        window_end, 
+        SUM(amount) AS total_revenue
+    FROM 
+        TABLE(
+            TUMBLE(TABLE completed_orders, DESCRIPTOR($rowtime), INTERVAL '5' SECONDS)
+        )
+    GROUP BY 
+        window_start, 
+        window_end;
+
+    ```
+
+5. Preview the final output:
+    ```
+     SELECT * FROM revenue_summary
+    ```
 
 #### **Data Lake Integration using Confluent Cloud Tableflow and Amazon Athena**
 
