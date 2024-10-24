@@ -56,6 +56,7 @@ This is a [video](https://www.confluent.io/resources/demo/shift-left-dsp-demo/) 
 * **Snowflake Account** -  Sign-up to Snowflake [here](https://signup.snowflake.com/).
 * **AWS CLI** - Terraform script uses AWS CLI to manage AWS resources
 * **Docker** - Make sure is Docker installed locally. If not installed, follow [this](https://docs.docker.com/desktop/)
+* **PSQL** - Make sure is psql is installed locally.
 * **Unix machine** - The Terraform script requires a Unix environment. If you're using a Windows machine, consider deploying an EC2 instance with CentOS and run the deployment steps from there.
 
 ## Setup
