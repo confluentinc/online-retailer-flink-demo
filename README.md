@@ -74,6 +74,7 @@ cd online-retailer-flink-demo/terraform
 4. Run the following script to provision demo infrastructure
 
 ```
+chmod +x ./demo-provision.sh
 ./demo-provision.sh
 ```
 
@@ -433,6 +434,7 @@ confluent connect cluster delete <CONNECTOR_ID> --cluster <CLUSTER_ID> --environ
 To destroy all the resources created run the command below from the ```terraform``` directory:
 
 ```
+chmod +x ./demo-destroy.sh
 ./demo-destroy.sh
 
 ```
