@@ -375,6 +375,7 @@ The rules were already created by Terraform, there is no need to do anything her
    ```
 
 4. Finally, we calculate the total revenue within fixed 5-second windows by summing the amount from completed_orders. This is done using the TUMBLE function, which groups data into 5-second intervals, providing a clear view of sales trends over time:
+   >Note: The 5-second window is done for demo puposes you can change to the interval to 1 HOUR.
 
     ```
     INSERT INTO revenue_summary
@@ -403,8 +404,28 @@ The rules were already created by Terraform, there is no need to do anything her
 >
 >NOTE: To complete this part Tableflow needs to be enabled on the cluster. Please reachout to the Tableflow PM to enable it on the cluster created by this Terraform script.
 
+This data can be made available seamlessly to your Data lake query engines using Confluent Cloud Tableflow feature. When Tableflow is enabled on the cluster, all topics in the cluster are materialized as Iceberg Tables and are available for any Query engine. In this demo, we use Amazon Athena, you can use any Engine that supports Iceberg Rest Catalog.
 
+1. First get the Tableflow access details from the Data Portal UI.
+   ![Tableflow Access Details](./assets/usecase3_tableflow.png)
 
+2. In Amazon Athena UI, create a new Spark Notebook and configure it as follows:
+   ![Athena Notebook](./assets/usecase3_notebook.png)
+
+3. `revenue_summary` data can now be queried in Athena. In the notebook run this query to SHOW available tables:
+   ```
+   %sql
+   SHOW TABLES in `<Confluent_Cluster_ID>`
+   ```
+
+   Next preview `reveue_summary` table:
+
+   ```
+   %%sql
+   SELECT * FROM `<Confluent_Cluster_ID>`.`revenue_summary`;
+   ```
+
+   That's it we are now able to query the data in Athena.
 
 ## Clean-up
 Once you are finished with this demo, remember to destroy the resources you created, to avoid incurring in charges. You can always spin it up again anytime you want.
