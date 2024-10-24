@@ -6,6 +6,12 @@ resource "aws_iam_access_key" "payments_app_aws_key" {
   user = aws_iam_user.payments_app_user.name
 }
 
+locals {
+  # Determine the CPU architecture based on the input variable
+  cpu_architecture       = var.local_architecture == "arm64" || var.local_architecture == "aarch64" ? "ARM64" : "X86_64"
+}
+
+
 resource "aws_iam_user_policy" "payments_app_iam_policy" {
   name   = "payments_app_iam_policy__${random_id.env_display_id.hex}"
   user   = aws_iam_user.payments_app_user.name
@@ -337,6 +343,10 @@ resource "aws_ecs_task_definition" "payment_app_task" {
   task_role_arn            = aws_iam_role.ecs_container_role.arn
   memory                   = "512"
   cpu                      = "256"
+  runtime_platform {
+    operating_system_family = "LINUX"
+    cpu_architecture        = local.cpu_architecture
+  }
 
   container_definitions = jsonencode([
     {
@@ -371,6 +381,10 @@ resource "aws_ecs_task_definition" "dbfeeder_app_task" {
   task_role_arn            = aws_iam_role.ecs_container_role.arn
   memory                   = "512"
   cpu                      = "256"
+  runtime_platform {
+    operating_system_family = "LINUX"
+    cpu_architecture        = local.cpu_architecture
+  }
 
   container_definitions = jsonencode([
     {

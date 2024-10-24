@@ -51,3 +51,9 @@ variable "snowflake_password"{
     description = "Snowflake Account pasword"
     type        = string   
 }
+
+variable "local_architecture" {
+  description = "The architecture of the local machine"
+  type        = string
+}
+

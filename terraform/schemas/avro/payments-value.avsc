@@ -21,8 +21,7 @@
         },
         {
             "name": "cc_number",
-            "type": "string",
-            "confluent:tags": ["PII"]
+            "type": "string"
         },
         {
             "name": "expiration",
