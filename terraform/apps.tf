@@ -190,14 +190,14 @@ resource "aws_security_group" "ecs_sg" {
 # -------------------------------
 
 resource "aws_ecr_repository" "payment_app_repo" {
-  name = "payment-app-repo"
+  name = "${var.prefix}-payment-app-repo"
   lifecycle {
     prevent_destroy = false
   }
 }
 
 resource "aws_ecr_repository" "dbfeeder_app_repo" {
-  name = "dbfeeder-app-repo"
+  name = "${var.prefix}-dbfeeder-app-repo"
   lifecycle {
     prevent_destroy = false
   }
@@ -325,11 +325,11 @@ resource "aws_iam_role" "ecs_container_role" {
 # -------------------------------
 
 resource "aws_cloudwatch_log_group" "yada" {
-  name = "/ecs/db-feeder-task"
+  name = "/ecs/${var.prefix}-db-feeder-task"
 }
 
 resource "aws_cloudwatch_log_group" "payments-task-log-group" {
-  name = "/ecs/payments-task"
+  name = "/ecs/${var.prefix}-payments-task"
 }
 
 
