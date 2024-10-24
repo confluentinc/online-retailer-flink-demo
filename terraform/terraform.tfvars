@@ -1,0 +1,6 @@
+email="<YOUR_EMAIL>"
+confluent_cloud_api_key = "<CONFLUE_CLOUD_API_KEY>"
+confluent_cloud_api_secret = "<CONFLUE_CLOUD_API_SECRET>"
+snowflake_account="<SNOWFLAKE_ACCOUNT_NUMBER>"
+snowflake_username="<SNOWFLAKE_USENAME>"
+snowflake_password="<SNOWFLAKE_PASSWORD>"

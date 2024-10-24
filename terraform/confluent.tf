@@ -120,6 +120,9 @@ resource "confluent_api_key" "app-manager-schema-registry-api-key" {
       id = confluent_environment.staging.id
     }
   }
+  depends_on = [
+    confluent_role_binding.app-manager-kafka-cluster-admin
+  ]
 }
 
 
@@ -302,6 +305,21 @@ resource "confluent_kafka_topic" "payments-topic" {
 # Schemas
 # ------------------------------------------------------
 
+resource "confluent_tag" "pii_tag" {
+  schema_registry_cluster {
+    id = data.confluent_schema_registry_cluster.sr-cluster.id
+  }
+  rest_endpoint = data.confluent_schema_registry_cluster.sr-cluster.rest_endpoint
+  credentials {
+    key    = confluent_api_key.app-manager-schema-registry-api-key.id
+    secret = confluent_api_key.app-manager-schema-registry-api-key.secret
+  }
+
+  name = "PII"
+  description = "PII tag"
+}
+
+
 resource "confluent_schema" "avro-payments" {
   schema_registry_cluster {
     id = data.confluent_schema_registry_cluster.sr-cluster.id
@@ -310,6 +328,7 @@ resource "confluent_schema" "avro-payments" {
   subject_name = "payments-value"
   format = "AVRO"
   schema = file("./schemas/avro/payments-value.avsc")
+  hard_delete = true
   credentials {
     key    = confluent_api_key.app-manager-schema-registry-api-key.id
     secret = confluent_api_key.app-manager-schema-registry-api-key.secret
@@ -328,9 +347,33 @@ resource "confluent_schema" "avro-payments" {
         }
     }
   }
+  depends_on = [
+    confluent_tag.pii_tag,
+    confluent_role_binding.app-manager-kafka-cluster-admin,
+    confluent_schema_registry_kek.aws_key
+  ]
 }
 
+# ------------------------------------------------------
+# CSFLE Encryption Keys
+# ------------------------------------------------------
 
+
+resource "confluent_schema_registry_kek" "aws_key" {
+  schema_registry_cluster {
+    id = data.confluent_schema_registry_cluster.sr-cluster.id
+  }
+  rest_endpoint = data.confluent_schema_registry_cluster.sr-cluster.rest_endpoint
+  credentials {
+    key    = confluent_api_key.app-manager-schema-registry-api-key.id
+    secret = confluent_api_key.app-manager-schema-registry-api-key.secret
+  }
+
+  name = "CSFLE_Key"
+  kms_type = "aws-kms"
+  kms_key_id = aws_kms_key.kms_key.arn
+  hard_delete = true
+}
 
 
 

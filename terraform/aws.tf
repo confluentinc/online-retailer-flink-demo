@@ -149,7 +149,7 @@ resource "aws_kms_key" "kms_key" {
         Sid    = "Allow use of the key"
         Effect = "Allow"
         Principal = {
-          AWS = "${data.aws_caller_identity.current.arn}"
+          AWS = "${aws_iam_user.payments_app_user.arn}"
         },
         Action = [
           "kms:DescribeKey",

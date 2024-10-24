@@ -2,6 +2,14 @@
 # This is required to manage AWS resources. The region is dynamically set via a variable.
 provider "aws" {
   region = var.cloud_region  
+  # Default tags to apply to all resources
+  default_tags {
+    tags = {
+      Created_by = "Shift-left Terraform script"
+      Project     = "Shift-left Demo"
+      owner_email       = var.email
+    }
+  }
 }
 
 # Here we are using the Confluent provider for managing Confluent Cloud resources.

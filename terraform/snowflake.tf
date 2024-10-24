@@ -57,3 +57,14 @@ resource "snowflake_grant_account_role" "grant_role_to_user" {
   role_name = snowflake_account_role.kafka_connector_role.name
   user_name     = snowflake_user.confluent_connector_user.name
 }
+
+resource "snowflake_grant_account_role" "g" {
+  role_name        = snowflake_account_role.kafka_connector_role.name
+  parent_role_name = "ACCOUNTADMIN"
+}
+
+# Grant the kafka_connector_role to the user
+resource "snowflake_grant_account_role" "grant_admin_to_user" {
+  role_name = "ACCOUNTADMIN"
+  user_name     = snowflake_user.confluent_connector_user.name
+}

@@ -1,0 +1,51 @@
+CustomerID,CustomerName,Email,Segment,Address
+1,John Doe,johndoe@example.com,Premium,999 Main St Los Angeles CA
+2,Jane Smith,janesmith@example.com,Regular,456 Oak St New York NY
+3,Michael Johnson,mjohnson@example.com,New,789 Elm St Houston TX
+4,Emily Davis,edavis@example.com,Premium,101 Pine St Miami FL
+5,Robert Wilson,rwilson@example.com,Regular,234 Cedar St Chicago IL
+6,Susan Brown,sbrown@example.com,New,567 Maple St San Francisco CA
+7,David Garcia,dgarcia@example.com,Premium,890 Walnut St Boston MA
+8,Sarah Martinez,smartinez@example.com,Regular,432 Birch St Seattle WA
+9,James Rodriguez,jrodriguez@example.com,New,876 Pineapple St Orlando FL
+10,Jennifer Taylor,jtaylor@example.com,Premium,543 Lemon St Denver CO
+11,Christopher Thomas,cthomas@example.com,Regular,765 Cherry St Philadelphia PA
+12,Linda Hernandez,lhernandez@example.com,New,321 Peach St Atlanta GA
+13,Matthew King,mking@example.com,Premium,654 Plum St Dallas TX
+14,Amanda Young,ayoung@example.com,Regular,987 Orange St Phoenix AZ
+15,Jean Andrews,jad@example.com,New,876 Banana St Miami FL
+16,Ashley Lopez,alopez@example.com,Premium,234 Grape St Los Angeles CA
+17,Michael Hill,mhill@example.com,Regular,567 Kiwi St New York NY
+18,Michelle Scott,mscott@example.com,New,890 Mango St Houston TX
+19,David Green,dgreen@example.com,Premium,543 Papaya St Chicago IL
+20,Lauren Adams,ladams@example.com,Regular,876 Pear St San Francisco CA
+21,Joseph Baker,jbaker@example.com,New,321 Strawberry St Boston MA
+22,Kimberly Gonzalez,kgonzalez@example.com,Premium,654 Watermelon St Seattle WA
+23,Daniel Nelson,dnelson@example.com,Regular,987 Blueberry St Orlando FL
+24,Angela Carter,acarter@example.com,New,876 Lime St Denver CO
+25,Eric Perez,eperez@example.com,Premium,234 Mango St Philadelphia PA
+26,Samantha Roberts,sroberts@example.com,Regular,567 Coconut St Atlanta GA
+27,Steven Turner,sturner@example.com,New,890 Avocado St Dallas TX
+28,Rebecca Diaz,rdiaz@example.com,Premium,543 Cherry St Phoenix AZ
+29,Jonathan Lewis,jlewis@example.com,Regular,876 Fig St Miami FL
+30,Christina Lee,clee@example.com,New,321 Guava St Los Angeles CA
+31,Stephanie Walker,swalker@example.com,Premium,654 Pineapple St New York NY
+32,Patrick Hall,phall@example.com,Regular,987 Mango St Houston TX
+33,Deborah Allen,dallen@example.com,New,876 Strawberry St Chicago IL
+34,Nathan Young,nyoung@example.com,Premium,234 Blueberry St San Francisco CA
+35,Kelly Hernandez,khernandez@example.com,Regular,567 Watermelon St Boston MA
+36,Andrea King,aking@example.com,New,890 Kiwi St Seattle WA
+37,Justin Wright,jwright@example.com,Premium,543 Plum St Orlando FL
+38,Amber Nelson,anelson@example.com,Regular,876 Peach St Denver CO
+39,Austin Gonzales,agonzales@example.com,New,321 Orange St Philadelphia PA
+40,Heather Martinez,hmartinez@example.com,Premium,654 Lemon St Atlanta GA
+41,Samantha Rodriguez,srodriguez@example.com,Regular,987 Cherry St Dallas TX
+42,Jeremy Hill,jhill@example.com,New,876 Apple St Phoenix AZ
+43,April Scott,ascott@example.com,Premium,234 Banana St Miami FL
+44,Bryan Carter,bcarter@example.com,Regular,567 Grape St Los Angeles CA
+45,Victoria Diaz,vdiaz@example.com,New,890 Pine St New York NY
+46,Phillip Lewis,plewis@example.com,Premium,543 Cedar St Houston TX
+47,Valerie Nelson,vnelson@example.com,Regular,876 Oak St Chicago IL
+48,Kevin Young,kyoung@example.com,New,321 Elm St San Francisco CA
+49,Lori King,lking@example.com,Premium,654 Walnut St Boston MA
+50,Mark Baker,mbaker@example.com,Regular,987 Birch St Seattle WA

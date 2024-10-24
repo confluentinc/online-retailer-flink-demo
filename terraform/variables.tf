@@ -1,3 +1,9 @@
+variable "email" {
+  description = "Your email to tag all AWS resources"
+  type        = string
+}
+
+
 variable "prefix" {
   description = "Prefix for resource names"
   type        = string

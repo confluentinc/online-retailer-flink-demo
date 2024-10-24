@@ -1,6 +1,31 @@
+resource "aws_iam_user" "payments_app_user" {
+  name = "payments_app_user_${random_id.env_display_id.hex}"
+}
+
+resource "aws_iam_access_key" "payments_app_aws_key" {
+  user = aws_iam_user.payments_app_user.name
+}
+
+resource "aws_iam_user_policy" "payments_app_iam_policy" {
+  name   = "payments_app_iam_policy__${random_id.env_display_id.hex}"
+  user   = aws_iam_user.payments_app_user.name
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action = [
+          "kms:*",
+        ]
+        Effect   = "Allow"
+        Resource = "*"
+      },
+    ]
+  })
+}
+
 # Create and write the DB Feeder application.properties file to the appropriate path
 resource "local_file" "db_feeder_properties" {
-  filename = "../Code/confluent-demo/postgresql-data-feeder/src/main/resources/db.properties"
+  filename = "../code/postgresql-data-feeder/src/main/resources/db.properties"
   content  = <<-EOT
     db.url=jdbc:postgresql://${aws_db_instance.postgres_db.address}/onlinestoredb
     db.user=${var.db_username}
@@ -10,7 +35,7 @@ resource "local_file" "db_feeder_properties" {
 
 # Create and write the Payments app application.properties file to the appropriate path
 resource "local_file" "payment_app_properties" {
-  filename = "../Code/confluent-demo/payments-app/src/main/resources/cc-orders.properties"
+  filename = "../code/payments-app/src/main/resources/cc-orders.properties"
   content  = <<-EOT
 #Environment: inventory_mgmt
 #Cluster: inventory analytics
@@ -30,14 +55,14 @@ basic.auth.credentials.source=USER_INFO
 
 ## Data quality rules 
 #KMS Props
-rule.executors._default_.param.access.key.id=AKIAYAD4VIW3U47TOJHP
-rule.executors._default_.param.secret.access.key=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
+rule.executors._default_.param.access.key.id=${aws_iam_access_key.payments_app_aws_key.id}
+rule.executors._default_.param.secret.access.key=${aws_iam_access_key.payments_app_aws_key.secret}
   EOT 
   }
 
 # Create and write the Payments App Data Quality Rules file to the appropriate path
 resource "local_file" "payment_app_dqr" {
-  filename = "../Code/confluent-demo/payments-app/src/main/datacontracts/avro/payments-value-dqr.json"
+  filename = "../code/payments-app/src/main/datacontracts/avro/payments-value-dqr.json"
   content  = <<-EOT
   {
     "metadata": {
@@ -187,7 +212,7 @@ resource "null_resource" "build_and_push_payment_app" {
   provisioner "local-exec" {
     command = <<EOT
       aws ecr get-login-password --region ${var.cloud_region} | docker login --username AWS --password-stdin ${aws_ecr_repository.payment_app_repo.repository_url}
-      docker build -t payment-app ../Code/confluent-demo/payments-app
+      docker build -t payment-app ../code/payments-app
       docker tag payment-app:latest ${local.payment_app_image_tag}
       docker push ${local.payment_app_image_tag}
     EOT
@@ -207,7 +232,7 @@ resource "null_resource" "build_and_push_dbfeeder_app" {
   provisioner "local-exec" {
     command = <<EOT
       aws ecr get-login-password --region ${var.cloud_region} | docker login --username AWS --password-stdin ${aws_ecr_repository.dbfeeder_app_repo.repository_url}
-      docker build -t dbfeeder-app ../Code/confluent-demo/postgresql-data-feeder
+      docker build -t dbfeeder-app ../code/postgresql-data-feeder
       docker tag dbfeeder-app:latest ${local.dbfeeder_app_image_tag}
       docker push ${local.dbfeeder_app_image_tag}
     EOT
@@ -227,12 +252,29 @@ resource "null_resource" "build_and_push_dbfeeder_app" {
 
 # ECS Cluster
 resource "aws_ecs_cluster" "ecs_cluster" {
-  name = "${var.prefix}-esc-cluster"
+  name = "${var.prefix}-esc-cluster-${random_id.env_display_id.hex}"
+}
+
+resource "aws_iam_role_policy" "kms_usage_policy" {
+  name = "kms_usage_policy_${random_id.env_display_id.hex}"
+  role = aws_iam_role.ecs_container_role.id
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action = [
+          "kms:*",
+        ]
+        Effect   = "Allow"
+        Resource = "*"
+      },
+    ]
+  })
 }
 
 # IAM Role for ECS Task Execution
 resource "aws_iam_role" "ecs_task_execution_role" {
-  name = "ecsTaskExecutionRole"
+  name = "ecsTaskExecutionRole_${random_id.env_display_id.hex}"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -247,9 +289,29 @@ resource "aws_iam_role" "ecs_task_execution_role" {
     ]
   })
 
+
   managed_policy_arns = [
     "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy",
   ]
+}
+
+# IAM Role for the containers
+resource "aws_iam_role" "ecs_container_role" {
+  name = "ecsTaskRole_${random_id.env_display_id.hex}"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect    = "Allow"
+        Principal = {
+          Service = "ecs-tasks.amazonaws.com"
+        }
+        Action    = "sts:AssumeRole"
+      }
+    ]
+  })
+
 }
 
 # -------------------------------
@@ -272,6 +334,7 @@ resource "aws_ecs_task_definition" "payment_app_task" {
   network_mode             = "awsvpc"
   requires_compatibilities = ["FARGATE"]
   execution_role_arn       = aws_iam_role.ecs_task_execution_role.arn
+  task_role_arn            = aws_iam_role.ecs_container_role.arn
   memory                   = "512"
   cpu                      = "256"
 
@@ -305,6 +368,7 @@ resource "aws_ecs_task_definition" "dbfeeder_app_task" {
   network_mode             = "awsvpc"
   requires_compatibilities = ["FARGATE"]
   execution_role_arn       = aws_iam_role.ecs_task_execution_role.arn
+  task_role_arn            = aws_iam_role.ecs_container_role.arn
   memory                   = "512"
   cpu                      = "256"
 

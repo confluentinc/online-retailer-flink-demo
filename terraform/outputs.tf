@@ -19,8 +19,6 @@ output "resource-ids" {
   PrivateKey: ${local.private_key_no_headers}
   PublicKey: ${local.public_key_no_headers}
 
-  Snowflake Connection URL: https://${var.snowflake_account}.snowflakecomputing.com
-
   EOT
 
   sensitive = true
