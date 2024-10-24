@@ -85,8 +85,8 @@ terraform apply --auto-approve
 >Note: The terraform script will take around 20 minutes to deploy.
 
 ## Demo
-> Estimated time 25 minutes
->
+> Estimated time: 20 minutes
+
 
 In this demo we will implement 3 use cases:
 1. Use case 1 - [Low inventory stock alerts](#low-inventory-stock-alerts): Use Confluent Cloud for Apache Flink to compute low inventory stocks and use Snowflake Sink Connector to sink the data to Snowflake
@@ -165,24 +165,181 @@ In this demo we will implement 3 use cases:
     1.  **Connection URL**: Get it under Admin --> Accounts in (Snowflake Console)[https://app.snowflake.com/]. It should look like this: *https://<snowflake_locator>.<cloud_region>.aws.snowflakecomputing.com*
     2.  **Connection username**: ```confluent```
     3.  **Private Key**: In CMD run ```terraform output resource-ids``` and copy the PrivateKey from there.
-    4.  **Database name**: ```PRODUCTION```
-    5.  **Schema name**: ```PUBLIC```
-    ![Masked Message](./assets/usecase1_sf.png)
+    4.  **Snowflake role**: `ACCOUNTADMIN`
+    5.  **Database name**: ```PRODUCTION```
+    6.  **Schema name**: ```PUBLIC```
+    ![Snowflake Connection Details](./assets/usecase1_sf.png)
 
-17. Choose ```AVRO``` as **Input Kafka record value format** and ```SNOWPIPE``` as **Snowflake Connection**. Then follow the the wizard to create the connector.
+    >**NOTE: It's not recommended to use ACCOUNTADMIN role for data ingestion. We are using it here for demo purposes only.**
+
+
+17. Choose:
+    * ```AVRO``` as **Input Kafka record value format**.
+    *  ```SNOWPIPE_STREMAING``` as **Snowflake Connection**.\
+    *  Set **Enable Schemitization** to `True`. Doing this will allow the connector to infer schema from Schema registry and write the data to Snowflake with the correct schema. 
+    *  Then follow the the wizard to create the connector.
+  
     > Note: The connector will take less than a minute to run
-18. 
 
-
+18. In Snowflake UI, go to Worksheets and run the follwing SQL Statement to preview the new table.
+    ```
+    SELECT * FROM PRODUCTION.PUBLIC.LOW_STOCK_ALERTS
+    ```
+    ![Snowflake Results](./assets/usecase1_sf_res.png)
 
 ### Product Sales Aggregation
 
 ![Architecture](./assets/usecase2.png)
 
+In this usecase we will create a new Data Product ```Product_Sales``` by joining, cleaning and aggregating the ```PRODUCT``` and ```ORDERS``` data streams.
+
+1. Back in the SQL Workspace**, Lets join three tables—`products`, `order_items`, and `orders`—to generate a detailed view of orders and their associated products. The query below selects key fields from these tables to provide insights into each order's contents, including the product details, brand, quantity purchased, and the total amount for each order item. The query applies filters to ensure only valid products with non-empty names and positive prices are included in the result set.
+
+    This analysis is useful for understanding product sales trends, calculating revenue, and generating reports on order compositions.
+
+   ```
+   SELECT 
+        o.orderid,
+        p.productid,
+        oi.orderitemid,
+        p.brand,
+        p.productname,
+        p.price, 
+        oi.quantity, 
+        oi.quantity*p.price as total_amount 
+    FROM 
+        `postgre_cdc_feed.public.products` p
+    JOIN 
+        `postgre_cdc_feed.public.order_items` oi ON p.productid = oi.productid
+    JOIN 
+        `postgre_cdc_feed.public.orders` o ON oi.orderid = o.orderid
+    WHERE p.productname <> '' AND p.price > 0; 
+    ```
+
+2. Create a new Apache Flink table ```Product_Sales``` to represent the new data product.
+   
+   ```
+   CREATE TABLE product_sales (
+        orderid INT,
+        productid INT,
+        orderitemid INT,
+        brand STRING,
+        productname STRING,
+        price DECIMAL(10, 2),
+        quantity INT,
+        total_amount DECIMAL(10, 2)
+    );
+   ```
+
+3. To continously add clean and aggragretgated data to the `Product_Sales` table run this ```INSERT INTO STATEMENT``` to continously ingest data from the previous query to the new table.
+   ```
+    INSERT INTO product_sales 
+    SELECT 
+        o.orderid,
+        p.productid,
+        oi.orderitemid,
+        p.brand,
+        p.productname,
+        p.price, 
+        oi.quantity, 
+        oi.quantity*p.price as total_amount 
+        
+    FROM 
+        `shiftleft.public.products` p
+    JOIN 
+        `shiftleft.public.order_items` oi ON p.productid = oi.productid
+    JOIN 
+        `shiftleft.public.orders` o ON oi.orderid = o.orderid
+    WHERE p.productname <> '' AND p.price > 0; 
+
+   ```
+
+4. Now let's sink the new data product to Snowflake. Update the same Connector and add the new topic `product_sales`.
+   
+   ![Update Snowflake Conector](./assets/usecase2_sf.png)
+
+5. In Snowflake UI, go to Worksheets and run the follwing SQL Statement to preview the new table.
+    ```
+    SELECT * FROM PRODUCTION.PUBLIC.PRODUCT_SALES
+    ```
+     ![Snowflake Results](./assets/usecase2_sf_res.png)
 
 ### Daily Sales Trends
 
 ![Architecture](./assets/usecase3.png)
+
+In this use case, we leverage Confluent Cloud with Apache Flink to validate payments and analyze daily sales trends. The resulting data product will be stored in a topic with [Tableflow](https://www.confluent.io/product/tableflow/) enabled.
+
+Tableflow simplifies the process of getting data from Confluent into a data lake, warehouse, or analytics engine. It allows users to convert Kafka topics and their schemas into Apache Iceberg tables with ZERO effort, reducing the engineering time, compute resources, and cost associated with traditional data pipelines. This is achieved by leveraging Confluent's Kora Storage Layer and a new metadata materializer that works with Confluent Schema Registry to handle schema mapping and evolution.
+
+But before doing this, let's make sure that the data is reliable and protected first.
+
+#### **Data Contracts in Confluent Cloud**
+
+Analytics teams are focused on general sales trends, so they don't need access to PII. Instead of relying on central teams to write ETL scripts for data encryption and quality, we’re shifting this process left. Central governance teams set data protection and quality rules, which are pushed to the client for enforcement— the beauty of this is that there is not need for code changes on the client side - **IT JUST WORKS**.
+
+##### **Using Confluent Cloud Data Quality Rules**
+
+We want to make sure that any data produced adheres to a specific format. In our case, we want to make sure that any payment event generated needs to have a valide `Confimation Code`. This check is done by using [Data Quality Rules](https://docs.confluent.io/cloud/current/sr/fundamentals/data-contracts.html#data-quality-rules), these rules are set in Confluent Schema registry, and pushed to the clients, where they are enforced. No need to change any code.
+
+The rules were already created by Terraform, there is no need to do anything here except validate that it is working.
+
+1. In the [`payments`](https://confluent.cloud/go/topics) Topic UI, select **Data Contracts**. Under **Rules** notice that there is a rule already created.
+   
+   The rule basically says that `confirmation_code` field value should follow this regex expression `^[A-Z0-9]{8}$`. Any event that doesnt match, will be sent to a dead letter queue topic named `error-payments`.
+
+   ![Data Quality Rule](./assets/usecase3_dqr.png)
+
+2. To validate that it is working go to the DLQ topic and inspect the message headers there.
+   
+![Data Quality Rule](./assets/usecase3_msgdlq.png)
+
+
+##### **Data Protection using Confluent Cloud Client Side Field Level Encryption**
+
+>**REMOVE THIS BEFORE MOVING TO A PUBLIC REPO** 
+>
+>NOTE: Currently Flink and Tableflow do not support topics that contain encrypted fields in them. **DO NOT DEMO THIS SECTION, UNTIL FLINK ADDS PASSTHROUGH SUPPORT TO TOPICS WITH ENCRYPTED FIELDS - ETA Q4 2024**
+
+[Client Side Field Level Encryption(CSFLE)](https://docs.confluent.io/cloud/current/security/encrypt/csfle/client-side.html) in Confluent Cloud works by setting the rules in Confluent Schema registry, these rules are then pushed to the clients, where they are enforced. The symmetric key is created in providor and the client should have necessary permissi the providor and the client should have permission to use the key to encrypt the data.
+
+1. In the `payments` topic we notice that, the topic contains credit card information in unencrypted form.
+    ![Architecture](./assets/usecase3_msg.png)
+2. This should be encrypted, the Symmetric Key was already created by the Terraform in AWS KMS. The key ARN was also immported to Confluent by Terraform. We just need to create the rule in Confluent
+   
+   In the [`payments`](    
+   https://confluent.cloud/go/topics) Topic UI, select **Data Contracts**. Notice that the field is already tagged as `PII`.
+    ![Architecture](./assets/usecase3_datacontract.png)
+
+3. Click **Evovle**, then **Rules** and then **+ Add rules** button. Configure as the following:
+   * Category: Data Encryption Rule
+   * Rule name: `Encrypt_PII`
+   * Encrypt fields with: `PII`
+   * using: The key added by Terraform
+  
+    Then click **Add** and **Save**
+
+    Here what we basically did is that we said, ecrypt any field in this topic that is tagged as PII
+
+  ![CSFLE Rule](./assets/usecase3_rule.png)
+4. Restart the ECS Service for the changes to take effect immediately. In AWS Console, go to **Elastic Container Service**, select the cluster, click on the `payment-app-service`, and then **Tasks** tab. Select the task and stop it.
+   After a few minutes a new Taksk will start again
+
+5. Go back to the `payments` Topic UI, you can see that the Credit number is now encrypted.
+
+    ![Encrypted Field](./assets/usecase3_msgenc.png)
+
+
+#### **Analyzing Daily Sales Trends using Confluent Cloud for Apache Flink**
+
+
+
+
+#### **Data Lake Integration using Confluent Cloud Tableflow and Amazon Athena**
+
+>**REMOVE THIS BEFORE MOVING TO A PUBLIC REPO** 
+>
+>NOTE: To complete this part Tableflow needs to be enabled on the cluster. Please reachout to the Tableflow PM to enable it on the cluster created by this Terraform script.
 
 
 
