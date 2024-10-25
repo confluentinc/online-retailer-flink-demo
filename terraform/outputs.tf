@@ -23,3 +23,13 @@ output "resource-ids" {
 
   sensitive = true
 }
+
+# Create destroy.sh file based on variables used in this script
+resource "local_file" "destroy_sh" {
+  filename = "./demo-destroy.sh"
+  content  = <<-EOT
+    aws ecr delete-repository --repository-name ${var.prefix}-dbfeeder-app-repo --force
+    aws ecr delete-repository --repository-name ${var.prefix}-payment-app-repo --force
+    terraform destroy -var="local_architecture=$ARCH" --auto-approve
+  EOT 
+  }
