@@ -190,14 +190,14 @@ resource "aws_security_group" "ecs_sg" {
 # -------------------------------
 
 resource "aws_ecr_repository" "payment_app_repo" {
-  name = "${var.prefix}-payment-app-repo"
+  name = "${var.prefix}-payment-app-repo-${random_id.env_display_id.hex}"
   lifecycle {
     prevent_destroy = false
   }
 }
 
 resource "aws_ecr_repository" "dbfeeder_app_repo" {
-  name = "${var.prefix}-dbfeeder-app-repo"
+  name = "${var.prefix}-dbfeeder-app-repo-${random_id.env_display_id.hex}"
   lifecycle {
     prevent_destroy = false
   }
@@ -324,19 +324,19 @@ resource "aws_iam_role" "ecs_container_role" {
 # ECS Task Definitions and Services for Both Apps
 # -------------------------------
 
-resource "aws_cloudwatch_log_group" "yada" {
-  name = "/ecs/${var.prefix}-db-feeder-task"
+resource "aws_cloudwatch_log_group" "dbfeeder-log-group" {
+  name = "/ecs/db-feeder-task-${random_id.env_display_id.hex}"
 }
 
 resource "aws_cloudwatch_log_group" "payments-task-log-group" {
-  name = "/ecs/${var.prefix}-payments-task"
+  name = "/ecs/payments-task-${random_id.env_display_id.hex}"
 }
 
 
 
 # Task Definition for Payment App
 resource "aws_ecs_task_definition" "payment_app_task" {
-  family                   = "payment-app-task"
+  family                   = "payment-app-task-${random_id.env_display_id.hex}"
   network_mode             = "awsvpc"
   requires_compatibilities = ["FARGATE"]
   execution_role_arn       = aws_iam_role.ecs_task_execution_role.arn
@@ -356,7 +356,7 @@ resource "aws_ecs_task_definition" "payment_app_task" {
       logConfiguration = {
         logDriver = "awslogs"
         options = {
-          awslogs-group         = "/ecs/payments-task"
+          awslogs-group         = aws_cloudwatch_log_group.payments-task-log-group.name
           awslogs-region        = "${var.cloud_region}"
           awslogs-stream-prefix = "ecs"
         }
@@ -374,7 +374,7 @@ resource "aws_ecs_task_definition" "payment_app_task" {
 
 # Task Definition for DB Feeder App
 resource "aws_ecs_task_definition" "dbfeeder_app_task" {
-  family                   = "dbfeeder-app-task"
+  family                   = "dbfeeder-app-task-${random_id.env_display_id.hex}"
   network_mode             = "awsvpc"
   requires_compatibilities = ["FARGATE"]
   execution_role_arn       = aws_iam_role.ecs_task_execution_role.arn
@@ -394,7 +394,7 @@ resource "aws_ecs_task_definition" "dbfeeder_app_task" {
       logConfiguration = {
         logDriver = "awslogs"
         options = {
-          awslogs-group         = "/ecs/db-feeder-task"
+          awslogs-group         = aws_cloudwatch_log_group.dbfeeder-log-group.name
           awslogs-region        = "${var.cloud_region}"
           awslogs-stream-prefix = "ecs"
         }

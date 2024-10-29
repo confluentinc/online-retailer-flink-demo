@@ -37,7 +37,7 @@ resource "aws_db_instance" "postgres_db" {
   engine             = "postgres"
   engine_version     = "16.4"
   instance_class     = "db.t3.medium"
-  identifier         = "${var.prefix}-onlinestoredb"
+  identifier         = "${var.prefix}-onlinestoredb-${random_id.env_display_id.hex}"
   db_name = "onlinestoredb"
   username           = var.db_username
   password           = var.db_password
@@ -49,7 +49,7 @@ resource "aws_db_instance" "postgres_db" {
 
 
 resource "aws_db_parameter_group" "pg_parameter_group" {
-  name   = "${var.prefix}-rds-pg-debezium"
+  name   = "${var.prefix}-rds-pg-debezium-${random_id.env_display_id.hex}"
   family = "postgres16"
 
   parameter {
@@ -114,7 +114,7 @@ resource "null_resource" "create_tables" {
 data "aws_caller_identity" "current" {}
 
 resource "aws_kms_alias" "kms_key_alias" {
-  name          = "alias/${var.prefix}_csfle_key"
+  name          = "alias/${var.prefix}_csfle_key_${random_id.env_display_id.hex}"
   target_key_id = aws_kms_key.kms_key.key_id
 }
 
@@ -122,7 +122,7 @@ resource "aws_kms_key" "kms_key" {
   description    = "An symmetric encryption KMS key used for CSFLE"
   policy = jsonencode({
     Version = "2012-10-17"
-    Id      = "key-default-1"
+    Id      = "key-default-1-${random_id.env_display_id.hex}"
     Statement = [
       {
         Sid    = "Enable IAM User Permissions"

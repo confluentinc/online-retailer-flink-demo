@@ -28,8 +28,8 @@ output "resource-ids" {
 resource "local_file" "destroy_sh" {
   filename = "./demo-destroy.sh"
   content  = <<-EOT
-    aws ecr delete-repository --repository-name ${var.prefix}-dbfeeder-app-repo --force
-    aws ecr delete-repository --repository-name ${var.prefix}-payment-app-repo --force
+    aws ecr delete-repository --repository-name ${aws_ecr_repository.payment_app_repo.name} --force
+    aws ecr delete-repository --repository-name ${aws_ecr_repository.dbfeeder_app_repo.name} --force
     terraform destroy -var="local_architecture=$ARCH" --auto-approve
   EOT 
   }
