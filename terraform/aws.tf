@@ -3,13 +3,9 @@ data "aws_vpc" "default" {
   default = true
 }
 
-data "aws_security_group" "default" {
+resource "aws_security_group" "db_security_group" {
+  name   = "db_sg_${random_id.env_display_id.hex}"
   vpc_id = data.aws_vpc.default.id
-  # The default security group name in the VPC is always 'default'
-  filter {
-    name   = "group-name"
-    values = ["default"]
-  }
 }
 
 #  rule to the default security group
@@ -18,7 +14,7 @@ resource "aws_security_group_rule" "allow_inbound_postgres" {
   from_port         = 5432              
   to_port           = 5432              
   protocol          = "tcp"
-  security_group_id = data.aws_security_group.default.id
+  security_group_id = aws_security_group.db_security_group.id
   cidr_blocks       = ["0.0.0.0/0"]
 }
 
@@ -27,7 +23,7 @@ resource "aws_security_group_rule" "allow_outbound_postgres" {
   from_port         = 5432              
   to_port           = 5432              
   protocol          = "tcp"
-  security_group_id = data.aws_security_group.default.id
+  security_group_id = aws_security_group.db_security_group.id
   cidr_blocks       = ["0.0.0.0/0"]
 }
 
@@ -43,6 +39,7 @@ resource "aws_db_instance" "postgres_db" {
   password           = var.db_password
   publicly_accessible = true
   parameter_group_name = aws_db_parameter_group.pg_parameter_group.name
+  vpc_security_group_ids = [aws_security_group.db_security_group.id]
   apply_immediately    = true
   skip_final_snapshot = true
 }
