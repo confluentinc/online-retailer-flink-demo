@@ -3,13 +3,9 @@ data "aws_vpc" "default" {
   default = true
 }
 
-data "aws_security_group" "default" {
+resource "aws_security_group" "db_security_group" {
+  name   = "db_sg_${random_id.env_display_id.hex}"
   vpc_id = data.aws_vpc.default.id
-  # The default security group name in the VPC is always 'default'
-  filter {
-    name   = "group-name"
-    values = ["default"]
-  }
 }
 
 #  rule to the default security group
@@ -18,7 +14,7 @@ resource "aws_security_group_rule" "allow_inbound_postgres" {
   from_port         = 5432              
   to_port           = 5432              
   protocol          = "tcp"
-  security_group_id = data.aws_security_group.default.id
+  security_group_id = aws_security_group.db_security_group.id
   cidr_blocks       = ["0.0.0.0/0"]
 }
 
@@ -27,7 +23,7 @@ resource "aws_security_group_rule" "allow_outbound_postgres" {
   from_port         = 5432              
   to_port           = 5432              
   protocol          = "tcp"
-  security_group_id = data.aws_security_group.default.id
+  security_group_id = aws_security_group.db_security_group.id
   cidr_blocks       = ["0.0.0.0/0"]
 }
 
@@ -37,19 +33,20 @@ resource "aws_db_instance" "postgres_db" {
   engine             = "postgres"
   engine_version     = "16.4"
   instance_class     = "db.t3.medium"
-  identifier         = "${var.prefix}-onlinestoredb"
+  identifier         = "${var.prefix}-onlinestoredb-${random_id.env_display_id.hex}"
   db_name = "onlinestoredb"
   username           = var.db_username
   password           = var.db_password
   publicly_accessible = true
   parameter_group_name = aws_db_parameter_group.pg_parameter_group.name
+  vpc_security_group_ids = [aws_security_group.db_security_group.id]
   apply_immediately    = true
   skip_final_snapshot = true
 }
 
 
 resource "aws_db_parameter_group" "pg_parameter_group" {
-  name   = "${var.prefix}-rds-pg-debezium"
+  name   = "${var.prefix}-rds-pg-debezium-${random_id.env_display_id.hex}"
   family = "postgres16"
 
   parameter {
@@ -114,7 +111,7 @@ resource "null_resource" "create_tables" {
 data "aws_caller_identity" "current" {}
 
 resource "aws_kms_alias" "kms_key_alias" {
-  name          = "alias/${var.prefix}_csfle_key"
+  name          = "alias/${var.prefix}_csfle_key_${random_id.env_display_id.hex}"
   target_key_id = aws_kms_key.kms_key.key_id
 }
 
@@ -122,7 +119,7 @@ resource "aws_kms_key" "kms_key" {
   description    = "An symmetric encryption KMS key used for CSFLE"
   policy = jsonencode({
     Version = "2012-10-17"
-    Id      = "key-default-1"
+    Id      = "key-default-1-${random_id.env_display_id.hex}"
     Statement = [
       {
         Sid    = "Enable IAM User Permissions"

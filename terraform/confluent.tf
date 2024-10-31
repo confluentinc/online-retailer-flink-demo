@@ -305,21 +305,6 @@ resource "confluent_kafka_topic" "payments-topic" {
 # Schemas
 # ------------------------------------------------------
 
-resource "confluent_tag" "pii_tag" {
-  schema_registry_cluster {
-    id = data.confluent_schema_registry_cluster.sr-cluster.id
-  }
-  rest_endpoint = data.confluent_schema_registry_cluster.sr-cluster.rest_endpoint
-  credentials {
-    key    = confluent_api_key.app-manager-schema-registry-api-key.id
-    secret = confluent_api_key.app-manager-schema-registry-api-key.secret
-  }
-
-  name = "PII"
-  description = "PII tag"
-}
-
-
 resource "confluent_schema" "avro-payments" {
   schema_registry_cluster {
     id = data.confluent_schema_registry_cluster.sr-cluster.id
@@ -348,7 +333,6 @@ resource "confluent_schema" "avro-payments" {
     }
   }
   depends_on = [
-    confluent_tag.pii_tag,
     confluent_role_binding.app-manager-kafka-cluster-admin,
     confluent_schema_registry_kek.aws_key
   ]
@@ -374,7 +358,6 @@ resource "confluent_schema_registry_kek" "aws_key" {
   kms_key_id = aws_kms_key.kms_key.arn
   hard_delete = true
 }
-
 
 
 
