@@ -164,7 +164,7 @@ This data can be made available seamlessly to your Data lake query engines using
    That's it we are now able to query the data in Athena.
 ## Topics
 
-**Next topic:** [Monitoring Data Pipelines](../Usecase4/USECASE4-README.md)
+**Next topic:** [Managing Data Pipelines](../Usecase4/USECASE4-README.md)
 
 **Previous topic:** [Usecase 2 - Product Sales Aggregation](../Usecase2/USECASE2-README.md)
 
