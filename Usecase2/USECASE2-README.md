@@ -35,6 +35,7 @@ In this usecase we will create a new Data Product ```Product_Sales``` by joining
     ```
 
     ```
+    SET 'client.statement-name' = 'products-with-pk-materializer';
     INSERT INTO `products_with_pk`
     SELECT *
     FROM `shiftleft.public.products`;
@@ -62,6 +63,8 @@ In this usecase we will create a new Data Product ```Product_Sales``` by joining
    ```
    Continuously insert the join results into the table
    ```
+    SET 'sql.state-ttl' = '7 DAYS';
+    SET 'client.statement-name' = 'product-sales-materializer';
     INSERT INTO product_sales 
     SELECT 
         o.orderdate,
