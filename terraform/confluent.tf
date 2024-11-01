@@ -125,6 +125,40 @@ resource "confluent_api_key" "app-manager-schema-registry-api-key" {
   ]
 }
 
+data "confluent_flink_region" "demo_flink_region" {
+  cloud   = "AWS"
+  region  = var.cloud_region
+}
+
+
+
+# Flink management API Keys
+
+resource "confluent_api_key" "app-manager-flink-api-key" {
+  display_name = "env-manager-flink-api-key"
+  description  = "Flink API Key that is owned by 'env-manager' service account"
+  owner {
+    id          = confluent_service_account.app-manager.id
+    api_version = confluent_service_account.app-manager.api_version
+    kind        = confluent_service_account.app-manager.kind
+  }
+
+  managed_resource {
+    id          = data.confluent_flink_region.demo_flink_region.id
+    api_version = data.confluent_flink_region.demo_flink_region.api_version
+    kind        = data.confluent_flink_region.demo_flink_region.kind
+
+    environment {
+      id = confluent_environment.staging.id
+    }
+  }
+
+  lifecycle {
+    prevent_destroy = true
+  }
+}
+
+
 
 # ------------------------------------------------------
 # ACLS
