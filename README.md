@@ -41,6 +41,7 @@ We use Terraform to deploy all the necessary resources. The script deploys the f
 ├── Usecase 1                             <-- Directory that holds usecase 1 instructions and screenshots
 ├── Usecase 2                             <-- Directory that holds usecase 2 instructions and screenshots
 ├── Usecase 3                             <-- Directory that holds usecase 3 instructions and screenshots
+├── Usecase 4                             <-- Directory that holds usecase 4 instructions and screenshots
 └── README.md
 ```
 
@@ -86,14 +87,15 @@ chmod +x ./demo-provision.sh
 > Estimated time: 20 minutes
 
 
-In this demo we will implement 3 use cases:
+In this demo we will implement 3 use cases and then at the end visualise everything we have built:
 1. [Usecase 1 - Low inventory stock alerts](./Usecase1/USECASE1-README.md): Use Confluent Cloud for Apache Flink to compute low inventory stocks and use Snowflake Sink Connector to sink the data to Snowflake
 2. [Usecase 2 - Product Sales Aggregation](./Usecase2/USECASE2-README.md): Use Confluent Cloud for Apache Flink to clean and aggrgate Product Sales Data and sink the results to Snowflake
 3. [Usecase 3 - Daily Sales Trends](./Usecase3/USECASE3-README.md): Use Confluent Cloud for Apache Flink for Payment Validation and compute daily sales trends. The results are stored in a topic that has Tableflow enabled - which materializes the topic as Iceberg data. We then use Amazon Athena for further Analysis.
+4. [Usecase 4 - Monitoring Data Pipeines](./Usecase4/USECASE4-README.md): Use Confluent Cloud to gain complete visibility into the entire data pipeline from a unified, single-pane view.
 
-## Next
+## Topics
 
-[Usecase 1: Low inventory stock alerts](./Usecase1/USECASE1-README.md)
+**Next topic:** [Usecase 1: Low inventory stock alerts](./Usecase1/USECASE1-README.md)
 
 ## Clean-up
 Once you are finished with this demo, remember to destroy the resources you created, to avoid incurring in charges. You can always spin it up again anytime you want.
