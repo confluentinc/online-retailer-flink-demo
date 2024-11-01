@@ -90,7 +90,7 @@
 
 18. Choose:
     * ```AVRO``` as **Input Kafka record value format**.
-    *  ```SNOWPIPE_STREMAING``` as **Snowflake Connection**.\
+    *  ```SNOWPIPE_STREMAING``` as **Snowflake Connection**.
     *  Set **Enable Schemitization** to `True`. Doing this will allow the connector to infer schema from Schema registry and write the data to Snowflake with the correct schema. 
     *  Then follow the the wizard to create the connector.
   
