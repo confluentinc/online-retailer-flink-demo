@@ -87,17 +87,16 @@ We have a separate topic for payment information, an order is considered complet
    ```
 2. Enrich the payment data by joining it with customer and order information. This will provide a complete view of each transaction:
    ```
+   SET 'client.statement-name' = 'completed-orders-materializer';
    INSERT INTO completed_orders
     SELECT 
         pymt.order_id,
         pymt.amount, 
         pymt.confirmation_code, 
         pymt.ts
-        
-    FROM 
-        payments pymt
-    JOIN 
-        `shiftleft.public.orders` ord ON pymt.order_id = ord.orderid
+    FROM payments pymt, `shiftleft.public.orders` ord 
+    WHERE pymt.order_id = ord.orderid
+    AND orderdate BETWEEN pymt.ts - INTERVAL '96' HOUR AND pymt.ts;
    ```
 
 3. Create a ```revenue_summary``` table. This table will hold aggregated revenue data, helping to track and visualize sales over specific time intervals:
@@ -114,6 +113,7 @@ We have a separate topic for payment information, an order is considered complet
    >Note: The 5-second window is done for demo puposes you can change to the interval to 1 HOUR.
 
     ```
+    SET 'client.statement-name' = 'revenue-summary-materializer';
     INSERT INTO revenue_summary
     SELECT 
         window_start, 
@@ -121,7 +121,7 @@ We have a separate topic for payment information, an order is considered complet
         SUM(amount) AS total_revenue
     FROM 
         TABLE(
-            TUMBLE(TABLE completed_orders, DESCRIPTOR($rowtime), INTERVAL '5' SECONDS)
+            TUMBLE(TABLE completed_orders, DESCRIPTOR(`ts`), INTERVAL '5' SECONDS)
         )
     GROUP BY 
         window_start, 
