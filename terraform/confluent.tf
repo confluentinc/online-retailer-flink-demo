@@ -250,13 +250,15 @@ resource "confluent_connector" "postgre-sql-cdc-source" {
     "database.server.name"     = local.database_server_name
     "topic.prefix"             = var.prefix
     "after.state.only"         = "true"
-    "plugin.name"              = "pgoutput",
-    "output.data.format"       = "AVRO",
+    "plugin.name"              = "pgoutput"
+    "output.data.format"       = "AVRO"
+    "output.key.format"        = "AVRO"
     "tasks.max"                = "1"
     "transforms"               = "transform_0"
     "transforms.transform_0.type"= "org.apache.kafka.connect.transforms.MaskField$Value"
     "transforms.transform_0.fields"= "email"
     "transforms.transform_0.replacement"= "****"
+    "time.precision.mode" = "connect"
     "csfle.configs.visible"    = "false"
   }
 

@@ -24,6 +24,10 @@ output "resource-ids" {
   sensitive = true
 }
 
+output "ecs-service-restart-command" {
+  value = "aws ecs update-service --cluster ${aws_ecs_cluster.ecs_cluster.name} --service payment-app-service --force-new-deployment"
+}
+
 # Create destroy.sh file based on variables used in this script
 resource "local_file" "destroy_sh" {
   filename = "./demo-destroy.sh"
