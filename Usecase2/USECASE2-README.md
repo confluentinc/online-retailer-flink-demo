@@ -95,6 +95,7 @@ In this usecase we will create a new Data Product ```Product_Sales``` by joining
     ```
      ![Snowflake Results](./assets/usecase2_sf_res.png)
 
-## Next
+## Topics
 
-[Usecase 3 - Daily Sales Trends](../Usecase3/USECASE3-README.md)
+**Next topic:**[Usecase 3 - Daily Sales Trends](../Usecase3/USECASE3-README.md)
+**Previous topic:**[Usecase 1: Low inventory stock alerts](./Usecase1/USECASE1-README.md)
