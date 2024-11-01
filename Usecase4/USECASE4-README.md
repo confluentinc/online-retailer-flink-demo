@@ -20,9 +20,9 @@ Now let's see how these long-running data pipelines can be monitored. First let'
 
 ### CI/CD for Flink Statements
 
-So far we used Flink UI to create and manage long-running Flink statements. In reality, these statements are managed in Git repository that is version controlled. In Confluent, you can manage Flink statements using Terraform. In this section will go through a quick example.
+Up to this point, we’ve been using the Flink UI to create and manage long-running Flink statements. In practice, however, these statements are maintained in a version-controlled Git repository. With Confluent, Flink statements can also be managed through Terraform. In this section, we’ll walk through a quick example.
 
-> NOTE: The previous terraform script should have created a ```terraform.tfvars``` file for this tutorial
+> NOTE: The previous [parent] terraform script should have created a ```terraform.tfvars``` file for this tutorial
 
 1. Change directory to ```flink_terraform```
    ```
