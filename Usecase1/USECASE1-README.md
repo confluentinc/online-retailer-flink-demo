@@ -82,12 +82,13 @@
     4.  **Snowflake role**: `ACCOUNTADMIN`
     5.  **Database name**: ```PRODUCTION```
     6.  **Schema name**: ```PUBLIC```
+    
     ![Snowflake Connection Details](./assets/usecase1_sf.png)
 
     >**NOTE: It's not recommended to use ACCOUNTADMIN role for data ingestion. We are using it here for demo purposes only.**
 
 
-17. Choose:
+18. Choose:
     * ```AVRO``` as **Input Kafka record value format**.
     *  ```SNOWPIPE_STREMAING``` as **Snowflake Connection**.\
     *  Set **Enable Schemitization** to `True`. Doing this will allow the connector to infer schema from Schema registry and write the data to Snowflake with the correct schema. 
