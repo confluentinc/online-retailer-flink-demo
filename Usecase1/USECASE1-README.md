@@ -102,7 +102,11 @@
     ```
     ![Snowflake Results](./assets/usecase1_sf_res.png)
 
-## Next
+## Topics
 
-[Usecase 2 - Product Sales Aggregation](../Usecase2/USECASE2-README.md)
+**Next topic:** [Usecase 2 - Product Sales Aggregation](../Usecase2/USECASE2-README.md)
+
+**Previous topic:** [Demo Introduction and Setup](../README.md)
+
+
 
