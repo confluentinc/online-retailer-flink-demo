@@ -152,10 +152,6 @@ resource "confluent_api_key" "app-manager-flink-api-key" {
       id = confluent_environment.staging.id
     }
   }
-
-  lifecycle {
-    prevent_destroy = true
-  }
 }
 
 
