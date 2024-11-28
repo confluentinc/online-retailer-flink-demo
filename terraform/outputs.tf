@@ -25,7 +25,6 @@ output "resource-ids" {
   KMS Key ARN: ${aws_kms_key.kms_key.arn}
 
   PrivateKey: ${local.private_key_no_headers}
-  PublicKey: ${local.public_key_no_headers}
 
   EOT
 
@@ -34,6 +33,10 @@ output "resource-ids" {
 
 output "ecs-service-restart-command" {
   value = "aws ecs update-service --cluster ${aws_ecs_cluster.ecs_cluster.name} --service payment-app-service --force-new-deployment"
+}
+
+output "redshift-output" {
+  value = var.data_warehouse == "redshift" ? module.redshift[0].dwh-output : null
 }
 
 # Create destroy.sh file based on variables used in this script
