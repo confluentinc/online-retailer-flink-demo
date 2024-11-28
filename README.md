@@ -29,7 +29,7 @@ You can choose to deploy the demo with with either Snowflake or Amazon Redshift.
 ├── Code                                  <-- Directory that holds demo code and dockerfile
 │   ├── payments-app                      <-- Payments App code and dockerfile
 │   ├── postgres-data-feeder              <-- DB Feeder code and dockerfile
-├── terraform                             <-- Directort that holds terraform scripts required for the demo 
+├── terraform                             <-- Directory that holds terraform scripts
 ├── Usecase 1                             <-- Directory that holds usecase 1 instructions and screenshots
 ├── Usecase 2                             <-- Directory that holds usecase 2 instructions and screenshots
 ├── Usecase 3                             <-- Directory that holds usecase 3 instructions and screenshots
@@ -97,14 +97,12 @@ chmod +x ./demo-provision.sh
    
 5. Update the ```providers.tf``` file and Uncomment the following blocks at the end of the file:
    ```
-
    provider "snowflake" {
    alias = "snowflake"
    account  = var.data_warehouse == "snowflake" ? var.snowflake_account : "na"
    user     = var.data_warehouse == "snowflake" ? var.snowflake_username : "na"
    password = var.data_warehouse == "snowflake" ? var.snowflake_password : "na"
    }
-
 
    module "snowflake" {
    source = "./modules/snowflake"
@@ -116,6 +114,7 @@ chmod +x ./demo-provision.sh
    snowflake_account  = var.snowflake_account
    snowflake_username = var.snowflake_username
    snowflake_password = var.snowflake_password
+   public_key_no_headers = local.public_key_no_headers
    }
    ```
 6. Run the following script to provision demo infrastructure
