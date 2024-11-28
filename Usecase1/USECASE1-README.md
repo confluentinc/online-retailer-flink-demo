@@ -102,7 +102,7 @@ We will sink data to Amazon Redshift using the Confluent Cloud Redshift Sink Con
   
 6.  In the [Amazon Redshift Query V2 Editor page](console.aws.amazon.com/sqlworkbench/home), select the Cluster and enter the connection parameters to establish a connection with the database.
    
-    ![Redshif Query Editor](./assets/usecase1_rs_editorconfig.png)
+    ![Redshift Query Editor](./assets/usecase1_rs_editorconfig.png)
    
 7.   Run the follwing SQL Statement to preview the new table.
         > Note: The connector will take less than a minute to run, **but the data will be available for querying in Snowflake after 3-5 minutes.**
@@ -113,6 +113,8 @@ We will sink data to Amazon Redshift using the Confluent Cloud Redshift Sink Con
             FROM
                 "mydb"."public"."low_stock_alerts";
         ```
+
+        ![Redshift Results](./assets/usecase1_rs_res.png)
 
 </details>
 
