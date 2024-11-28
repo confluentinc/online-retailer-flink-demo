@@ -27,8 +27,7 @@ In this usecase we will create a new Data Product ```Product_Sales``` by joining
         `description` VARCHAR(2147483647),
         `color` VARCHAR(2147483647),
         `size` VARCHAR(2147483647),
-        `price` DECIMAL(10, 2) NOT NULL,
-        `stock` INT NOT NULL,
+        `price` INT NOT NULL,
         `__deleted` VARCHAR(2147483647),
         PRIMARY KEY (`productid`) NOT ENFORCED
     );
@@ -37,7 +36,15 @@ In this usecase we will create a new Data Product ```Product_Sales``` by joining
     ```
     SET 'client.statement-name' = 'products-with-pk-materializer';
     INSERT INTO `products_with_pk`
-    SELECT *
+    SELECT  `productid`,
+        `brand`,
+        `productname`,
+        `category`,
+        `description`,
+        `color`,
+        `size`,
+        CAST(price AS INT) AS price,
+        `__deleted`
     FROM `shiftleft.public.products`;
     ```
 
@@ -56,9 +63,9 @@ In this usecase we will create a new Data Product ```Product_Sales``` by joining
         orderitemid INT,
         brand STRING,
         productname STRING,
-        price DECIMAL(10, 2),
+        price INT,
         quantity INT,
-        total_amount DECIMAL(10, 2)
+        total_amount INT
     );
    ```
    Continuously insert the join results into the table
@@ -89,15 +96,39 @@ In this usecase we will create a new Data Product ```Product_Sales``` by joining
    ```
     The join uses the ```FOR SYSTEM_TIME AS OF``` keyword, making it a temporal join. Temporal joins are more efficient than regular joins because they use the time-based nature of the data, enriching each order with product information available at the order's creation time. If product details change later, the join result remains unchanged, reflecting the original order context. Additionally, temporal joins are preferable as regular joins would require Flink to keep the state indefinitely.
 
-5. Now let's sink the new data product to Snowflake. Update the same Connector and add the new topic `product_sales`.
+5. Now let's sink the new data product to our data warehourse. Update the same Connector and add the new topic `product_sales`. Here is an example of the Snoflake connector, do the same if you are using Redshift
    
    ![Update Snowflake Conector](./assets/usecase2_sf.png)
 
-6. In Snowflake UI, go to Worksheets and run the follwing SQL Statement to preview the new table.
+
+<details>
+<summary>Query from Redshift</summary>
+
+1. In the [Amazon Redshift Query V2 Editor page](console.aws.amazon.com/sqlworkbench/home), run the follwing SQL Statement to preview the new table.
+    ```
+    
+    SELECT
+        *
+    FROM
+        "mydb"."public"."PRODUCT_SALES";
+
+    ```
+     ![Redshift Results](./assets/usecase2_rs_res.png)
+
+</details>
+
+
+
+<details>
+<summary>Query from Snowflake </summary>
+
+1. In Snowflake UI, go to Worksheets and run the follwing SQL Statement to preview the new table.
     ```
     SELECT * FROM PRODUCTION.PUBLIC.PRODUCT_SALES
     ```
      ![Snowflake Results](./assets/usecase2_sf_res.png)
+
+</details>
 
 ## Topics
 
