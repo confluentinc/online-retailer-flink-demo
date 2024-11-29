@@ -96,7 +96,7 @@ In this usecase we will create a new Data Product ```Product_Sales``` by joining
    ```
     The join uses the ```FOR SYSTEM_TIME AS OF``` keyword, making it a temporal join. Temporal joins are more efficient than regular joins because they use the time-based nature of the data, enriching each order with product information available at the order's creation time. If product details change later, the join result remains unchanged, reflecting the original order context. Additionally, temporal joins are preferable as regular joins would require Flink to keep the state indefinitely.
 
-5. Now let's sink the new data product to our data warehourse. Update the same Connector and add the new topic `product_sales`. Here is an example of the Snoflake connector, do the same if you are using Redshift
+5. Now let's sink the new data product to our data warehourse. Update the same Connector and add the new topic `product_sales`. Here is an example of the Snoflake connector, do the same if you are using Redshift. After adding the topic, click **Save changes** then **Apply changes**.
    
    ![Update Snowflake Conector](./assets/usecase2_sf.png)
 
