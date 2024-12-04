@@ -39,17 +39,32 @@ variable "confluent_cloud_api_secret"{
     type        = string     
 }
 
-variable "snowflake_account"{
-    description = "Snowflake Account Name"
-    type        = string   
+variable "data_warehouse" {
+  description = "Type of data warehouse to use (either 'redshift' or 'snowflake')"
+  type        = string
+  default     = "redshift"
+  validation {
+    condition     = contains(["redshift", "snowflake"], var.data_warehouse)
+    error_message = "The data_warehouse variable must be either 'redshift' or 'snowflake'."
+  }
 }
-variable "snowflake_username"{
-    description = "Snowflake Account username"
-    type        = string   
+
+variable "snowflake_account" {
+  description = "Snowflake account identifier"
+  type        = string
+  default     = "redshift_selected"
 }
-variable "snowflake_password"{
-    description = "Snowflake Account pasword"
-    type        = string   
+
+variable "snowflake_username" {
+  description = "Snowflake username"
+  type        = string
+  default     = ""
+}
+
+variable "snowflake_password" {
+  description = "Snowflake password"
+  type        = string
+  default     = ""
 }
 
 variable "local_architecture" {
