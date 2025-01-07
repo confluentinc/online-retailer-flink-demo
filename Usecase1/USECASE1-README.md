@@ -86,7 +86,7 @@ We will sink data to Amazon Redshift using the Confluent Cloud Redshift Sink Con
                 shiftleft-app-manager-d217a8e3's Kafka API Secret:  "rn7Y392xM49c******"
         ```
 4.  Enter Redshift details
-    1.  **AWS Redshift Domian**: Get it by running ```terraform output redshift-output``
+    1.  **AWS Redshift Domian**: Get it by running ```terraform output redshift-output```
     2.  **Connection user**: ```admin```
     3.  **Connection password**: ```Admin123456!```
     4.  **Database name**: ```mydb```
