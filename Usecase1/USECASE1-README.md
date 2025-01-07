@@ -101,7 +101,7 @@ We will sink data to Amazon Redshift using the Confluent Cloud Redshift Sink Con
     *  Set **Auto create table** to `True`.
     *  Then follow the the wizard to create the connector.
   
-6.  In the [Amazon Redshift Query V2 Editor page](console.aws.amazon.com/sqlworkbench/home), select the Cluster and enter the connection parameters to establish a connection with the database.
+6.  In the [Amazon Redshift Query V2 Editor page](https://console.aws.amazon.com/sqlworkbench/home), select the Cluster and enter the connection parameters to establish a connection with the database.
    
     ![Redshift Query Editor](./assets/usecase1_rs_editorconfig.png)
    
