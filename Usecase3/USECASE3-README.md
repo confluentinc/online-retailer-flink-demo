@@ -53,11 +53,11 @@ This field should be encrypted, the Symmetric Key was already created by the Ter
    * Category: Data Encryption Rule
    * Rule name: `Encrypt_PII`
    * Encrypt fields with: `PII`
-   * using: The key added by Terraform
+   * using: The key added by Terraform (probably called CSFLE_Key)
   
     Then click **Add** and **Save**
 
-    Here what we basically did is that we said, ecrypt any field in this topic that is tagged as PII
+    Our rule instructs the serailizer to ecrypt any field in this topic that is tagged as PII
 
     ![CSFLE Rule](./assets/usecase3_rule.png)
 4. Restart the ECS Service for the changes to take effect immediately. Run ```terraform output``` to get the ECS command that should be used to restart the service. The command should look like this:
