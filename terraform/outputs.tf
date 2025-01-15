@@ -32,7 +32,7 @@ output "resource-ids" {
 }
 
 output "ecs-service-restart-command" {
-  value = "aws ecs update-service --cluster ${aws_ecs_cluster.ecs_cluster.name} --service payment-app-service --force-new-deployment"
+  value = "aws ecs update-service --cluster ${aws_ecs_cluster.ecs_cluster.name} --service payment-app-service --force-new-deployment --region ${var.cloud_region}"
 }
 
 output "redshift-output" {
