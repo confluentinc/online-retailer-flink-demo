@@ -35,10 +35,6 @@ The rules were already created by Terraform, there is no need to do anything her
 
 ##### **Data Protection using Confluent Cloud Client Side Field Level Encryption**
 
->**REMOVE THIS BEFORE MOVING TO A PUBLIC REPO** 
->
->NOTE: Currently Flink and Tableflow do not support topics that contain encrypted fields in them. **DO NOT DEMO THIS SECTION, UNTIL FLINK ADDS PASSTHROUGH SUPPORT TO TOPICS WITH ENCRYPTED FIELDS - ETA Q4 2024**
-
 [Client Side Field Level Encryption(CSFLE)](https://docs.confluent.io/cloud/current/security/encrypt/csfle/client-side.html) in Confluent Cloud works by setting the rules in Confluent Schema registry, these rules are then pushed to the clients, where they are enforced. The symmetric key is created in providor and the client should have necessary permissi the providor and the client should have permission to use the key to encrypt the data.
 
 1. In the `payments` topic we notice that, the topic contains credit card information in unencrypted form.
@@ -135,10 +131,6 @@ We have a separate topic for payment information, an order is considered complet
     ```
 
 #### **Data Lake Integration using Confluent Cloud Tableflow and Amazon Athena**
-
->**REMOVE THIS BEFORE MOVING TO A PUBLIC REPO** 
->
->NOTE: To complete this part Tableflow needs to be enabled on the cluster. Please reachout to the Tableflow PM to enable it on the cluster created by this Terraform script.
 
 This data can be made available seamlessly to your Data lake query engines using Confluent Cloud Tableflow feature. When Tableflow is enabled on the cluster, all topics in the cluster are materialized as Iceberg Tables and are available for any Query engine. In this demo, we use Amazon Athena, you can use any Engine that supports Iceberg Rest Catalog.
 
