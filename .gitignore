@@ -1,0 +1,7 @@
+terraform/terraform.tfstate
+terraform/terraform.tfstate.backup
+terraform/.terraform/
+code/payments-app/target/
+code/postgresql-data-feeder/target/
+terraform/demo-destroy.sh
+terraform/.terraform.lock.hcl
