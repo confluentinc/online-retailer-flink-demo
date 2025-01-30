@@ -9,6 +9,7 @@ import org.apache.kafka.common.serialization.StringSerializer;
 import org.apache.log4j.Logger;
 
 import java.util.Properties;
+import java.util.Random;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -46,6 +47,7 @@ public class ProducerApp implements Runnable {
     @Override
     public void run() {
         topic = "payments";
+        Random random = new Random();
         try (Producer<String, Object> producer = new KafkaProducer<>(props)) {
             int counter = 0;
             // boolean exit = false;
@@ -73,7 +75,20 @@ public class ProducerApp implements Runnable {
                         }
                     }).get();
                     System.out.println(sales);
-
+                    
+                    // 10% of the time generate a duplicate
+                    if (random.nextInt(10) == 0) {     
+                        producer.send(record, new Callback() {
+                            public void onCompletion(RecordMetadata metadata, Exception e) {
+                                if(e != null) {
+                                    e.printStackTrace();
+                                } else {
+                                    System.out.println("The offset of the order record we just sent is: " + metadata.offset());
+                                }
+                            }
+                        }).get(); 
+                        System.out.println("Duplicate sale event produced " + sales);
+                    }       
                     
                     counter++;
                     
