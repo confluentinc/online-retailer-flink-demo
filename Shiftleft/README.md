@@ -1,163 +1,187 @@
-## Shift Left End to End Narrative
-In this specific demo use case we will be walking through an end-to-end example of what shifting left data curation and quality to optimize the value of your data lake, wharehouse, or lake house while also getting benefits in operational systems.  This walk through does not depend on use cases 1-4 and is intended to be a self contained narrative.
+## Shift Left End to End Demonstration
+
+This is an end-to-end demo walkthrough of shift left where we will be curating and enforcing data quality prior to it landing in downstream analytical technologies like lakehouses while also getting benefits in operational systems. This walk through does not depend on use cases 1-4 and is intended to be a self contained narrative.
 
 ### Scenario
 
-The scenario is of a retailer moving from a legacy commerce system based on postgres.  Ultimately they are moving to an event driven architectural with MongoDB as the operational database but have already started building new customer experiencs on top of MongoDB.
+The scenario is of a retailer moving from a legacy commerce system based on Postgres to an event driven architectural with MongoDB as the operational database.  They have already started building new customer experiencs on top of MongoDB.
 
-Their entire stack is deployed on AWS and the analytics and AI team is making heavy use of Redshift on in AWS and the data science team is using Redshift.
+Their entire stack is deployed on AWS and the analytics and AI team is making heavy use of Redshift.
 
 They are facing  the following problems
 
-- Duplicate records are landing in redshift from orders and payments
+- Duplicate records are landing in redshift
   - This is causing inaccurate reports and needs to be fixed
-- They are also seeing bad orders in redshift.
-  - This isn’t causing any problems with the commerce site since they know how to handle default based on operational conditions
+- They are also seeing bad payments data with seemingly invalid field values in redshift.
+  - This isn’t causing any problems with the commerce site since they know how to handle defaults based on operational conditions
 - PII needs to be protected and properly encrypted so only appropriate personnel and processes can access it
   - Within in the domain PII protection is happening but in order to share it with other analytics team it needs to be encrypted
 - All these issue present the same problems for other potential consumers as well
   - A new machine learning model that acts in real-time for next best offer
   - Their new customer experience based on MongoDB
-  - New fullfillment process that wants to be able to send goods directly from stores depending on a given scenario
+  - New fulfillment process that wants to be able to send goods directly from stores depending on a given scenario
 - Each consumer could try and fix these problems separately but yeah... this is a bad idea
 
 The following sources are coming into Confluent Cloud
 
 ![Sources](./assets/shiftleft_sources.png)
 
-- E-commerce site backed by postgres
-- Customers,  products, orders coming from connectors
+- E-commerce site backed by Postgres
+	- customers, products, orders, order item table data is captured through an off the shelf CDC (change data capture) connector.  
 - Separately a payment processing service is emitting payment events upon successful completion of payments
 
 ### Walkthrough
 
-1. The data coming from postgres is raw normalized table data.  In isolation the Order stream means nothing so anyone who wants to use this data would need to understand the schema and join it together themselves.  Lets use Flink to make a sensical Order data product so this only needs to be done one time.
+1.  First lets take a look at the raw order data as it lands in Confluent kafka topics from the CDC connector.  Any data in Confluent cloud topics with a schema is automatically visible and usable from Flink and vice versa so we will start there.
 
-   First lets take a look what the raw order data looks like
 
-   ```
-   SELECT * FROM `shiftleft.public.orders`
-   ```
-   
-   Clearly we need to join this with order items, products, and customers to have a complete picture of what a given order represents.
-
-   We see there is an ```orderdate``` field and rather than using wall clock time we want to use event time for the flink table, enabling Flink to use it for accurate time-based processing and watermarking:
+    The data coming from Postgres is raw normalized table data.  In isolation, this raw orderstream doesn't mean much so every consumer who wants to use this data would need to understand the schema and join it with the other tables to make sense of it. Lets use Flink to make a enriched data product so this only needs to be done one time.
 
     ```
+    SELECT * FROM `shiftleft.public.orders`
+    ```  
+   
+   
+    We need to join this with **order items**, **products**, and **customers** to have a complete picture of what a given order represents.
+
+1.  As opposed to static snapshots in time, when joining streams of data you need to consider the temporal aspect and [tell Flink how to interpret the time of record](https://docs.confluent.io/cloud/current/flink/concepts/timely-stream-processing.html).  By default Confluent Cloud's Flink will use the Kafka record time but we want it to use the ```orderdate``` field which is when the order actually occurred in the source system.  We set that with the following SQL 
+
+    ```SQL
     ALTER TABLE `<CONFLUENT_ENVIRONEMNT_NAME>`.`<CONFLUENT_CLUSTER_NAME>`.`shiftleft.public.orders` MODIFY WATERMARK FOR `orderdate` AS `orderdate`;
     ```
 
-   To perform a temporal join with ```products``` table, the ```products``` table needs to have a ```PRIMARY KEY```. Which is not defined at the moment. Create a new table that has the same schema as ```products``` table but with a PRIMARY KEY constraint
+1.  To perform the join with the ```products``` stream [using the version of the product at the specific time of the order](https://docs.confluent.io/cloud/current/flink/reference/queries/joins.html#temporal-joins) we need to define a ```PRIMARY KEY```.  Lets create a new table that has a similar schema as ```products``` table but with a ```PRIMARY KEY``` constraint
 
-    ```
+    ```sql
     CREATE TABLE `products_with_pk` (
-        `productid` INT NOT NULL,
-        `brand` VARCHAR(2147483647) NOT NULL,
-        `productname` VARCHAR(2147483647) NOT NULL,
-        `category` VARCHAR(2147483647) NOT NULL,
-        `description` VARCHAR(2147483647),
-        `color` VARCHAR(2147483647),
-        `size` VARCHAR(2147483647),
-        `price` INT NOT NULL,
-        `__deleted` VARCHAR(2147483647),
-        PRIMARY KEY (`productid`) NOT ENFORCED
+	   `productid` INT NOT NULL,
+	   `brand` VARCHAR(2147483647) NOT NULL,
+	   `productname` VARCHAR(2147483647) NOT NULL,
+	   `category` VARCHAR(2147483647) NOT NULL,
+	   `description` VARCHAR(2147483647),
+	   `color` VARCHAR(2147483647),
+	   `size` VARCHAR(2147483647),
+	   `price` INT NOT NULL,
+	   `__deleted` VARCHAR(2147483647),
+	   PRIMARY KEY (`productid`) NOT ENFORCED
     );
     ```
 
-    ```
+    We will run a Flink statement to populate this new table with the primary key from the original product stream.
+
+    ```sql
     SET 'client.statement-name' = 'products-with-pk-materializer';
     INSERT INTO `products_with_pk`
-    SELECT  `productid`,
-        `brand`,
-        `productname`,
-        `category`,
-        `description`,
-        `color`,
-        `size`,
-        CAST(price AS INT) AS price,
-        `__deleted`
-    FROM `shiftleft.public.products`;
+      SELECT  
+        `productid`,
+	     `brand`,
+	     `productname`,
+	     `category`,
+	     `description`,
+	     `color`,
+	     `size`,
+	     CAST(price AS INT) AS price,
+	     `__deleted`
+      FROM `shiftleft.public.products`;
     ```
-    
-    Ok lets now create a target Flink table produce the joined output of these 4 streams
 
-    ```
+1.  Ok lets now create a target Flink table produce the joined output of these 4 streams
+    
+    ```sql
     CREATE TABLE orders (
-        orderdate TIMESTAMP_LTZ(3) NOT NULL,
-        orderid INT NOT NULL,
-        customername STRING NOT NULL,
-        customerid INT NOT NULL,
-        productid INT NOT NULL,
-        orderitemid INT NOT NULL,
-        brand STRING NOT NULL,
-        productname STRING NOT NULL,
-        price INT NOT NULL,
-        quantity INT NOT NULL,
-        total_amount INT NOT NULL
+	   orderdate TIMESTAMP_LTZ(3) NOT NULL,
+	   orderid INT NOT NULL,
+	   customername STRING NOT NULL,
+	   customerid INT NOT NULL,
+	   productid INT NOT NULL,
+	   orderitemid INT NOT NULL,
+	   brand STRING NOT NULL,
+	   productname STRING NOT NULL,
+	   price INT NOT NULL,
+	   quantity INT NOT NULL,
+	   total_amount INT NOT NULL
     );
     ```
 
-    ```
+    ```sql
     SET 'sql.state-ttl' = '7 DAYS';
     SET 'client.statement-name' = 'dp-orders-materializer';
     INSERT INTO orders 
     SELECT 
-        o.orderdate,
-        o.orderid,
-        cu.customername,
-        cu.customerid,
-        p.productid,
-        oi.orderitemid,
-        p.brand,
-        p.productname,
-        p.price, 
-        oi.quantity, 
-        oi.quantity * p.price AS total_amount 
+	   o.orderdate,
+	   o.orderid,
+	   cu.customername,
+	   cu.customerid,
+	   p.productid,
+	   oi.orderitemid,
+	   p.brand,
+	   p.productname,
+	   p.price, 
+	   oi.quantity, 
+	   oi.quantity * p.price AS total_amount 
     FROM 
-        `shiftleft.public.orders` o
+	   `shiftleft.public.orders` o
     JOIN 
-        `shiftleft.public.order_items` oi ON oi.orderid = o.orderid
+	   `shiftleft.public.order_items` oi ON oi.orderid = o.orderid
     JOIN 
-        `shiftleft.public.customers` cu ON o.customerid= cu.customerid
+	   `shiftleft.public.customers` cu ON o.customerid= cu.customerid
     JOIN 
-        `products_with_pk` FOR SYSTEM_TIME AS OF o.orderdate AS p ON p.productid = oi.productid
+	   `products_with_pk` FOR SYSTEM_TIME AS OF o.orderdate AS p ON p.productid = oi.productid
     WHERE 
-        p.productname <> '' 
-        AND p.price > 0;
-     ```
+	   p.productname <> '' 
+	   AND p.price > 0;
+    ```
+    
+1.  We now have a new orders table that is properly joind and enirched.  But if someone is looking for the correct orders data set how do they know which of the topics with "orders" in it is the right one?  To make this a data product we need to apply metadata and should ensure that it has a data contract that both describes (and enforces) schema and field data formatting.
 
-2. We now have a new orders table that is properly joind and enirched.  But if someone is looking for the correct orders data set how do they know which of the topics with "orders" in it is the right one?  To make this a data product we need to apply metadata and should ensure that it has a data contract that both describes (and enforces) schema and field data formatting.
-   1. Navigate to the orders topic.
-   2. Add a  `Description`, `DataProduct`, and `Owner`
-   3. No doubt you would have some business metadata dictated by a governance team but we will skip for excpediancey
-   4.  Lets take a look at the `Data contracts`.  We have a schema, and the data contract itself does not have metadata associated with it.  In practice you would probaly want to embed the metadata I just manually added in the UI which goes into the streaming catalog into the data contract so it too is under soruce control and is a material asset that can be viewed in a wholistic data contract.  
-   5.  Under `Rules` we don't have any but in practice for a data contract you would want to try and have a rich set of rules to ensure bad data does not end up in the data product AND the consumer understands exactly what they will be getting.  We will demonstrate and example with `payments`.
-   5. Go back to the data portal and you can see that it shows up as a `DataProduct`
-3. Lets go examine the `payments` topic in the kafka cluster.
-   1. Recall that in some cases it has been discovered that a payment goes through that does not have a confirmation code.  If our business rule is that a payment is not considered to be a valid record outside of the domain without a valid confirmation then we should have a rule in the contract that handles this.  
-   2. Go to `Data contract` and then click on the `Rules` tab.   You can see we aready have a rule to do this.
-   3. Click on the `validateConfimrationCode`  You can see that rules stipulates that the field must exsit and be an 8 character long uppercase alphanumeric sequence.  If this is not the case the payment record will be dropped but written to a DLQ topic of error-payments.
-   4. Examine the `error-payments`. You can see that messages in here are bad and have a `confirmation_code` of `0`.  More bad data we have stopped from landing in consumers
-4. The other issues that `payments` had is that we sometimes have duplicates that are being emitted.  Lets demonstrate this to be the case.  lets go back to our Flink noteback and run the following
-   ```
-   SELECT * FROM 
-     ( SELECT order_id, amount, count(*) total 
-       FROM `payments`
-       GROUP BY order_id, amount )
-    WHERE total > 1;
-   ```
-   So lets dedupe this stream so that consumers don't get these.  Go back to the data portal and click on the payments topic.  You will see there is a button called **Actions**
+    Navigate to the `orders` topic through the ***Data portal*** and click `Manage topic`.
 
-   ![Actions](./assets/shiftleft_actions.png)
+    ![ManageOrdersTopic](./assets/shiftleft_orders_manage_topic.png)
 
-   Click on this and chose the **Deduplicate topic**.  Under **Fields to deduplicate** select `order_id`, `product_id`, and `amount`. Once you launch this ation behind the scenes it will generate and execute a flink statement.  In fact we can see what this looks like by scrolling to the buttom and selcting the **Show SQL** switch.  Naturally for a production system you would use sql that was checked into source control and use CI/CD etc. rather than launched an action from a production cluster for developing actions can be handy for giving you a starting point.  Click the **Confirm and run** button.
+    Add the tag `DataProduct`.  Since we don't have any DataProducts yet it will prompt you to create it.  Optionally you can give it a description and an owner.  You could also define and add arbitrary ***business metadata***
 
-   If we now go back to Flink we can run the same query against the new topic ``payments_deduplicate``
+    Lets take a look at the `Data contracts`.  We have a schema, and the data contract itself does not have metadata associated with it.  In practice you would probaly want to embed the metadata we just manually added in the UI into the data contract directly and place it all under source control.
+    
+    Under `Rules` we currently don't have any but in practice for a data contract you would want to try and have a rich set of rules to ensure bad data does not end up in the data product AND the consumer understands exactly what they will be getting.  We will demonstrate an example with the `payments` data.
+   
+    Go back to the data portal and you can see that it shows up as a `DataProduct`
+
+1.  Lets go examine the `payments` topic in the kafka cluster. Recall that in some cases it has been discovered that a payment goes through but when it lands in Redshift it has an invalid confirmation code.  If our business rule is that a payment is not considered to be a valid record outside of the domain without a valid confirmation then we should have a rule in the contract that enforces this.
+
+    Go to `Data contract` and then click on the `Rules` tab.  You can see we aready have a rule to do this.
+   
+    Click on the `validateConfimrationCode`  You can see that rules stipulates that the field must exsit and be an 8 character long uppercase alphanumeric sequence.  If this is not the case the payment record will be dropped but written to a DLQ topic of error-payments.
+
+    ![ValidateConfirmationCode](./assets/shiftleft_validation.png)
+    
+    Examine the `error-payments`. You can see that messages in here are bad and have a `confirmation_code` of `0`.  More bad data we have stopped from landing in consumers
+
+    ![ErrorPayments](./assets/shiftleft_error_payments.png)
+
+1.  The other issue with `payments` is that we sometimes have duplicates that are being emitted.  Lets demonstrate this to be the case.  lets go back to our Flink noteback and run the following
+
+    ```sql
+    SELECT * FROM 
+      ( SELECT order_id, amount, count(*) total 
+        FROM `payments`
+        GROUP BY order_id, amount )
+     WHERE total > 1;
+    ```
+    
+    So lets dedupe this stream so that consumers don't get these.  Go to the data portal and click on the payments topic.  You will see there is a button called **Actions**
+
+    ![Actions](./assets/shiftleft_actions.png)
+
+    Click on this and chose the **Deduplicate topic**.  Under **Fields to deduplicate** select `order_id`, `product_id`, and `amount`. Once you launch this ation behind the scenes it will generate and execute a flink statement.  In fact we can see what this looks like by scrolling to the buttom and selcting the **Show SQL** switch.  Naturally for a production system you would use sql that was checked into source control and use CI/CD etc. rather than launched an action from a production cluster for developing actions can be handy for giving you a starting point.  Click the **Confirm and run** button.
+
+    If we now go back to Flink we can run the same query against the new topic ``payments_deduplicate``
 
 
-5.  You may have noticed the credit card nummber is showing in clear text which isn't good so lets add a rule that encrypts all fields that are marked PII and mark the credit card field PII so that unencrypted PII doesn't land in redshift or anywhere else.
-    1. In the `payments` Topic UI, select `Data Contracts` then click `Evolve`. Tag `cc_number` field as `PII`.
-    2. Click **Rules** and then **+ Add rules** button. Configure as the following:
+1.  You may have noticed the credit card nummber is showing in clear text which isn't good so lets add a rule that encrypts all fields that are marked PII and mark the credit card field PII so that unencrypted PII doesn't land in redshift or anywhere else.
+
+    In the `payments` Topic UI, select `Data Contracts` then click `Evolve`. Tag `cc_number` field as `PII`.
+
+    Click **Rules** and then **Add rules** button. Configure as the following:
        * Category: `Data Encryption Rule`
        * Rule name: `Encrypt_PII`
        * Encrypt fields with: `PII`
@@ -169,33 +193,34 @@ The following sources are coming into Confluent Cloud
 
        ![CSFLE Rule](./assets/shiftleft_rule.png)
 
-    3. Restart the ECS Service for the changes to take effect immediately. Run ```terraform output``` to get the ECS command that should be used to restart the service. The command should look like this:
+    Restart the ECS Service where the payments services is running for the changes to take effect immediately. Run ```terraform output``` to get the ECS command that should be used to restart the service. The command should look like this:
     ```
        aws ecs update-service --cluster <ECS_CLUSTER_NAME> --service payment-app-service --force-new-deployment
     ```
-    4. Go back to the `payments` Topic UI, you can see that the Credit number is now encrypted.
+    
+    Go back to the `payments` topic UI, you can see that the Credit number is now encrypted.  Note that there is sometimes a delay in the time it takes to restart the payments app running in ecs.
 
     ![Encrypted Field](./assets/shiftleft_msgenc.png)
 
-    This data is ready for sharing! You can tag it as a DataProduct althought in prcactive we woould no doubt have some sort of transformation and enrichments and more rules.
 
-6. Now our data consumers aren't just looking for raw payments data.  What they really want is sales data and so we will join the payments with the orders to produce this.  In reality we would probably enrich this further with things like product names, etc.
+1.  Data consumers aren't just looking for raw payments data.  What they really want is sales data and so we will join the payments with the orders to produce this.  In reality we would probably enrich this further with things like product names, etc.
 
-   ```
-   CREATE TABLE sales (
-     order_id INT,
-     brand STRING,
-     productname STRING,
-     amount DOUBLE,
-     confirmation_code STRING,
-     ts TIMESTAMP_LTZ(3),
-     WATERMARK FOR ts AS ts - INTERVAL '5' SECOND
+    ```sql
+    CREATE TABLE sales (
+      order_id INT,
+      brand STRING,
+      productname STRING,
+      amount DOUBLE,
+      confirmation_code STRING,
+      ts TIMESTAMP_LTZ(3),
+      WATERMARK FOR ts AS ts - INTERVAL '5' SECOND
     );
-   ```
-   ```
-   SET 'client.statement-name' = 'sales-materializer';
-   INSERT INTO sales
-   SELECT 
+    ```
+
+    ```sql
+    SET 'client.statement-name' = 'sales-materializer';
+    INSERT INTO sales
+    SELECT 
       pymt.order_id,
       ord.brand,
       ord.productname,
@@ -205,9 +230,11 @@ The following sources are coming into Confluent Cloud
     FROM payments pymt, `orders` ord 
     WHERE pymt.order_id = ord.orderid
     AND orderdate BETWEEN pymt.ts - INTERVAL '96' HOUR AND pymt.ts;
-   ```
+    ```
 
-7. Now let's ingest our data product topics to the data wharehouse you have.
+    And we should tag this as a ```DataProduct``` as well
+
+1.  Let's ingest our data product topics to the data wharehouse you have.
 
    <details>
       <summary>Click to expand Amazon Redshift instructions</summary>
@@ -248,7 +275,7 @@ The following sources are coming into Confluent Cloud
      7. Run the follwing SQL Statement to preview the new table.
         > Note: The connector will take less than a minute to run, **but the data will be available for querying in Snowflake after 3-5 minutes.**
     
-        ```
+        ```sql
             SELECT
             *
             FROM
@@ -297,7 +324,7 @@ The following sources are coming into Confluent Cloud
 
      6. In Snowflake UI, go to Worksheets and run the follwing SQL Statement to preview the new table.
         > Note: The connector will take less than a minute to run, **but the data will be available for querying in Snowflake after 3-5 minutes.**
-        ``` 
+        ``` sql
         SELECT * FROM PRODUCTION.PUBLIC.LOW_STOCK_ALERTS
         ```
 
@@ -305,10 +332,11 @@ The following sources are coming into Confluent Cloud
 
    </details>
 
-8. Optionally lets look at some pre-aggregation and analysis that can be done continuously in Flink and then sent into the lakehouse.
-   1. That detailed level of sales data can no doubt be valuable in a lakehouse, but if they want to look at revenue from a temporal perspective one thing that can be done very effectively is to compute temporal aggregates on a continuous basis in flink rather then in batches. Still want to send this into your lakehouse however.  So lets compute our sales revenue on a minute basis
+1.  Optionally lets look at some pre-aggregation and analysis that can be done continuously in Flink and then sent into the lakehouse.
 
-     ```
+    That detailed level of sales data can no doubt be valuable in a lakehouse, but if they want to look at revenue from a temporal perspective one thing that can be done very effectively is to compute temporal aggregates on a continuous basis in flink rather then in batches. Regardless of it being computed in Flink you still probably want that to flow to you lakehouse for further analytiss.  Lets compute our sales revenue on a minute basis
+
+     ```sql
       CREATE TABLE incremental_revenue (
         window_start TIMESTAMP(3) NOT NULL,
         window_end TIMESTAMP(3) NOT NULL,
@@ -316,7 +344,7 @@ The following sources are coming into Confluent Cloud
       );
     ```
     
-    ```
+    ```sql
      SET 'client.statement-name' = 'revenue-summary-materializer';
      INSERT INTO incremental_revenue
          SELECT 
@@ -331,3 +359,6 @@ The following sources are coming into Confluent Cloud
           window_start, 
           window_end;
     ```
+
+    Continuously computed calculations and aggregations can easily trigger immediate action based upon threashold.  One can easily imagine that if the inventory at a certain location falls below a certain threashold or is trending a certain way that alert would automatically trigger a supply request.
+    
