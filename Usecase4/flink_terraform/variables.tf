@@ -33,7 +33,7 @@ variable "confluent_cloud_service_account_id"{
 variable "cloud_region"{
   description = "AWS Cloud Region"
   type        = string
-  default     = "us-east-2"    
+  default     = "us-west-2"    
 }
 
 variable "flink_management_api_key"{

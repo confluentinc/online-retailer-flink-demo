@@ -137,6 +137,7 @@ chmod +x ./demo-provision.sh
 ## Demo
 > Estimated time: 20 minutes
 
+There are two options for demonstration.  One is to walk through 4 discrete technical use case demonstrations and the other is to walk through an end-to-end demonstration of "shifting left" which takes a more integrated approach.  For the shiftleft approach go [HERE](./Shiftleft/README.md).  Otherwise go to each of the use cases below individually.
 
 In this demo we will implement 3 use cases and then at the end visualise everything we have built:
 1. [Usecase 1 - Low inventory stock alerts](./Usecase1/USECASE1-README.md): Use Confluent Cloud for Apache Flink to process low inventory stock data and leverage the Snowflake/Redshift Sink Connector to stream the data into Snowflake or Redshift."
