@@ -21,7 +21,7 @@ terraform {
     }
     snowflake = {
       source = "Snowflake-Labs/snowflake"
-      version = "0.96.0"  
+      version = "0.98.0"  
     }
   }
 }
