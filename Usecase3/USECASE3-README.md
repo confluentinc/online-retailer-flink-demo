@@ -67,12 +67,64 @@ This field should be encrypted, the Symmetric Key was already created by the Ter
 
 ### **Analyzing Daily Sales Trends using Confluent Cloud for Apache Flink**
 
-
 We have a separate topic for payment information, an order is considered complete once a valid payment is received. To accurately track daily sales trends, we join the ```orders``` and ```payments``` data.
+
+#### **Payments deduplication**
+
+However, before joining both streams together we need to make sure that there are no duplicates in `payments` data coming in.
+
+1. Check if there are any duplicates in `payments` table
+   ```sql
+   SELECT * FROM
+   ( SELECT order_id, amount, count(*) total 
+    FROM `unique_payments`
+    GROUP BY order_id, amount )
+   WHERE total > 1;
+   ```
+   This query shows all `order_id`s with multiple payments coming in. Since the output returns results, this indicates that the there are duplicicates in the `payments` table.
+
+2. To fix this run the following query in a new Flink cell
+   ```sql
+   SET 'client.statement-name' = 'unique-payments-maintenance';
+   SET 'sql.state-ttl' = '1 hour';
+   
+   CREATE TABLE unique_payments
+   AS SELECT 
+     order_id, 
+     product_id, 
+     customer_id, 
+     confirmation_code,
+     cc_number,
+     expiration,
+     `amount`,
+     `ts`
+   FROM (
+      SELECT * ,
+             ROW_NUMBER() OVER (PARTITION BY order_id ORDER BY `$rowtime` ASC) AS rownum
+      FROM payments
+         )
+   WHERE rownum = 1;
+   ```
+   This query creates the `unique_payments` table, ensuring only the first recorded payment for each `order_id` is retained. It uses `ROW_NUMBER()` to order payments by event time (`$rowtime`) and filters for the earliest entry per order. This removes any duplicate entries.
+
+3. Let's validate that the new `unique_payments` does not comtain any duplicates
+   ```sql
+   SELECT order_id, COUNT(*) AS count_total FROM `unique_payments` GROUP BY order_id;
+   ```
+   Every `order_id` will have a `count_total` of `1`, ensuring no duplicates exist in the new table. You will not find any `order_id` with a value greater than `1`.
+
+4. Finally, let's set the new table to `append`-only, meaning payments will not be updated once inserted.  
+```sql
+ALTER TABLE `unique_payments` SET ('changelog.mode' = 'append');
+```
+
+#### **Using Interval joins to filter out invalid orders**
+
+Now let's filter out invalid orders (orders with no payment recieved within 96 hours). To achieve this we will use Flink Interval joins.
 
 
 1. Create a new table that will hold all completed orders.
-   ```
+   ```sql
     CREATE TABLE completed_orders (
         order_id INT,
         amount DOUBLE,
@@ -81,8 +133,8 @@ We have a separate topic for payment information, an order is considered complet
         WATERMARK FOR ts AS ts - INTERVAL '5' SECOND
     );
    ```
-2. Enrich the payment data by joining it with customer and order information. This will provide a complete view of each transaction:
-   ```
+2. Filter out orders with no valid payment recieved within `96` hours of the order being placed.
+   ```sql
    SET 'client.statement-name' = 'completed-orders-materializer';
    INSERT INTO completed_orders
     SELECT 
@@ -90,13 +142,15 @@ We have a separate topic for payment information, an order is considered complet
         pymt.amount, 
         pymt.confirmation_code, 
         pymt.ts
-    FROM payments pymt, `shiftleft.public.orders` ord 
+    FROM unique_payments pymt, `shiftleft.public.orders` ord 
     WHERE pymt.order_id = ord.orderid
     AND orderdate BETWEEN pymt.ts - INTERVAL '96' HOUR AND pymt.ts;
    ```
 
-3. Create a ```revenue_summary``` table. This table will hold aggregated revenue data, helping to track and visualize sales over specific time intervals:
-   ```
+#### **Analyzing Sales Trends**
+
+1. Create a ```revenue_summary``` table. This table will hold aggregated revenue data, helping to track and visualize sales over specific time intervals:
+   ```sql
    CREATE TABLE revenue_summary (
         window_start TIMESTAMP(3),
         window_end TIMESTAMP(3),
@@ -105,10 +159,10 @@ We have a separate topic for payment information, an order is considered complet
 
    ```
 
-4. Finally, we calculate the total revenue within fixed 5-second windows by summing the amount from completed_orders. This is done using the TUMBLE function, which groups data into 5-second intervals, providing a clear view of sales trends over time:
+2. Finally, we calculate the total revenue within fixed 5-second windows by summing the amount from completed_orders. This is done using the TUMBLE function, which groups data into 5-second intervals, providing a clear view of sales trends over time:
    >Note: The 5-second window is done for demo puposes you can change to the interval to 1 HOUR.
 
-    ```
+    ```sql
     SET 'client.statement-name' = 'revenue-summary-materializer';
     INSERT INTO revenue_summary
     SELECT 
@@ -126,7 +180,7 @@ We have a separate topic for payment information, an order is considered complet
     ```
 
 5. Preview the final output:
-    ```
+    ```sql
      SELECT * FROM revenue_summary
     ```
 
