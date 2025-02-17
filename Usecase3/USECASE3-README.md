@@ -100,7 +100,7 @@ However, before joining both streams together we need to make sure that there ar
      `ts`
    FROM (
       SELECT * ,
-             ROW_NUMBER() OVER (PARTITION BY order_id ORDER BY `$rowtime` DESC) AS rownum
+             ROW_NUMBER() OVER (PARTITION BY order_id ORDER BY `$rowtime` ASC) AS rownum
       FROM payments
          )
    WHERE rownum = 1;
