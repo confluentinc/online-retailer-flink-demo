@@ -100,12 +100,12 @@ However, before joining both streams together we need to make sure that there ar
      `ts`
    FROM (
       SELECT * ,
-             ROW_NUMBER() OVER (PARTITION BY order_id ORDER BY `$rowtime` ASC) AS rownum
+             ROW_NUMBER() OVER (PARTITION BY order_id ORDER BY `$rowtime` DESC) AS rownum
       FROM payments
          )
    WHERE rownum = 1;
    ```
-   This query creates the `unique_payments` table, ensuring only the first recorded payment for each `order_id` is retained. It uses `ROW_NUMBER()` to order payments by event time (`$rowtime`) and filters for the earliest entry per order. This removes any duplicate entries.
+   This query creates the `unique_payments` table, ensuring only the latest recorded payment for each `order_id` is retained. It uses `ROW_NUMBER()` to order payments by event time (`$rowtime`) and filters for the earliest entry per order. This removes any duplicate entries.
 
 3. Let's validate that the new `unique_payments` does not comtain any duplicates
    ```sql
