@@ -77,7 +77,7 @@ However, before joining both streams together we need to make sure that there ar
    ```sql
    SELECT * FROM
    ( SELECT order_id, amount, count(*) total 
-    FROM `unique_payments`
+    FROM `payments`
     GROUP BY order_id, amount )
    WHERE total > 1;
    ```
