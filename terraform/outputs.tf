@@ -43,10 +43,15 @@ output "redshift-output" {
 resource "local_file" "destroy_sh" {
   filename = "./demo-destroy.sh"
   content  = <<-EOT
-    aws ecr delete-repository --repository-name ${aws_ecr_repository.payment_app_repo.name} --force --region ${var.cloud_region}
-    aws ecr delete-repository --repository-name ${aws_ecr_repository.dbfeeder_app_repo.name} --force --region ${var.cloud_region}
+    confluent schema-registry dek delete --kek-name CSFLE_Key --subject payments-value --force --environment ${confluent_environment.staging.id}
+    confluent schema-registry dek delete --kek-name CSFLE_Key --subject payments-value --force --permanent --environment ${confluent_environment.staging.id}
+    aws ecr delete-repository --repository-name ${aws_ecr_repository.payment_app_repo.name} --force
+    aws ecr delete-repository --repository-name ${aws_ecr_repository.dbfeeder_app_repo.name} --force
     terraform destroy -var="local_architecture=$ARCH" --auto-approve
-  EOT 
+  EOT
+  depends_on = [ 
+    random_id.env_display_id 
+  ] 
   }
 
 # Create USECASE 4 terraform varaible file based on variables used in this script
