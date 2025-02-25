@@ -2,7 +2,7 @@
 
 This repository showcases a demo for an online retailer that leverages Confluent Cloud to process sales orders in real-time, compute sales trends, and pre-process data for advanced analytics in Amazon Athena and a datawarehouse of your choice (Snowflake or Amazon Redshift).
 
-It shows harness the power of a Data Streaming Platform (DSP) to clean and govern data at the time it is created, and deliver fresh trustworthy data to your data warehouse and data lake to maximize the ROI.
+It shows how to harness the power of a Data Streaming Platform (DSP) to clean and govern data at the time it is created, and deliver fresh trustworthy data to your data warehouse and data lake to maximize the ROI.
 
 This demo showcases how an online retailer can leverage Confluent to implement real-time analytics across three critical use cases: ***Low Inventory Alerts***, ***Product Sales Analysis*** and ***Daily Sales Trend Analysis***. The solution demonstrates the power of real-time data streaming to enhance operational efficiency and decision-making. Below is the high-level architecture diagram:
 
@@ -15,12 +15,12 @@ You can choose to deploy the demo with with either Snowflake or Amazon Redshift.
    2. Cluster
    3. Topics and Schemas
    4. RBAC role-bindings
-   5. Debezium CDC Connector and Data Qaulity Rules.
+   5. Debezium CDC Connector and Data Quality Rules.
 2. AWS Infrastructure components:
    1. Redshift Cluster
    > Note: only if Amazon Redshift is selected as a data warehouse
    2. Amazon RDS for PostgreSQL Database - holds information about Product, Orders and Customers
-   3. AWS KMS Semmetric key - used for Client Side Field Level Encryption
+   3. AWS KMS Symmetric key - used for Client Side Field Level Encryption
    4. Two Amazon ECS Services
       * DB Feeder to populate Postgres DB
       * Payments Java Application
@@ -43,18 +43,18 @@ You can choose to deploy the demo with with either Snowflake or Amazon Redshift.
 
 ## Demo Video
 
-This is a [video](https://www.confluent.io/resources/demo/shift-left-dsp-demo/) showcases how to run the demo. To deploy the demo follow this repo.
+This [video](https://www.confluent.io/resources/demo/shift-left-dsp-demo/) showcases how to run the demo. To deploy the demo follow this repo.
 
 
 ## General Requirements
 
 * **Confluent Cloud API Keys** - [Cloud resource management API Keys](https://docs.confluent.io/cloud/current/security/authenticate/workload-identities/service-accounts/api-keys/overview.html#resource-scopes) with Organisation Admin permissions are needed by Terraform to deploy the necessary Confluent resources.
-* **Terraform (v1.9.5+)** - The demo resources is automatically created using [Terraform](https://www.terraform.io). Besides having Terraform installed locally, will need to provide your cloud provider credentials so Terraform can create and manage the resources for you.
+* **Terraform (v1.9.5+)** - The demo resources are automatically created using [Terraform](https://www.terraform.io). Besides having Terraform installed locally, will need to provide your cloud provider credentials so Terraform can create and manage the resources for you.
 * **AWS account** - This demo runs on AWS
 * **Snowflake Account** -  Sign-up to Snowflake [here](https://signup.snowflake.com/).
 * **AWS CLI** - Terraform script uses AWS CLI to manage AWS resources
-* **Docker** - Make sure is Docker installed locally. If not installed, follow [this](https://docs.docker.com/desktop/)
-* **PSQL** - Make sure is psql is installed locally.
+* **Docker** - Make sure Docker is installed locally. If not installed, follow [this](https://docs.docker.com/desktop/)
+* **PSQL** - Make sure psql is installed locally.
 * **Confluent CLI** - Used in the destroy script to delete resources created outside terraform. Run `brew install confluent`.
 * **Unix machine** - The Terraform script requires a Unix environment. If you're using a Windows machine, consider deploying an EC2 instance with CentOS and run the deployment steps from there.
 
@@ -141,7 +141,7 @@ chmod +x ./demo-provision.sh
 There are two options for demonstration.  One is to walk through 4 discrete technical use case demonstrations and the other is to walk through an end-to-end demonstration of "shifting left" which takes a more integrated approach.  For the shiftleft approach go [HERE](./Shiftleft/README.md).  Otherwise go to each of the use cases below individually.
 
 In this demo we will implement 3 use cases and then at the end visualise everything we have built:
-1. [Usecase 1 - Low inventory stock alerts](./Usecase1/USECASE1-README.md): Use Confluent Cloud for Apache Flink to process low inventory stock data and leverage the Snowflake/Redshift Sink Connector to stream the data into Snowflake or Redshift."
+1. [Usecase 1 - Low inventory stock alerts](./Usecase1/USECASE1-README.md): Use Confluent Cloud for Apache Flink to process low inventory stock data and leverage the Snowflake/Redshift Sink Connector to stream the data into Snowflake or Redshift.
 2. [Usecase 2 - Product Sales Aggregation](./Usecase2/USECASE2-README.md): Use Confluent Cloud for Apache Flink to clean and aggrgate Product Sales Data and sink the results to Snowflake or Redshift.
 3. [Usecase 3 - Daily Sales Trends](./Usecase3/USECASE3-README.md): Use Confluent Cloud for Apache Flink for Payment Validation and compute daily sales trends. The results are stored in a topic that has Tableflow enabled - which materializes the topic as Iceberg data. We then use Amazon Athena for further Analysis.
 4. [Usecase 4 - Managing Data Pipeines](./Usecase4/USECASE4-README.md): Use Confluent Cloud to manage and gain complete visibility into the entire data pipeline from a unified, single-pane view.
@@ -151,7 +151,7 @@ In this demo we will implement 3 use cases and then at the end visualise everyth
 **Next topic:** [Usecase 1: Low inventory stock alerts](./Usecase1/USECASE1-README.md)
 
 ## Clean-up
-Once you are finished with this demo, remember to destroy the resources you created, to avoid incurring in charges. You can always spin it up again anytime you want.
+Once you are finished with this demo, remember to destroy the resources you created, to avoid incurring charges. You can always spin it up again anytime you want.
 
 Before tearing down the infrastructure, delete the Snowflake or Redshift connector, as it was created outside of Terraform and won't be automatically removed:
 
@@ -167,4 +167,3 @@ chmod +x ./demo-destroy.sh
 
 ```
 > **Note: If you run terraform destroy instead of the provided shell script, the ECR repositories in AWS will not be deleted.**
-
