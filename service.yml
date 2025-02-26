@@ -7,3 +7,5 @@ github:
   enable: true
 codeowners:
   enable: true
+spec:
+  run_semaphore_public: true
