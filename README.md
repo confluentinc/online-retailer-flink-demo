@@ -153,7 +153,8 @@ In this demo we will implement 3 use cases and then at the end visualise everyth
 ## Clean-up
 Once you are finished with this demo, remember to destroy the resources you created, to avoid incurring charges. You can always spin it up again anytime you want.
 
-Before tearing down the infrastructure, delete the Snowflake or Redshift connector, as it was created outside of Terraform and won't be automatically removed:
+Before tearing down the infrastructure, delete the Postgres Sink and Snowflake/Redshift connectors, as they were created outside of Terraform and won't be automatically removed:
+Run the below for all connectors created outside terraform:
 
 ```
 confluent connect cluster delete <CONNECTOR_ID> --cluster <CLUSTER_ID> --environment <ENVIRONMENT_ID> --force

@@ -1,7 +1,9 @@
 
 ## Daily Sales Trends
 
-In this use case, we utilize Confluent Cloud and Apache Flink to validate payments and analyze daily sales trends, creating a valuable data product that empowers sales teams to make informed business decisions. While such analyses are typically conducted within a Lakehouse—as demonstrated in use cases 1 and 2—Confluent offers multiple integration options to seamlessly bring data streams into Lakehouses. This includes a suite of connectors that read data from Confluent and write to various engines. Another option is [Tableflow](https://www.confluent.io/product/tableflow/) .
+In this use case, we utilize Confluent Cloud and Apache Flink to validate payments and create completed orders, creating a valuable data product that could be used to analyse daily sales trends to empower sales teams to make informed business decisions. 
+
+While such analyses are typically conducted within a Lakehouse—as demonstrated in use cases 1 and 2. Confluent offers multiple integration options to seamlessly bring data streams into Lakehouses. This includes a suite of connectors that read data from Confluent and write to various engines. Another option is [Tableflow](https://www.confluent.io/product/tableflow/) .
 
 Tableflow simplifies the process of transferring data from Confluent into a data lake, warehouse, or analytics engine. It enables users to convert Kafka topics and their schemas into Apache Iceberg tables with zero effort, significantly reducing the engineering time, compute resources, and costs associated with traditional data pipelines. This efficiency is achieved by leveraging Confluent's Kora Storage Layer and a new metadata materializer that works with Confluent Schema Registry to manage schema mapping and evolution.
 
@@ -123,78 +125,78 @@ ALTER TABLE `unique_payments` SET ('changelog.mode' = 'append');
 Now let's filter out invalid orders (orders with no payment recieved within 96 hours). To achieve this we will use Flink Interval joins.
 
 
-1. Create a new table that will hold all completed orders.
-   ```sql
-    CREATE TABLE completed_orders (
-        order_id INT,
-        amount DOUBLE,
-        confirmation_code STRING,
-        ts TIMESTAMP_LTZ(3),
-        WATERMARK FOR ts AS ts - INTERVAL '5' SECOND
-    );
-   ```
-2. Filter out orders with no valid payment recieved within `96` hours of the order being placed.
+1. Create a new table that will hold all completed orders and filter out orders with no valid payment recieved within `96` hours of the order being placed.
    ```sql
    SET 'client.statement-name' = 'completed-orders-materializer';
-   INSERT INTO completed_orders
-    SELECT 
-        pymt.order_id,
-        pymt.amount, 
-        pymt.confirmation_code, 
-        pymt.ts
-    FROM unique_payments pymt, `shiftleft.public.orders` ord 
-    WHERE pymt.order_id = ord.orderid
-    AND orderdate BETWEEN pymt.ts - INTERVAL '96' HOUR AND pymt.ts;
+   CREATE TABLE completed_orders (
+      order_id INT,
+      amount DOUBLE,
+      confirmation_code STRING,
+      ts TIMESTAMP_LTZ(3),
+      WATERMARK FOR ts AS ts - INTERVAL '5' SECOND
+   ) AS
+   SELECT 
+      pymt.order_id,
+      pymt.amount, 
+      pymt.confirmation_code, 
+      pymt.ts
+   FROM unique_payments pymt, `shiftleft.public.orders` ord 
+   WHERE pymt.order_id = ord.orderid
+   AND orderdate BETWEEN pymt.ts - INTERVAL '96' HOUR AND pymt.ts;
    ```
 
-#### **Analyzing Sales Trends**
+#### **Analyzing Sales Trends using Amazon Athena**
 
-1. Create a ```revenue_summary``` table. This table will hold aggregated revenue data, helping to track and visualize sales over specific time intervals:
-   ```sql
-   CREATE TABLE revenue_summary (
-        window_start TIMESTAMP(3),
-        window_end TIMESTAMP(3),
-        total_revenue DECIMAL(10, 2)
-    );
+This data can be made available seamlessly to your Data lake query engines using Confluent Cloud Tableflow feature. When Tableflow is enabled on a topic, the topic is materialized as an Iceberg Table and is available for any Query engine. In this demo, we use Amazon Athena, you can use any Engine that supports Iceberg Rest Catalog.
+
+##### Setting up Tableflow
+
+1. First enable Tableflow on the topic. In the topic UI, click on **Enable Tableflow**, then **Use Confluent Storage**.
+
+   ![Tableflow Enable Tableflow](./assets/usecase3_enable_tableflow.png)
+
+
+2. In Tableflow UI, copy the **REST Catalog Endpoint** to text editor we will use it later. 
+3. In the same page click **Create/View API keys** 
+
+   ![Tableflow API Key](./assets/usecase3_create_tableflow_apikey.png)
+
+4. In the API keys page click on **+ Add API Key**, then **Service Account** and choose your service account created by the Terraform script (run `terraform output resource-ids` and check the Service account name under **Service Accounts and their Kafka API Keys** section) the service account should start with prefix. Click **Next**
+
+5. Choose **Tableflow**, then **Next**.
+
+6. Give it a name and click **Create API Key**.
+
+7. Copy the Key and Secret and click **Complete**
+
+
+
+##### Query with Athena
+
+1. In Amazon Athena UI, create a new Spark Notebook and configure it as follows:
+   ![Athena Notebook](./assets/usecase3_notebook1.png)
+
+   You can click **Edit in JSON** and copy the following Spark properties configuration to the Athena Notebook. Replace:
+
+   * `<KAFKA_CLUSTER_NAME>` with your Confluent Cluster name. It should start with your prefix
+   * `<TABLEFLOW_ENDPOINT>` that you copied from previous section
+   * `<TABLEFLOW_API_KEY>:<TABLEFLOW_SECRET>` with Tableflow API key and secret created in the previous section
 
    ```
+   {
+   "spark.sql.catalog.<KAFKA_CLUSTER_NAME>": "org.apache.iceberg.spark.SparkCatalog",
+   "spark.sql.catalog.<KAFKA_CLUSTER_NAME>.catalog-impl": "org.apache.iceberg.rest.RESTCatalog",
+   "spark.sql.catalog.<KAFKA_CLUSTER_NAME>.uri": "<TABLEFLOW_ENDPOINT>",
+   "spark.sql.catalog.<KAFKA_CLUSTER_NAME>.credential": "<TABLEFLOW_API_KEY>:<TABLEFLOW_SECRET>",
+   "spark.sql.catalog.tableflowdemo.s3.remote-signing-enabled": "true",
+   "spark.sql.defaultCatalog": "<KAFKA_CLUSTER_NAME>",
+   "spark.sql.extensions": "org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions"
+   }
 
-2. Finally, we calculate the total revenue within fixed 5-second windows by summing the amount from completed_orders. This is done using the TUMBLE function, which groups data into 5-second intervals, providing a clear view of sales trends over time:
-   >Note: The 5-second window is done for demo puposes you can change to the interval to 1 HOUR.
+   ``` 
 
-    ```sql
-    SET 'client.statement-name' = 'revenue-summary-materializer';
-    INSERT INTO revenue_summary
-    SELECT 
-        window_start, 
-        window_end, 
-        SUM(amount) AS total_revenue
-    FROM 
-        TABLE(
-            TUMBLE(TABLE completed_orders, DESCRIPTOR(`ts`), INTERVAL '5' SECONDS)
-        )
-    GROUP BY 
-        window_start, 
-        window_end;
 
-    ```
-
-5. Preview the final output:
-    ```sql
-     SELECT * FROM revenue_summary
-    ```
-
-#### **Data Lake Integration using Confluent Cloud Tableflow and Amazon Athena**
-
-This data can be made available seamlessly to your Data lake query engines using Confluent Cloud Tableflow feature. When Tableflow is enabled on the cluster, all topics in the cluster are materialized as Iceberg Tables and are available for any Query engine. In this demo, we use Amazon Athena, you can use any Engine that supports Iceberg Rest Catalog.
-
-1. First get the Tableflow access details from the Data Portal UI.
-   ![Tableflow Access Details](./assets/usecase3_tableflow.png)
-
-2. In Amazon Athena UI, create a new Spark Notebook and configure it as follows:
-   ![Athena Notebook](./assets/usecase3_notebook.png)
-
-3. `revenue_summary` data can now be queried in Athena. In the notebook run this query to SHOW available tables:
+2. `completed_orders` data can now be queried in Athena. In the notebook run this query to SHOW available tables:
    ```
    %sql
    SHOW TABLES in `<Confluent_Cluster_ID>`
@@ -204,10 +206,27 @@ This data can be made available seamlessly to your Data lake query engines using
 
    ```
    %%sql
-   SELECT * FROM `<Confluent_Cluster_ID>`.`revenue_summary`;
+   SELECT * FROM `<Confluent_Cluster_ID>`.`completed_orders`;
    ```
 
-   That's it we are now able to query the data in Athena.
+4. Now we can start analyzing daily sales trends in Athena. 
+   > NOTE: For demo puposes we will do hourly windows
+
+   In a new cell copy the follwoing SQL
+
+   ```sql
+   %%sql
+   SELECT
+   date_trunc('hour', ts) AS window_start,
+   date_trunc('hour', ts) + INTERVAL '1' hour AS window_end,
+   COUNT(*) AS total_orders,
+   SUM(amount) AS total_revenue
+   FROM `lkc-07d625`.completed_orders
+   GROUP BY date_trunc('hour', ts)
+   ORDER BY window_start;
+   ```
+That's it we were able analyse the data in Athena.
+
 ## Topics
 
 **Next topic:** [Managing Data Pipelines](../Usecase4/USECASE4-README.md)
