@@ -27,7 +27,7 @@
         </pluginRepository>
     </pluginRepositories>
     <properties>
-        <confluent.version>7.9.1-175</confluent.version>
+        <confluent.version>7.9.1-176</confluent.version>
         <kafka.version>3.9.0</kafka.version>
         <jsonschema2pojo-maven-plugin>1.0.2</jsonschema2pojo-maven-plugin>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
