@@ -4,7 +4,7 @@ This repository showcases a demo for an online retailer that leverages Confluent
 
 It shows how to harness the power of a Data Streaming Platform (DSP) to clean and govern data at the time it is created, and deliver fresh trustworthy data to your data warehouse and data lake to maximize the ROI.
 
-This demo showcases how an online retailer can leverage Confluent to implement real-time analytics across three critical use cases: ***Low Inventory Alerts***, ***Product Sales Analysis*** and ***Daily Sales Trend Analysis***. The solution demonstrates the power of real-time data streaming to enhance operational efficiency and decision-making. Below is the high-level architecture diagram:
+This demo showcases how an online retailer can leverage Confluent to implement real-time analytics across three critical use cases: ***Custommer360***, ***Product Sales Analysis*** and ***Daily Sales Trend Analysis***. The solution demonstrates the power of real-time data streaming to enhance operational efficiency and decision-making. Below is the high-level architecture diagram:
 
 ![Architecture](./assets/HLD.png)
 
@@ -37,7 +37,6 @@ You can choose to deploy the demo with with either Snowflake or Amazon Redshift.
 ├── Usecase 1                             <-- Directory that holds usecase 1 instructions and screenshots
 ├── Usecase 2                             <-- Directory that holds usecase 2 instructions and screenshots
 ├── Usecase 3                             <-- Directory that holds usecase 3 instructions and screenshots
-├── Usecase 4                             <-- Directory that holds usecase 4 instructions and screenshots
 └── README.md
 ```
 
@@ -138,17 +137,17 @@ chmod +x ./demo-provision.sh
 ## Demo
 > Estimated time: 20 minutes
 
-There are two options for demonstration.  One is to walk through 4 discrete technical use case demonstrations and the other is to walk through an end-to-end demonstration of "shifting left" which takes a more integrated approach.  For the shiftleft approach go [HERE](./Shiftleft/README.md).  Otherwise go to each of the use cases below individually.
+There are two options for demonstration.  One is to walk through 3 discrete technical use case demonstrations and the other is to walk through an end-to-end demonstration of "shifting left" which takes a more integrated approach.  For the shiftleft approach go [HERE](./Shiftleft/README.md).  Otherwise go to each of the use cases below individually.
 
 In this demo we will implement 3 use cases and then at the end visualise everything we have built:
-1. [Usecase 1 - Low inventory stock alerts](./Usecase1/USECASE1-README.md): Use Confluent Cloud for Apache Flink to process low inventory stock data and leverage the Snowflake/Redshift Sink Connector to stream the data into Snowflake or Redshift.
-2. [Usecase 2 - Product Sales Aggregation](./Usecase2/USECASE2-README.md): Use Confluent Cloud for Apache Flink to clean and aggrgate Product Sales Data and sink the results to Snowflake or Redshift.
-3. [Usecase 3 - Daily Sales Trends](./Usecase3/USECASE3-README.md): Use Confluent Cloud for Apache Flink for Payment Validation and compute daily sales trends. The results are stored in a topic that has Tableflow enabled - which materializes the topic as Iceberg data. We then use Amazon Athena for further Analysis.
-4. [Usecase 4 - Managing Data Pipeines](./Usecase4/USECASE4-README.md): Use Confluent Cloud to manage and gain complete visibility into the entire data pipeline from a unified, single-pane view.
+
+1. [Usecase 1 - Product Sales and Customer360 Aggregation ](./Usecase1/USECASE1-README.md): Use Confluent Cloud for Apache Flink to clean and aggrgate Product Sales Data and sink the results to Snowflake or Redshift.
+2. [Usecase 2 - Daily Sales Trends](./Usecase2/USECASE2-README.md): Use Confluent Cloud for Apache Flink for Payment Validation and compute daily sales trends. The results are stored in a topic that has Tableflow enabled - which materializes the topic as Iceberg data. We then use Amazon Athena for further Analysis.
+3. [Usecase 3 - Managing Data Pipeines](./Usecase3/USECASE3-README.md): Use Confluent Cloud to manage and gain complete visibility into the entire data pipeline from a unified, single-pane view.
 
 ## Topics
 
-**Next topic:** [Usecase 1: Low inventory stock alerts](./Usecase1/USECASE1-README.md)
+**Next topic:** [Usecase 1: Product Sales and Customer360 Aggregation](./Usecase1/USECASE1-README.md)
 
 ## Clean-up
 Once you are finished with this demo, remember to destroy the resources you created, to avoid incurring charges. You can always spin it up again anytime you want.

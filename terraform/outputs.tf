@@ -56,7 +56,7 @@ resource "local_file" "destroy_sh" {
 
 # Create USECASE 4 terraform varaible file based on variables used in this script
 resource "local_file" "usecase4_terraform_var_file" {
-  filename = "../Usecase4/flink_terraform/terraform.tfvars"
+  filename = "../Usecase3/flink_terraform/terraform.tfvars"
   content  = <<-EOT
   confluent_cloud_api_key = "${var.confluent_cloud_api_key}"
   confluent_cloud_api_secret = "${var.confluent_cloud_api_secret}"

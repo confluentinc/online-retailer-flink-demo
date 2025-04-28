@@ -1,339 +1,235 @@
 
-## Product Sales Aggregation
+## Daily Sales Trends
 
-In this use case, we build a core data product called `enriched_customers` by joining two input streams — `customers` and `addresses` — from our operational database to create a unified customer profile. This enriched data is then used to create two derived data products.
+In this use case, we utilize Confluent Cloud and Apache Flink to validate payments and create completed orders, creating a valuable data product that could be used to analyse daily sales trends to empower sales teams to make informed business decisions. 
 
-The first is `product_sales`, which joins `enriched_customers`, `products`, `order_items`, and `orders` to generate a detailed view of product-level order data. This output is sent to a data warehouse for analytics.
+While such analyses are typically conducted within a Lakehouse—as demonstrated in use cases 1 and 2. Confluent offers multiple integration options to seamlessly bring data streams into Lakehouses. This includes a suite of connectors that read data from Confluent and write to various engines. Another option is [Tableflow](https://www.confluent.io/product/tableflow/) .
 
-Then from `product_sales` we will create `thirty_day_customer_snapshot` view that provides daily aggregated metrics per customer. This data product will be written back to the operational PostgreSQL database.
+Tableflow simplifies the process of transferring data from Confluent into a data lake, warehouse, or analytics engine. It enables users to convert Kafka topics and their schemas into Apache Iceberg tables with zero effort, significantly reducing the engineering time, compute resources, and costs associated with traditional data pipelines. This efficiency is achieved by leveraging Confluent's Kora Storage Layer and a new metadata materializer that works with Confluent Schema Registry to manage schema mapping and evolution.
 
-![Architecture](./assets/usecase2.png) 
+Since sales team in our fictitious company store all their data in Iceberg format. Instead of sending data to S3 and transforming it there, we’ll leverage Tableflow, which allows Confluent to handle the heavy lifting of data movement, conversion, and compaction. With Tableflow enabled, data stored in a Confluent topic, is ready for analytics in Iceberg format.
 
-
-
-### De-normalization - preparing Customer data
-
-First we need to denormalise customer information.
-
-Let's preview Customer data:
-
-```SQL
-SELECT * FROM `shiftleft.public.customers`;
-```
-Notice that Customer data includes references to the address table. To create our customer data product, we will denormalize the customer information by joining it with the address table.
-
-```sql
-SET 'client.statement-name' = 'enriched-customer-materializer';
-CREATE TABLE enriched_customers (
-  customerid INT,
-  customername STRING,
-  email STRING,
-  segment STRING,
-  shipping_address ROW<
-    street STRING,
-    city STRING,
-    state STRING,
-    postalcode STRING,
-    country STRING
-  >,
-  billing_address ROW<
-    street STRING,
-    city STRING,
-    state STRING,
-    postalcode STRING,
-    country STRING
-  >,
-  event_time TIMESTAMP(3),
-  WATERMARK FOR event_time AS event_time - INTERVAL '5' SECOND,
-  PRIMARY KEY (customerid) NOT ENFORCED
-)
-AS
-  SELECT
-  c.customerid,
-  c.customername,
-  c.email,
-  c.segment,
-  ROW(
-    sa.street,
-    sa.city,
-    sa.state,
-    sa.postalcode,
-    sa.country
-  ) AS shipping_address,
-  ROW(
-    ba.street,
-    ba.city,
-    ba.state,
-    ba.postalcode,
-    ba.country
-  ) AS billing_address,
-
-  c.`$rowtime` AS event_time
-
-FROM `shiftleft.public.customers` c
-
-LEFT JOIN `shiftleft.public.addresses` sa
-  ON c.shipping_address_id = sa.addressid
-  AND (sa.__deleted IS NULL OR sa.__deleted <> 'true')
-
-LEFT JOIN `shiftleft.public.addresses` ba
-  ON c.billing_address_id = ba.addressid
-  AND (ba.__deleted IS NULL OR ba.__deleted <> 'true')
-
-WHERE c.__deleted IS NULL OR c.__deleted <> 'true';
-
-```
-
-The new data product holds a single entry for each customer and the key is `customerid`.
+![Architecture](./assets/usecase3.png)
 
 
+But before doing this, let's make sure that the data is reliable and protected first.
 
-### 2a: Product Sales Data Product
+### **[OPTIONAL] Data Contracts in Confluent Cloud**
 
-1. Flink jobs can measure time using either the system clock (processing time), or timestamps in the events (event time). For the ```orders``` table, notice that each order has ```orderdate```, this is a timestamp for each order created. 
+Analytics teams are focused on general sales trends, so they don't need access to PII. Instead of relying on central teams to write ETL scripts for data encryption and quality, we’re shifting this process left. Central governance teams set data protection and quality rules, which are pushed to the client for enforcement— the beauty of this is that there is not need for code changes on the client side - **IT JUST WORKS**.
+
+##### **Using Confluent Cloud Data Quality Rules**
+
+We want to make sure that any data produced adheres to a specific format. In our case, we want to make sure that any payment event generated needs to have a valide `Confimation Code`. This check is done by using [Data Quality Rules](https://docs.confluent.io/cloud/current/sr/fundamentals/data-contracts.html#data-quality-rules), these rules are set in Confluent Schema registry, and pushed to the clients, where they are enforced. No need to change any code.
+
+The rules were already created by Terraform, there is no need to do anything here except validate that it is working.
+
+1. In the [`payments`](https://confluent.cloud/go/topics) Topic UI, select **Data Contracts**. Under **Rules** notice that there is a rule already created.
    
-   ```sql
-    SHOW CREATE TABLE `shiftleft.public.orders`;
+   The rule basically says that `confirmation_code` field value should follow this regex expression `^[A-Z0-9]{8}$`. Any event that doesnt match, will be sent to a dead letter queue topic named `error-payments`.
+
+   ![Data Quality Rule](./assets/usecase3_dqr.png)
+
+2. To validate that it is working go to the DLQ topic and inspect the message headers there.
+   
+![Data Quality Rule](./assets/usecase3_msgdlq.png)
+
+
+##### **Data Protection using Confluent Cloud Client Side Field Level Encryption**
+
+[Client Side Field Level Encryption(CSFLE)](https://docs.confluent.io/cloud/current/security/encrypt/csfle/client-side.html) in Confluent Cloud works by setting the rules in Confluent Schema registry, these rules are then pushed to the clients, where they are enforced. The symmetric key is created in providor and the client should have necessary permissi the providor and the client should have permission to use the key to encrypt the data.
+
+1. In the `payments` topic we notice that, the topic contains credit card information in unencrypted form.
+    ![Architecture](./assets/usecase3_msg.png)
+
+This field should be encrypted, the Symmetric Key was already created by the Terraform in AWS KMS. The key ARN was also immported to Confluent by Terraform. We just need to create the rule in Confluent
+   
+2. In the [`payments`](    
+   https://confluent.cloud/go/topics) Topic UI, select **Data Contracts** then click **Evolve**. Tag `cc_number` field as `PII`.
+   
+2. Click **Rules** and then **+ Add rules** button. Configure as the following:
+   * Category: Data Encryption Rule
+   * Rule name: `Encrypt_PII`
+   * Encrypt fields with: `PII`
+   * using: The key added by Terraform (probably called CSFLE_Key)
+  
+    Then click **Add** and **Save**
+
+    Our rule instructs the serailizer to ecrypt any field in this topic that is tagged as PII
+
+    ![CSFLE Rule](./assets/usecase3_rule.png)
+4. Restart the ECS Service for the changes to take effect immediately. Run ```terraform output``` to get the ECS command that should be used to restart the service. The command should look like this:
    ```
-2. We want to set the ```orderdate``` field as the event time for the table, enabling Flink to use it for accurate time-based processing and watermarking:
-
-    ```sql
-    ALTER TABLE `<CONFLUENT_ENVIRONEMNT_NAME>`.`<CONFLUENT_CLUSTER_NAME>`.`shiftleft.public.orders` MODIFY WATERMARK FOR `orderdate` AS `orderdate`;
-    ```
-
-3. To perform a temporal join with ```products``` table, the ```products``` table needs to have a ```PRIMARY KEY```. Which is not defined at the moment. Create a new table that has the same schema as ```products``` table but with a PRIMARY KEY constraint
-
-    ```sql
-    CREATE TABLE `products_with_pk` (
-        `productid` INT NOT NULL,
-        `brand` VARCHAR(2147483647) NOT NULL,
-        `productname` VARCHAR(2147483647) NOT NULL,
-        `category` VARCHAR(2147483647) NOT NULL,
-        `description` VARCHAR(2147483647),
-        `color` VARCHAR(2147483647),
-        `size` VARCHAR(2147483647),
-        `price` INT NOT NULL,
-        `__deleted` VARCHAR(2147483647),
-        PRIMARY KEY (`productid`) NOT ENFORCED
-    );
-    ```
-
-    ```sql
-    SET 'client.statement-name' = 'products-with-pk-materializer';
-    INSERT INTO `products_with_pk`
-    SELECT  `productid`,
-        `brand`,
-        `productname`,
-        `category`,
-        `description`,
-        `color`,
-        `size`,
-        CAST(price AS INT) AS price,
-        `__deleted`
-    FROM `shiftleft.public.products`;
-    ```
-
-4. Join all relevant tables to gain insights into each order's contents, including product details, brand, quantity purchased, and the total amount for each order item, along with customer information. The query applies filters to ensure that only valid products with non-empty names and positive prices are included in the result set.
-
-    This analysis is useful for understanding product sales trends, calculating revenue, and generating reports on order compositions.
-
-
-   Create a new Apache Flink table ```product_sales``` to represent the new data product.
-   
-   ```sql
-   SET 'sql.state-ttl' = '1 DAYS';
-   SET 'client.statement-name' = 'product-sales-materializer';
-   CREATE TABLE product_sales (
-        orderdate TIMESTAMP_LTZ(3),
-        orderid INT,
-        productid INT,
-        orderitemid INT,
-        brand STRING,
-        productname STRING,
-        price INT,
-        customerid INT,
-        customername STRING,
-        shipping_address ROW<
-            street STRING,
-            city STRING,
-            state STRING,
-            postalcode STRING,
-            country STRING
-        >,
-        billing_address ROW<
-            street STRING,
-            city STRING,
-            state STRING,
-            postalcode STRING,
-            country STRING
-        >,
-        quantity INT,
-        total_amount INT,
-        WATERMARK FOR orderdate AS orderdate - INTERVAL '5' SECOND
-    )
-    AS
-    SELECT 
-        o.orderdate,
-        o.orderid,
-        p.productid,
-        oi.orderitemid,
-        p.brand,
-        p.productname,
-        p.price,
-        c.customerid,
-        c.customername,
-        c.shipping_address,
-        c.billing_address,
-        oi.quantity, 
-        oi.quantity * p.price AS total_amount 
-    FROM 
-        `shiftleft.public.orders` o
-    JOIN 
-        `shiftleft.public.order_items` oi ON oi.orderid = o.orderid
-    JOIN 
-        `products_with_pk` FOR SYSTEM_TIME AS OF o.orderdate AS p ON p.productid = oi.productid
-    JOIN 
-        `enriched_customers` FOR SYSTEM_TIME AS OF o.orderdate AS c ON c.customerid = o.customerid
-    WHERE 
-        p.productname <> '' 
-        AND p.price > 0;
+   aws ecs update-service --cluster <ECS_CLUSTER_NAME> --service payment-app-service --force-new-deployment
    ```
-    The join uses the ```FOR SYSTEM_TIME AS OF``` keyword, making it a temporal join. Temporal joins are more efficient than regular joins because they use the time-based nature of the data, enriching each order with product information available at the order's creation time. If product details change later, the join result remains unchanged, reflecting the original order context. Additionally, temporal joins are preferable as regular joins would require Flink to keep the state indefinitely.
+5. Go back to the `payments` Topic UI, you can see that the Credit number is now encrypted.
 
-5. Now let's sink the new data product to our data warehourse. Update the same Connector and add the new topic `product_sales`. Here is an example of the Snoflake connector, do the same if you are using Redshift. After adding the topic, click **Save changes** then **Apply changes**.
+    ![Encrypted Field](./assets/usecase3_msgenc.png)
+
+
+### **Analyzing Daily Sales Trends using Confluent Cloud for Apache Flink**
+
+We have a separate topic for payment information, an order is considered complete once a valid payment is received. To accurately track daily sales trends, we join the ```orders``` and ```payments``` data.
+
+#### **Payments deduplication**
+
+However, before joining both streams together we need to make sure that there are no duplicates in `payments` data coming in.
+
+1. Check if there are any duplicates in `payments` table
+   ```sql
+   SELECT * FROM
+   ( SELECT order_id, amount, count(*) total 
+    FROM `payments`
+    GROUP BY order_id, amount )
+   WHERE total > 1;
+   ```
+   This query shows all `order_id`s with multiple payments coming in. Since the output returns results, this indicates that the there are duplicicates in the `payments` table.
+
+2. To fix this run the following query in a new Flink cell
+   ```sql
+   SET 'client.statement-name' = 'unique-payments-maintenance';
+   SET 'sql.state-ttl' = '1 hour';
    
-   ![Update Snowflake Conector](./assets/usecase2_sf.png)
+   CREATE TABLE unique_payments
+   AS SELECT 
+     order_id, 
+     product_id, 
+     customer_id, 
+     confirmation_code,
+     cc_number,
+     expiration,
+     `amount`,
+     `ts`
+   FROM (
+      SELECT * ,
+             ROW_NUMBER() OVER (PARTITION BY order_id ORDER BY `$rowtime` ASC) AS rownum
+      FROM payments
+         )
+   WHERE rownum = 1;
+   ```
+   This query creates the `unique_payments` table, ensuring only the latest recorded payment for each `order_id` is retained. It uses `ROW_NUMBER()` to order payments by event time (`$rowtime`) and filters for the earliest entry per order. This removes any duplicate entries.
 
+3. Let's validate that the new `unique_payments` does not comtain any duplicates
+   ```sql
+   SELECT order_id, COUNT(*) AS count_total FROM `unique_payments` GROUP BY order_id;
+   ```
+   Every `order_id` will have a `count_total` of `1`, ensuring no duplicates exist in the new table. You will not find any `order_id` with a value greater than `1`.
 
-<details>
-<summary>Query from Redshift</summary>
-
-1. In the [Amazon Redshift Query V2 Editor page](console.aws.amazon.com/sqlworkbench/home), run the follwing SQL Statement to preview the new table.
-    ```
-    
-    SELECT
-        *
-    FROM
-        "mydb"."public"."PRODUCT_SALES";
-
-    ```
-     ![Redshift Results](./assets/usecase2_rs_res.png)
-
-</details>
-
-
-
-<details>
-<summary>Query from Snowflake </summary>
-
-1. In Snowflake UI, go to Worksheets and run the follwing SQL Statement to preview the new table.
-    ```
-    SELECT * FROM PRODUCTION.PUBLIC.PRODUCT_SALES
-    ```
-     ![Snowflake Results](./assets/usecase2_sf_res.png)
-
-</details>
-
-
-### 2b: Customer 360 Snapshot
-
-Using the `product_sales` data product, we create a new data product to support the Customer Services team: `thirty_day_customer_snapshot`. This product aggregates the past 30 days of activity for each customer, summarizing the total number of orders and total revenue generated. It provides a quick snapshot of customer behavior over the last month, enabling faster insights and support.
-
-Here is the SQL:
-
+4. Finally, let's set the new table to `append`-only, meaning payments will not be updated once inserted.  
 ```sql
-SET 'client.statement-name' = 'customer-snapshot-materializer';
-CREATE TABLE thirty_day_customer_snapshot (
-  customerid INT,
-  customername STRING, 
-  total_amount INT,
-  number_of_orders BIGINT,
-  updated_at TIMESTAMP, 
-  PRIMARY KEY (customerid) NOT ENFORCED
-)
-AS 
-WITH agg_per_customer_30d AS (
-  SELECT 
-    customerid,
-    customername,
-    SUM(total_amount) OVER w AS total_amount, 
-    COUNT(DISTINCT orderid) OVER w AS number_of_orders,
-    orderdate
-  FROM product_sales
-  WINDOW w AS (
-    PARTITION BY customerid 
-    ORDER BY orderdate
-    RANGE BETWEEN INTERVAL '30' DAY PRECEDING AND CURRENT ROW
-  )
-) 
-SELECT 
-  COALESCE(customerid, 0) AS customerid,
-  customername,
-  total_amount,
-  number_of_orders,
-  orderdate AS updated_at
-FROM agg_per_customer_30d;
-
-``` 
-
-The above query creates the `thirty_day_customer_snapshot` table, which aggregates customer data over the last 30 days. It calculates the total amount spent and the number of distinct orders placed by each customer, updating the snapshot with the most recent order date. The table provides valuable insights into customer behavior by summarizing key metrics for each customer within a rolling 30-day window.
-
-### Sinking Data Products back to the Operational DB
-
-After creating the new data product for the Customer Services team, we’ll sink this data into their existing PostgreSQL database, which was provisioned via Terraform. This is achieved using the Confluent Cloud PostgreSQL Sink Connector.
-
-
-1. In the [Connectors UI](https://confluent.cloud/go/connectors), add a new Postgres Sink Connector.
-2. Choose ```thirty_day_customer_snapshot``` topic and click **Continue**
-3.   Enter Confluent Cluster credentials, you can use API Keys generated by Terraform
-     1.   In CMD run ```terraform output resource-ids``` you will find the API Keys in a section that looks like this:
-   
-        ```
-            Service Accounts and their Kafka API Keys (API Keys inherit the permissions granted to the owner):
-                shiftleft-app-manager-d217a8e3:                     sa-*****
-                shiftleft-app-manager-d217a8e3's Kafka API Key:     "SYAKE*****"
-                shiftleft-app-manager-d217a8e3's Kafka API Secret:  "rn7Y392xM49c******"
-        ```
-4.  Enter Postgre details
-    1.  **Connection Host**: Get it by running ```terraform output resource-ids``` and then copy the value of ```RDS Endpoint```.
-    2.  **Connection port**: ```5432```
-    3.  **Connection user**: ```postgres``` (change if you chnaged in variables file)
-    4.  **Connection password**: ```Admin123456!!``` (change if you chnaged in variables file)
-    5.  **Database name**: ```onlinestoredb```
-    
-    ![Postgres Connection Details](./assets/usecase2_pg.png)
-
-    >**NOTE: It's not recommended to use ADMIN user for data ingestion. We are using it here for demo purposes only.**
-
-
-5.  Choose:
-    * ```AVRO``` as **Input Kafka record value format**.
-    *  Set **Insert mode** to `UPSERT`.
-    * (ADVANCED CONFIGURATION)```AVRO``` as **Input Kafka record key format**.
-    * (ADVANCED CONFIGURATION) Set **PK mode** to ```record_key```
-6. Then follow the the wizard to create the connector.
-
-#### [OPTIONAL] Validate that data is in Postgres
-
-Using a SQL client connect to the Postgres DB.
-
-1.  **Connection Host**: Get it by running ```terraform output resource-ids``` and then copy the value of ```RDS Endpoint```.
-2.  **Connection port**: ```5432```
-3.  **Connection user**: ```postgres``` (change if you chnaged in variables file)
-4.  **Connection password**: ```Admin123456!!``` (change if you chnaged in variables file)
-5.  **Database name**: ```onlinestoredb```
-
-Run
-
-```sql
-SELECT customername, total_amount, number_of_orders, customerid
-FROM thirty_day_customer_snapshot;
+ALTER TABLE `unique_payments` SET ('changelog.mode' = 'append');
 ```
- ![Validation](./assets/usecase2_validate.png)
 
+#### **Using Interval joins to filter out invalid orders**
+
+Now let's filter out invalid orders (orders with no payment recieved within 96 hours). To achieve this we will use Flink Interval joins.
+
+
+1. Create a new table that will hold all completed orders and filter out orders with no valid payment recieved within `96` hours of the order being placed.
+   ```sql
+   SET 'client.statement-name' = 'completed-orders-materializer';
+   CREATE TABLE completed_orders (
+      order_id INT,
+      amount DOUBLE,
+      confirmation_code STRING,
+      ts TIMESTAMP_LTZ(3),
+      WATERMARK FOR ts AS ts - INTERVAL '5' SECOND
+   ) AS
+   SELECT 
+      pymt.order_id,
+      pymt.amount, 
+      pymt.confirmation_code, 
+      pymt.ts
+   FROM unique_payments pymt, `shiftleft.public.orders` ord 
+   WHERE pymt.order_id = ord.orderid
+   AND orderdate BETWEEN pymt.ts - INTERVAL '96' HOUR AND pymt.ts;
+   ```
+
+#### **Analyzing Sales Trends using Amazon Athena**
+
+This data can be made available seamlessly to your Data lake query engines using Confluent Cloud Tableflow feature. When Tableflow is enabled on a topic, the topic is materialized as an Iceberg Table and is available for any Query engine. In this demo, we use Amazon Athena, you can use any Engine that supports Iceberg Rest Catalog.
+
+##### Setting up Tableflow
+
+1. First enable Tableflow on the topic. In the topic UI, click on **Enable Tableflow**, then **Use Confluent Storage**.
+
+   ![Tableflow Enable Tableflow](./assets/usecase3_enable_tableflow.png)
+
+
+2. In Tableflow UI, copy the **REST Catalog Endpoint** to text editor we will use it later. 
+3. In the same page click **Create/View API keys** 
+
+   ![Tableflow API Key](./assets/usecase3_create_tableflow_apikey.png)
+
+4. In the API keys page click on **+ Add API Key**, then **Service Account** and choose your service account created by the Terraform script (run `terraform output resource-ids` and check the Service account name under **Service Accounts and their Kafka API Keys** section) the service account should start with prefix. Click **Next**
+
+5. Choose **Tableflow**, then **Next**.
+
+6. Give it a name and click **Create API Key**.
+
+7. Copy the Key and Secret and click **Complete**
+
+
+
+##### Query with Athena
+
+1. In Amazon Athena UI, create a new Spark Notebook and configure it as follows:
+   ![Athena Notebook](./assets/usecase3_notebook1.png)
+
+   You can click **Edit in JSON** and copy the following Spark properties configuration to the Athena Notebook. Replace:
+
+   * `<KAFKA_CLUSTER_NAME>` with your Confluent Cluster name. It should start with your prefix
+   * `<TABLEFLOW_ENDPOINT>` that you copied from previous section
+   * `<TABLEFLOW_API_KEY>:<TABLEFLOW_SECRET>` with Tableflow API key and secret created in the previous section
+
+   ```
+   {
+   "spark.sql.catalog.<KAFKA_CLUSTER_NAME>": "org.apache.iceberg.spark.SparkCatalog",
+   "spark.sql.catalog.<KAFKA_CLUSTER_NAME>.catalog-impl": "org.apache.iceberg.rest.RESTCatalog",
+   "spark.sql.catalog.<KAFKA_CLUSTER_NAME>.uri": "<TABLEFLOW_ENDPOINT>",
+   "spark.sql.catalog.<KAFKA_CLUSTER_NAME>.credential": "<TABLEFLOW_API_KEY>:<TABLEFLOW_SECRET>",
+   "spark.sql.catalog.tableflowdemo.s3.remote-signing-enabled": "true",
+   "spark.sql.defaultCatalog": "<KAFKA_CLUSTER_NAME>",
+   "spark.sql.extensions": "org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions"
+   }
+
+   ``` 
+
+
+2. `completed_orders` data can now be queried in Athena. In the notebook run this query to SHOW available tables:
+   ```
+   %sql
+   SHOW TABLES in `<Confluent_Cluster_ID>`
+   ```
+
+   Next preview `reveue_summary` table:
+
+   ```
+   %%sql
+   SELECT * FROM `<Confluent_Cluster_ID>`.`completed_orders`;
+   ```
+
+4. Now we can start analyzing daily sales trends in Athena. 
+   > NOTE: For demo puposes we will do hourly windows
+
+   In a new cell copy the follwoing SQL
+
+   ```sql
+   %%sql
+   SELECT
+   date_trunc('hour', ts) AS window_start,
+   date_trunc('hour', ts) + INTERVAL '1' hour AS window_end,
+   COUNT(*) AS total_orders,
+   SUM(amount) AS total_revenue
+   FROM `lkc-07d625`.completed_orders
+   GROUP BY date_trunc('hour', ts)
+   ORDER BY window_start;
+   ```
+That's it we were able analyse the data in Athena.
 
 ## Topics
 
-**Next topic:** [Usecase 3 - Daily Sales Trends](../Usecase3/USECASE3-README.md)
+**Next topic:** [Managing Data Pipelines](../Usecase3/USECASE3-README.md)
 
-**Previous topic:** [Usecase 1: Low inventory stock alerts](../Usecase1/USECASE1-README.md)
+**Previous topic:** [Usecase 2 - Product Sales and Customer360 Aggregation](../Usecase1/USECASE1-README.md)
+
