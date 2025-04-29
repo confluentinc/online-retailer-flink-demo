@@ -113,7 +113,7 @@ The new data product holds a single entry for each customer and the key is `cust
 
 
 
-### 2a: Product Sales Data Product
+### 1a: Product Sales Data Product
 
 1. Flink jobs can measure time using either the system clock (processing time), or timestamps in the events (event time). For the ```orders``` table, notice that each order has ```orderdate```, this is a timestamp for each order created. 
    
@@ -311,7 +311,7 @@ We will sink data to Snowflake using the Confluent Cloud Snowflake Sink Connecto
 
 
 
-### 2b: Customer 360 Snapshot
+### 1b: Customer 360 Snapshot
 
 Using the `product_sales` data product, we create a new data product to support the Customer Services team: `thirty_day_customer_snapshot`. This product aggregates the past 30 days of activity for each customer, summarizing the total number of orders and total revenue generated. It provides a quick snapshot of customer behavior over the last month, enabling faster insights and support.
 
