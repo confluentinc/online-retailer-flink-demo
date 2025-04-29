@@ -115,11 +115,6 @@ However, before joining both streams together we need to make sure that there ar
    ```
    Every `order_id` will have a `count_total` of `1`, ensuring no duplicates exist in the new table. You will not find any `order_id` with a value greater than `1`.
 
-4. Finally, let's set the new table to `append`-only, meaning payments will not be updated once inserted.  
-```sql
-ALTER TABLE `unique_payments` SET ('changelog.mode' = 'append');
-```
-
 #### **Using Interval joins to filter out invalid orders**
 
 Now let's filter out invalid orders (orders with no payment recieved within 96 hours). To achieve this we will use Flink Interval joins.
@@ -173,6 +168,8 @@ This data can be made available seamlessly to your Data lake query engines using
 
 ##### Query with Athena
 
+>**NOTE: After enabling Tableflow, it may take up to 15 minutes for the data to become available for analysis in Amazon Athena.**
+
 1. In Amazon Athena UI, create a new Spark Notebook and configure it as follows:
    ![Athena Notebook](./assets/usecase2_notebook1.png)
 
@@ -197,14 +194,14 @@ This data can be made available seamlessly to your Data lake query engines using
 
 
 2. `completed_orders` data can now be queried in Athena. In the notebook run this query to SHOW available tables:
-   ```
-   %sql
-   SHOW TABLES in `<Confluent_Cluster_ID>`
+   ```sql
+   %%sql
+   SHOW TABLES in `<Confluent_Cluster_ID>`;
    ```
 
    Next preview `reveue_summary` table:
 
-   ```
+   ```sql
    %%sql
    SELECT * FROM `<Confluent_Cluster_ID>`.`completed_orders`;
    ```
@@ -221,7 +218,7 @@ This data can be made available seamlessly to your Data lake query engines using
    date_trunc('hour', ts) + INTERVAL '1' hour AS window_end,
    COUNT(*) AS total_orders,
    SUM(amount) AS total_revenue
-   FROM `lkc-07d625`.completed_orders
+   FROM `<Confluent_Cluster_ID>`.completed_orders
    GROUP BY date_trunc('hour', ts)
    ORDER BY window_start;
    ```
