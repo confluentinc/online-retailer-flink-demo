@@ -143,7 +143,7 @@ In this demo we will implement 3 use cases and then at the end visualise everyth
 
 1. [Usecase 1 - Product Sales and Customer360 Aggregation ](./Usecase1/USECASE1-README.md): Use Confluent Cloud for Apache Flink to clean and aggrgate Product Sales Data and sink the results to Snowflake or Redshift.
 2. [Usecase 2 - Daily Sales Trends](./Usecase2/USECASE2-README.md): Use Confluent Cloud for Apache Flink for Payment Validation and compute daily sales trends. The results are stored in a topic that has Tableflow enabled - which materializes the topic as Iceberg data. We then use Amazon Athena for further Analysis.
-3. [Usecase 3 - Managing Data Pipeines](./Usecase3/USECASE3-README.md): Use Confluent Cloud to manage and gain complete visibility into the entire data pipeline from a unified, single-pane view.
+
 
 ## Topics
 

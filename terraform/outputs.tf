@@ -53,20 +53,3 @@ resource "local_file" "destroy_sh" {
     random_id.env_display_id 
   ] 
   }
-
-# Create USECASE 4 terraform varaible file based on variables used in this script
-resource "local_file" "usecase4_terraform_var_file" {
-  filename = "../Usecase3/flink_terraform/terraform.tfvars"
-  content  = <<-EOT
-  confluent_cloud_api_key = "${var.confluent_cloud_api_key}"
-  confluent_cloud_api_secret = "${var.confluent_cloud_api_secret}"
-  confluent_cloud_environment_id = "${confluent_environment.staging.id}"
-  confluent_cloud_cluster_id = "${confluent_kafka_cluster.standard.id}"
-  demo_compute_pool_id = "${confluent_flink_compute_pool.flinkpool-main.id}"
-  confluent_cloud_service_account_id = "${confluent_service_account.app-manager.id}"
-  cloud_region = "${var.cloud_region}"
-  flink_management_api_key= "${confluent_api_key.app-manager-flink-api-key.id}"
-  flink_management_api_key_secret= "${confluent_api_key.app-manager-flink-api-key.secret}"
-  flink_statement_stopped=false
-  EOT 
-  }

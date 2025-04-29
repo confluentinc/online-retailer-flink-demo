@@ -229,7 +229,7 @@ That's it we were able analyse the data in Athena.
 
 ## Topics
 
-**Next topic:** [Managing Data Pipelines](../Usecase3/USECASE3-README.md)
+**Next topic:** [Cleanup](../README.md#clean-up)
 
 **Previous topic:** [Usecase 2 - Product Sales and Customer360 Aggregation](../Usecase1/USECASE1-README.md)
 
