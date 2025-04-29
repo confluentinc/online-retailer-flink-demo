@@ -47,52 +47,65 @@ SELECT * FROM `shiftleft.public.customers`;
 Notice that Customer data includes references to the address table. To create our customer data product, we will denormalize the customer information by joining it with the address table.
 
 ```sql
-SET 'sql.state-ttl' = '1 DAYS';
-SET 'client.statement-name' = 'product-sales-materializer';
-CREATE TABLE product_sales (
-     orderdate TIMESTAMP_LTZ(3),
-     orderid INT,
-     productid INT,
-     orderitemid INT,
-     brand STRING,
-     productname STRING,
-     price INT,
-     customerid INT,
-     customername STRING,
-     shipping_address_city STRING,
-     shipping_address_state STRING,
-     billing_address_state STRING,
-     quantity INT,
-     total_amount INT,
-     WATERMARK FOR orderdate AS orderdate - INTERVAL '5' SECOND
- )
- AS
- SELECT 
-     o.orderdate,
-     o.orderid,
-     p.productid,
-     oi.orderitemid,
-     p.brand,
-     p.productname,
-     p.price,
-     c.customerid,
-     c.customername,
-     c.shipping_address.city as shipping_address_city,
-     c.shipping_address.`state` as shipping_address_state,
-     c.billing_address.`state` as billing_address_state,
-     oi.quantity, 
-     oi.quantity * p.price AS total_amount 
- FROM 
-     `shiftleft.public.orders` o
- JOIN 
-     `shiftleft.public.order_items` oi ON oi.orderid = o.orderid
- JOIN 
-     `products_with_pk` FOR SYSTEM_TIME AS OF o.orderdate AS p ON p.productid = oi.productid
- JOIN 
-     `enriched_customers` FOR SYSTEM_TIME AS OF o.orderdate AS c ON c.customerid = o.customerid
- WHERE 
-     p.productname <> '' 
-     AND p.price > 0;
+SET 'client.statement-name' = 'enriched-customer-materializer';
+CREATE TABLE enriched_customers (
+  customerid INT,
+  customername STRING,
+  email STRING,
+  segment STRING,
+  shipping_address ROW<
+    street STRING,
+    city STRING,
+    state STRING,
+    postalcode STRING,
+    country STRING
+  >,
+  billing_address ROW<
+    street STRING,
+    city STRING,
+    state STRING,
+    postalcode STRING,
+    country STRING
+  >,
+  event_time TIMESTAMP_LTZ(3),
+  WATERMARK FOR event_time AS event_time - INTERVAL '5' SECOND,
+  PRIMARY KEY (customerid) NOT ENFORCED
+)
+AS
+  SELECT
+  c.customerid,
+  c.customername,
+  c.email,
+  c.segment,
+  ROW(
+    sa.street,
+    sa.city,
+    sa.state,
+    sa.postalcode,
+    sa.country
+  ) AS shipping_address,
+  ROW(
+    ba.street,
+    ba.city,
+    ba.state,
+    ba.postalcode,
+    ba.country
+  ) AS billing_address,
+
+  c.`$rowtime` AS event_time
+
+FROM `shiftleft.public.customers` c
+
+LEFT JOIN `shiftleft.public.addresses` sa
+  ON c.shipping_address_id = sa.addressid
+  AND (sa.__deleted IS NULL OR sa.__deleted <> 'true')
+
+LEFT JOIN `shiftleft.public.addresses` ba
+  ON c.billing_address_id = ba.addressid
+  AND (ba.__deleted IS NULL OR ba.__deleted <> 'true')
+
+WHERE c.__deleted IS NULL OR c.__deleted <> 'true';
+
 
 ```
 
@@ -160,20 +173,9 @@ The new data product holds a single entry for each customer and the key is `cust
         price INT,
         customerid INT,
         customername STRING,
-        shipping_address ROW<
-            street STRING,
-            city STRING,
-            state STRING,
-            postalcode STRING,
-            country STRING
-        >,
-        billing_address ROW<
-            street STRING,
-            city STRING,
-            state STRING,
-            postalcode STRING,
-            country STRING
-        >,
+        shipping_address_city STRING,
+        shipping_address_state STRING,
+        billing_address_state STRING,
         quantity INT,
         total_amount INT,
         WATERMARK FOR orderdate AS orderdate - INTERVAL '5' SECOND
@@ -189,8 +191,9 @@ The new data product holds a single entry for each customer and the key is `cust
         p.price,
         c.customerid,
         c.customername,
-        c.shipping_address,
-        c.billing_address,
+        c.shipping_address.city as shipping_address_city,
+        c.shipping_address.`state` as shipping_address_state,
+        c.billing_address.`state` as billing_address_state,
         oi.quantity, 
         oi.quantity * p.price AS total_amount 
     FROM 
