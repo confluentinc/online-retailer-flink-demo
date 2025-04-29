@@ -56,11 +56,26 @@ This [video](https://www.confluent.io/resources/demo/shift-left-dsp-demo/) showc
 * **Confluent CLI** - Used in the destroy script to delete resources created outside terraform. Run `brew install confluent`.
 * **Unix machine** - The Terraform script requires a Unix environment. If you're using a Windows machine, consider deploying an EC2 instance with CentOS and run the deployment steps from there.
 
+<details>
+<summary>Installing pre-reqs on MAC</summary>
+Run the following to install local dependencies on your laptop.
+```
+brew install git terraform awscli confluent-cli postgresql docker
+```
+
+Configure AWS CLI
+
+```
+aws configure
+```
+
+</details>
+
 ## Setup
 
 > Estimated time: 25 mins
 
-1. Clone the repo onto your local development machine using `git clone https://github.com/confluentinc/online-retailer-flink-demo`.
+1. Clone the repo onto your local development machine using `git clone -b cdc-update-branch git@github.com:confluentinc/online-retailer-flink-demo.git`.
 2. Change directory to demo repository and terraform directory.
 
 ```
