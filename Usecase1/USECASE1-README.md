@@ -67,7 +67,7 @@ CREATE TABLE enriched_customers (
     postalcode STRING,
     country STRING
   >,
-  event_time TIMESTAMP(3),
+  event_time TIMESTAMP_LTZ(3),
   WATERMARK FOR event_time AS event_time - INTERVAL '5' SECOND,
   PRIMARY KEY (customerid) NOT ENFORCED
 )
@@ -106,6 +106,7 @@ LEFT JOIN `shiftleft.public.addresses` ba
 
 WHERE c.__deleted IS NULL OR c.__deleted <> 'true';
 
+
 ```
 
 The new data product holds a single entry for each customer and the key is `customerid`.
@@ -128,23 +129,19 @@ The new data product holds a single entry for each customer and the key is `cust
 3. To perform a temporal join with ```products``` table, the ```products``` table needs to have a ```PRIMARY KEY```. Which is not defined at the moment. Create a new table that has the same schema as ```products``` table but with a PRIMARY KEY constraint
 
     ```sql
+    SET 'client.statement-name' = 'products-with-pk-materializer';
     CREATE TABLE `products_with_pk` (
         `productid` INT NOT NULL,
-        `brand` VARCHAR(2147483647) NOT NULL,
-        `productname` VARCHAR(2147483647) NOT NULL,
-        `category` VARCHAR(2147483647) NOT NULL,
-        `description` VARCHAR(2147483647),
-        `color` VARCHAR(2147483647),
-        `size` VARCHAR(2147483647),
+        `brand` STRING NOT NULL,
+        `productname` STRING NOT NULL,
+        `category` STRING NOT NULL,
+        `description` STRING,
+        `color` STRING,
+        `size` STRING,
         `price` INT NOT NULL,
-        `__deleted` VARCHAR(2147483647),
         PRIMARY KEY (`productid`) NOT ENFORCED
-    );
-    ```
-
-    ```sql
-    SET 'client.statement-name' = 'products-with-pk-materializer';
-    INSERT INTO `products_with_pk`
+    )
+    AS
     SELECT  `productid`,
         `brand`,
         `productname`,
@@ -152,8 +149,7 @@ The new data product holds a single entry for each customer and the key is `cust
         `description`,
         `color`,
         `size`,
-        CAST(price AS INT) AS price,
-        `__deleted`
+        CAST(price AS INT) AS price
     FROM `shiftleft.public.products`;
     ```
 
