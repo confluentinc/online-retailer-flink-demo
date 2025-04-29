@@ -59,6 +59,7 @@ This [video](https://www.confluent.io/resources/demo/shift-left-dsp-demo/) showc
 <details>
 <summary>Installing pre-reqs on MAC</summary>
 Run the following to install local dependencies on your laptop.
+
 ```
 brew install git terraform awscli confluent-cli postgresql docker
 ```
