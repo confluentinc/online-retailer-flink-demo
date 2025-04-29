@@ -36,7 +36,6 @@ You can choose to deploy the demo with with either Snowflake or Amazon Redshift.
 ├── terraform                             <-- Directory that holds terraform scripts
 ├── Usecase 1                             <-- Directory that holds usecase 1 instructions and screenshots
 ├── Usecase 2                             <-- Directory that holds usecase 2 instructions and screenshots
-├── Usecase 3                             <-- Directory that holds usecase 3 instructions and screenshots
 └── README.md
 ```
 
