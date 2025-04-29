@@ -90,21 +90,31 @@ However, before joining both streams together we need to make sure that there ar
    SET 'client.statement-name' = 'unique-payments-maintenance';
    SET 'sql.state-ttl' = '1 hour';
    
-   CREATE TABLE unique_payments
+   CREATE TABLE unique_payments (
+   order_id INT NOT NULL, 
+   product_id INT, 
+   customer_id INT, 
+   confirmation_code STRING,
+   cc_number STRING,
+   expiration STRING,
+   amount DOUBLE,
+   ts TIMESTAMP_LTZ(3),
+   WATERMARK FOR ts AS ts - INTERVAL '5' SECOND
+   ) 
    AS SELECT 
-     order_id, 
-     product_id, 
-     customer_id, 
-     confirmation_code,
-     cc_number,
-     expiration,
-     `amount`,
-     `ts`
+   COALESCE(order_id, 0) AS order_id, 
+   product_id, 
+   customer_id, 
+   confirmation_code,
+   cc_number,
+   expiration,
+   amount,
+   ts
    FROM (
-      SELECT * ,
-             ROW_NUMBER() OVER (PARTITION BY order_id ORDER BY `$rowtime` ASC) AS rownum
-      FROM payments
-         )
+   SELECT *, 
+            ROW_NUMBER() OVER (PARTITION BY order_id ORDER BY ts ASC) AS rownum
+   FROM payments
+   )
    WHERE rownum = 1;
    ```
    This query creates the `unique_payments` table, ensuring only the latest recorded payment for each `order_id` is retained. It uses `ROW_NUMBER()` to order payments by event time (`$rowtime`) and filters for the earliest entry per order. This removes any duplicate entries.
