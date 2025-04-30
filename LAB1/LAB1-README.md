@@ -7,13 +7,13 @@ The first is `product_sales`, which joins `enriched_customers`, `products`, `ord
 
 Then from `product_sales` we will create `thirty_day_customer_snapshot` view that provides daily aggregated metrics per customer. This data product will be written back to the operational PostgreSQL database.
 
-![Architecture](./assets/usecase1.png) 
+![Architecture](./assets/LAB1.png) 
 
 ### Data Masking
 
 1. We are using Confluent Cloud CDC Debezium connector to source data from the Postgres DB to Confluent Cloud. Navigate to [Connectors UI](https://confluent.cloud/go/connectors) in Confluent Cloud and select the demo environment and cluster. They both have the same prefix, by defualt they start with ```shiftleft```.
 2. Click on the Connector then **Settings**. Under transforms you will find the SMT used to mask PII information before sending the data to Confluent Cloud. This SMT replaces to email field value with ```****```.
-   ![Connector SMT](./assets/usecase1_smt.png)
+   ![Connector SMT](./assets/LAB1_smt.png)
    Now data should be flowing into Confluent Cloud.
 3. Navigate to [Flink UI](https://confluent.cloud/go/flink) in Confluent Cloud and select the demo environment
 4. Click on **Open SQL Workspace**.
@@ -33,7 +33,7 @@ Then from `product_sales` we will create `thirty_day_customer_snapshot` view tha
     FROM
         `shiftleft.public.customers`
     ```
-   ![Masked Message](./assets/usecase1_msg.png)
+   ![Masked Message](./assets/LAB1_msg.png)
 
 ### De-normalization - preparing Customer data
 
@@ -234,7 +234,7 @@ We will sink data to Amazon Redshift using the Confluent Cloud Redshift Sink Con
     3.  **Connection password**: ```Admin123456!```
     4.  **Database name**: ```mydb```
     
-    ![Redshif Connection Details](./assets/usecase1_rs.png)
+    ![Redshif Connection Details](./assets/LAB1_rs.png)
 
     >**NOTE: It's not recommended to use ADMIN user for data ingestion. We are using it here for demo purposes only.**
 
@@ -246,7 +246,7 @@ We will sink data to Amazon Redshift using the Confluent Cloud Redshift Sink Con
   
 6.  In the [Amazon Redshift Query V2 Editor page](https://console.aws.amazon.com/sqlworkbench/home), select the Cluster and enter the connection parameters to establish a connection with the database.
    
-    ![Redshift Query Editor](./assets/usecase1_rs_editorconfig.png)
+    ![Redshift Query Editor](./assets/LAB1_rs_editorconfig.png)
    
 7.   Run the follwing SQL Statement to preview the new table.
         > Note: The connector will take less than a minute to run, **but the data will be available for querying in Snowflake after 3-5 minutes.**
@@ -258,7 +258,7 @@ We will sink data to Amazon Redshift using the Confluent Cloud Redshift Sink Con
                 "mydb"."public"."product_sales";
         ```
 
-        ![Redshift Results](./assets/usecase1_rs_res.png)
+        ![Redshift Results](./assets/LAB1_rs_res.png)
 
 </details>
 
@@ -286,7 +286,7 @@ We will sink data to Snowflake using the Confluent Cloud Snowflake Sink Connecto
     5.  **Database name**: ```PRODUCTION```
     6.  **Schema name**: ```PUBLIC```
     
-    ![Snowflake Connection Details](./assets/usecase1_sf.png)
+    ![Snowflake Connection Details](./assets/LAB1_sf.png)
 
     >**NOTE: It's not recommended to use ACCOUNTADMIN role for data ingestion. We are using it here for demo purposes only.**
 
@@ -304,7 +304,7 @@ We will sink data to Snowflake using the Confluent Cloud Snowflake Sink Connecto
     ```
     SELECT * FROM PRODUCTION.PUBLIC.PRODUCT_SALES
     ```
-     ![Snowflake Results](./assets/usecase1_sf_res.png)
+     ![Snowflake Results](./assets/LAB1_sf_res.png)
 
 
 </details>
@@ -377,7 +377,7 @@ After creating the new data product for the Customer Services team, we’ll sink
     4.  **Connection password**: ```Admin123456!!``` (change if you chnaged in variables file)
     5.  **Database name**: ```onlinestoredb```
     
-    ![Postgres Connection Details](./assets/usecase1_pg.png)
+    ![Postgres Connection Details](./assets/LAB1_pg.png)
 
     >**NOTE: It's not recommended to use ADMIN user for data ingestion. We are using it here for demo purposes only.**
 
@@ -406,11 +406,11 @@ Run
 SELECT customername, total_amount, number_of_orders, customerid
 FROM thirty_day_customer_snapshot;
 ```
- ![Validation](./assets/usecase1_validate.png)
+ ![Validation](./assets/LAB1_validate.png)
 
 
 ## Topics
 
-**Next topic:** [Usecase 2 - Daily Sales Trends](../Usecase2/USECASE2-README.md)
+**Next topic:** [Usecase 2 - Daily Sales Trends](../LAB2/LAB2-README.md)
 
 **Previous topic:** [Demo Introduction and Setup](../README.md)

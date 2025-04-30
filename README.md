@@ -34,8 +34,8 @@ You can choose to deploy the demo with with either Snowflake or Amazon Redshift.
 │   ├── payments-app                      <-- Payments App code and dockerfile
 │   ├── postgres-data-feeder              <-- DB Feeder code and dockerfile
 ├── terraform                             <-- Directory that holds terraform scripts
-├── Usecase 1                             <-- Directory that holds usecase 1 instructions and screenshots
-├── Usecase 2                             <-- Directory that holds usecase 2 instructions and screenshots
+├── LAB1                             <-- Directory that holds  LAB1 instructions and screenshots
+├── LAB2                             <-- Directory that holds  LAB2 instructions and screenshots
 └── README.md
 ```
 
@@ -152,17 +152,17 @@ chmod +x ./demo-provision.sh
 ## Demo
 > Estimated time: 20 minutes
 
-There are two options for demonstration.  One is to walk through 3 discrete technical use case demonstrations and the other is to walk through an end-to-end demonstration of "shifting left" which takes a more integrated approach.  For the shiftleft approach go [HERE](./Shiftleft/README.md).  Otherwise go to each of the use cases below individually.
+There are two options for demonstration.  One is to walk through 3 discrete use case demonstrations spread accross 2 labs and the other is to walk through an end-to-end demonstration of "shifting left" which takes a more integrated approach.  For the shiftleft approach go [HERE](./Shiftleft/README.md).  Otherwise go to each of the use cases below individually.
 
 In this demo we will implement 3 use cases and then at the end visualise everything we have built:
 
-1. [Usecase 1 - Product Sales and Customer360 Aggregation ](./Usecase1/USECASE1-README.md): Use Confluent Cloud for Apache Flink to clean and aggrgate Product Sales Data and sink the results to Snowflake or Redshift.
-2. [Usecase 2 - Daily Sales Trends](./Usecase2/USECASE2-README.md): Use Confluent Cloud for Apache Flink for Payment Validation and compute daily sales trends. The results are stored in a topic that has Tableflow enabled - which materializes the topic as Iceberg data. We then use Amazon Athena for further Analysis.
+1. [LAB1 - Product Sales and Customer360 Aggregation ](./LAB1/LAB1-README.md): Use Confluent Cloud for Apache Flink to clean and aggrgate Product Sales Data and sink the results to Snowflake or Redshift.
+2. [LAB2 - Daily Sales Trends](./LAB2/LAB2-README.md): Use Confluent Cloud for Apache Flink for Payment Validation and compute daily sales trends. The results are stored in a topic that has Tableflow enabled - which materializes the topic as Iceberg data. We then use Amazon Athena for further Analysis.
 
 
 ## Topics
 
-**Next topic:** [Usecase 1: Product Sales and Customer360 Aggregation](./Usecase1/USECASE1-README.md)
+**Next topic:** [LAB1: Product Sales and Customer360 Aggregation](./LAB1/LAB1-README.md)
 
 ## Clean-up
 Once you are finished with this demo, remember to destroy the resources you created, to avoid incurring charges. You can always spin it up again anytime you want.

@@ -9,7 +9,7 @@ Tableflow simplifies the process of transferring data from Confluent into a data
 
 Since sales team in our fictitious company store all their data in Iceberg format. Instead of sending data to S3 and transforming it there, we’ll leverage Tableflow, which allows Confluent to handle the heavy lifting of data movement, conversion, and compaction. With Tableflow enabled, data stored in a Confluent topic, is ready for analytics in Iceberg format.
 
-![Architecture](./assets/usecase2.png)
+![Architecture](./assets/LAB2.png)
 
 
 But before doing this, let's make sure that the data is reliable and protected first.
@@ -28,11 +28,11 @@ The rules were already created by Terraform, there is no need to do anything her
    
    The rule basically says that `confirmation_code` field value should follow this regex expression `^[A-Z0-9]{8}$`. Any event that doesnt match, will be sent to a dead letter queue topic named `error-payments`.
 
-   ![Data Quality Rule](./assets/usecase2_dqr.png)
+   ![Data Quality Rule](./assets/LAB2_dqr.png)
 
 2. To validate that it is working go to the DLQ topic and inspect the message headers there.
    
-![Data Quality Rule](./assets/usecase2_msgdlq.png)
+![Data Quality Rule](./assets/LAB2_msgdlq.png)
 
 
 ##### **Data Protection using Confluent Cloud Client Side Field Level Encryption**
@@ -40,7 +40,7 @@ The rules were already created by Terraform, there is no need to do anything her
 [Client Side Field Level Encryption(CSFLE)](https://docs.confluent.io/cloud/current/security/encrypt/csfle/client-side.html) in Confluent Cloud works by setting the rules in Confluent Schema registry, these rules are then pushed to the clients, where they are enforced. The symmetric key is created in providor and the client should have necessary permissi the providor and the client should have permission to use the key to encrypt the data.
 
 1. In the `payments` topic we notice that, the topic contains credit card information in unencrypted form.
-    ![Architecture](./assets/usecase2_msg.png)
+    ![Architecture](./assets/LAB2_msg.png)
 
 This field should be encrypted, the Symmetric Key was already created by the Terraform in AWS KMS. The key ARN was also immported to Confluent by Terraform. We just need to create the rule in Confluent
    
@@ -57,14 +57,14 @@ This field should be encrypted, the Symmetric Key was already created by the Ter
 
     Our rule instructs the serailizer to ecrypt any field in this topic that is tagged as PII
 
-    ![CSFLE Rule](./assets/usecase2_rule.png)
+    ![CSFLE Rule](./assets/LAB2_rule.png)
 4. Restart the ECS Service for the changes to take effect immediately. Run ```terraform output``` to get the ECS command that should be used to restart the service. The command should look like this:
    ```
    aws ecs update-service --cluster <ECS_CLUSTER_NAME> --service payment-app-service --force-new-deployment
    ```
 5. Go back to the `payments` Topic UI, you can see that the Credit number is now encrypted.
 
-    ![Encrypted Field](./assets/usecase2_msgenc.png)
+    ![Encrypted Field](./assets/LAB2_msgenc.png)
 
 
 ### **Analyzing Daily Sales Trends using Confluent Cloud for Apache Flink**
@@ -158,13 +158,13 @@ This data can be made available seamlessly to your Data lake query engines using
 
 1. First enable Tableflow on the topic. In the topic UI, click on **Enable Tableflow**, then **Use Confluent Storage**.
 
-   ![Tableflow Enable Tableflow](./assets/usecase2_enable_tableflow.png)
+   ![Tableflow Enable Tableflow](./assets/LAB2_enable_tableflow.png)
 
 
 2. In Tableflow UI, copy the **REST Catalog Endpoint** to text editor we will use it later. 
 3. In the same page click **Create/View API keys** 
 
-   ![Tableflow API Key](./assets/usecase2_create_tableflow_apikey.png)
+   ![Tableflow API Key](./assets/LAB2_create_tableflow_apikey.png)
 
 4. In the API keys page click on **+ Add API Key**, then **Service Account** and choose your service account created by the Terraform script (run `terraform output resource-ids` and check the Service account name under **Service Accounts and their Kafka API Keys** section) the service account should start with prefix. Click **Next**
 
@@ -181,7 +181,7 @@ This data can be made available seamlessly to your Data lake query engines using
 >**NOTE: After enabling Tableflow, it may take up to 15 minutes for the data to become available for analysis in Amazon Athena.**
 
 1. In Amazon Athena UI, create a new Spark Notebook and configure it as follows:
-   ![Athena Notebook](./assets/usecase2_notebook1.png)
+   ![Athena Notebook](./assets/LAB2_notebook1.png)
 
    You can click **Edit in JSON** and copy the following Spark properties configuration to the Athena Notebook. Replace:
 
@@ -238,5 +238,5 @@ That's it we were able analyse the data in Athena.
 
 **Next topic:** [Cleanup](../README.md#clean-up)
 
-**Previous topic:** [Usecase 2 - Product Sales and Customer360 Aggregation](../Usecase1/USECASE1-README.md)
+**Previous topic:** [Usecase 2 - Product Sales and Customer360 Aggregation](../LAB1/LAB1-README.md)
 
