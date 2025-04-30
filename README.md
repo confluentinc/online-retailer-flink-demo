@@ -152,15 +152,7 @@ chmod +x ./demo-provision.sh
 ## Demo
 > Estimated time: 20 minutes
 
-
-
-There are two options for this demonstration:
-
-1. **End-to-End Shift Left Demonstration**  
-   This option provides an integrated walkthrough of the "shift left" approach. If you'd like to follow this path, start [here](./Shiftleft/README.md).
-
-2. **Individual Use Case Demonstrations**  
-   Alternatively, you can walk through **three discrete use case demonstrations spread across two labs**. To proceed with this approach, follow the individual use cases listed below:
+We will now build **three discrete use case demonstrations spread across two labs**. Follow the individual use cases listed below:
 
    - [**LAB1 – Product Sales and Customer360 Aggregation**](./LAB1/LAB1-README.md):  
    Use Confluent Cloud for Apache Flink to clean and aggregate product sales data, then sink the results to Snowflake or Redshift. Additionally, create a derived data product for a customer snapshot and send the result back to an operational database.
