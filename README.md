@@ -34,8 +34,8 @@ You can choose to deploy the demo with with either Snowflake or Amazon Redshift.
 │   ├── payments-app                      <-- Payments App code and dockerfile
 │   ├── postgres-data-feeder              <-- DB Feeder code and dockerfile
 ├── terraform                             <-- Directory that holds terraform scripts
-├── LAB1                             <-- Directory that holds  LAB1 instructions and screenshots
-├── LAB2                             <-- Directory that holds  LAB2 instructions and screenshots
+├── LAB1                                  <-- Directory that holds  LAB1 instructions and screenshots
+├── LAB2                                  <-- Directory that holds  LAB2 instructions and screenshots
 └── README.md
 ```
 
