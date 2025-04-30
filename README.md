@@ -152,12 +152,22 @@ chmod +x ./demo-provision.sh
 ## Demo
 > Estimated time: 20 minutes
 
-There are two options for demonstration.  One is to walk through 3 discrete use case demonstrations spread accross 2 labs and the other is to walk through an end-to-end demonstration of "shifting left" which takes a more integrated approach.  For the shiftleft approach go [HERE](./Shiftleft/README.md).  Otherwise go to each of the use cases below individually.
 
-In this demo we will implement 3 use cases and then at the end visualise everything we have built:
 
-1. [LAB1 - Product Sales and Customer360 Aggregation ](./LAB1/LAB1-README.md): Use Confluent Cloud for Apache Flink to clean and aggrgate Product Sales Data and sink the results to Snowflake or Redshift.
-2. [LAB2 - Daily Sales Trends](./LAB2/LAB2-README.md): Use Confluent Cloud for Apache Flink for Payment Validation and compute daily sales trends. The results are stored in a topic that has Tableflow enabled - which materializes the topic as Iceberg data. We then use Amazon Athena for further Analysis.
+There are two options for this demonstration:
+
+1. **End-to-End Shift Left Demonstration**  
+   This option provides an integrated walkthrough of the "shift left" approach. If you'd like to follow this path, start [here](./Shiftleft/README.md).
+
+2. **Individual Use Case Demonstrations**  
+   Alternatively, you can walk through **three discrete use case demonstrations spread across two labs**. To proceed with this approach, follow the individual use cases listed below:
+
+   - [**LAB1 – Product Sales and Customer360 Aggregation**](./LAB1/LAB1-README.md):  
+   Use Confluent Cloud for Apache Flink to clean and aggregate product sales data, then sink the results to Snowflake or Redshift. Additionally, create a derived data product for a customer snapshot and send the result back to an operational database.
+
+   - [**LAB2 – Daily Sales Trends**](./LAB2/LAB2-README.md):  
+   Use Confluent Cloud for Apache Flink for payment validation and to compute daily sales trends. The results are stored in a topic with Tableflow enabled, which materializes the topic as Iceberg data. We then use Amazon Athena for further analysis.
+
 
 
 ## Topics
