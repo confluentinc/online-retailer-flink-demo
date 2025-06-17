@@ -23,13 +23,13 @@ We want to make sure that any data produced adheres to a specific format. In our
 The rules were already created by Terraform, there is no need to do anything here except validate that it is working.
 
 1. In the [`payments`](https://confluent.cloud/go/topics) Topic UI, select **Data Contracts**. Under **Rules** notice that there is a rule already created.
-   
+
    The rule basically says that `confirmation_code` field value should follow this regex expression `^[A-Z0-9]{8}$`. Any event that doesnt match, will be sent to a dead letter queue topic named `error-payments`.
 
    ![Data Quality Rule](./assets/usecase3_dqr.png)
 
 2. To validate that it is working go to the DLQ topic and inspect the message headers there.
-   
+
 ![Data Quality Rule](./assets/usecase3_msgdlq.png)
 
 
@@ -41,16 +41,16 @@ The rules were already created by Terraform, there is no need to do anything her
     ![Architecture](./assets/usecase3_msg.png)
 
 This field should be encrypted, the Symmetric Key was already created by the Terraform in AWS KMS. The key ARN was also immported to Confluent by Terraform. We just need to create the rule in Confluent
-   
-2. In the [`payments`](    
+
+2. In the [`payments`](
    https://confluent.cloud/go/topics) Topic UI, select **Data Contracts** then click **Evolve**. Tag `cc_number` field as `PII`.
-   
+
 2. Click **Rules** and then **+ Add rules** button. Configure as the following:
    * Category: Data Encryption Rule
    * Rule name: `Encrypt_PII`
    * Encrypt fields with: `PII`
    * using: The key added by Terraform (probably called CSFLE_Key)
-  
+
     Then click **Add** and **Save**
 
     Our rule instructs the serailizer to ecrypt any field in this topic that is tagged as PII
@@ -76,7 +76,7 @@ However, before joining both streams together we need to make sure that there ar
 1. Check if there are any duplicates in `payments` table
    ```sql
    SELECT * FROM
-   ( SELECT order_id, amount, count(*) total 
+   ( SELECT order_id, amount, count(*) total
     FROM `payments`
     GROUP BY order_id, amount )
    WHERE total > 1;
@@ -87,12 +87,12 @@ However, before joining both streams together we need to make sure that there ar
    ```sql
    SET 'client.statement-name' = 'unique-payments-maintenance';
    SET 'sql.state-ttl' = '1 hour';
-   
+
    CREATE TABLE unique_payments
-   AS SELECT 
-     order_id, 
-     product_id, 
-     customer_id, 
+   AS SELECT
+     order_id,
+     product_id,
+     customer_id,
      confirmation_code,
      cc_number,
      expiration,
@@ -107,13 +107,22 @@ However, before joining both streams together we need to make sure that there ar
    ```
    This query creates the `unique_payments` table, ensuring only the latest recorded payment for each `order_id` is retained. It uses `ROW_NUMBER()` to order payments by event time (`$rowtime`) and filters for the earliest entry per order. This removes any duplicate entries.
 
+   Update the watermarks from the default `source_watermark()` to `ts` for the payments stream.
+   ```sql
+   ALTER TABLE payments
+   MODIFY WATERMARK FOR ts AS ts
+   ```
+   ```sql
+   ALTER TABLE unique_payments
+   MODIFY WATERMARK FOR ts AS ts
+   ```
 3. Let's validate that the new `unique_payments` does not comtain any duplicates
    ```sql
    SELECT order_id, COUNT(*) AS count_total FROM `unique_payments` GROUP BY order_id;
    ```
    Every `order_id` will have a `count_total` of `1`, ensuring no duplicates exist in the new table. You will not find any `order_id` with a value greater than `1`.
 
-4. Finally, let's set the new table to `append`-only, meaning payments will not be updated once inserted.  
+4. Finally, let's set the new table to `append`-only, meaning payments will not be updated once inserted.
 ```sql
 ALTER TABLE `unique_payments` SET ('changelog.mode' = 'append');
 ```
@@ -137,12 +146,12 @@ Now let's filter out invalid orders (orders with no payment recieved within 96 h
    ```sql
    SET 'client.statement-name' = 'completed-orders-materializer';
    INSERT INTO completed_orders
-    SELECT 
+    SELECT
         pymt.order_id,
-        pymt.amount, 
-        pymt.confirmation_code, 
+        pymt.amount,
+        pymt.confirmation_code,
         pymt.ts
-    FROM unique_payments pymt, `shiftleft.public.orders` ord 
+    FROM unique_payments pymt, `shiftleft.public.orders` ord
     WHERE pymt.order_id = ord.orderid
     AND orderdate BETWEEN pymt.ts - INTERVAL '96' HOUR AND pymt.ts;
    ```
@@ -165,16 +174,16 @@ Now let's filter out invalid orders (orders with no payment recieved within 96 h
     ```sql
     SET 'client.statement-name' = 'revenue-summary-materializer';
     INSERT INTO revenue_summary
-    SELECT 
-        window_start, 
-        window_end, 
+    SELECT
+        window_start,
+        window_end,
         SUM(amount) AS total_revenue
-    FROM 
+    FROM
         TABLE(
             TUMBLE(TABLE completed_orders, DESCRIPTOR(`ts`), INTERVAL '5' SECONDS)
         )
-    GROUP BY 
-        window_start, 
+    GROUP BY
+        window_start,
         window_end;
 
     ```
@@ -213,4 +222,3 @@ This data can be made available seamlessly to your Data lake query engines using
 **Next topic:** [Managing Data Pipelines](../Usecase4/USECASE4-README.md)
 
 **Previous topic:** [Usecase 2 - Product Sales Aggregation](../Usecase2/USECASE2-README.md)
-
