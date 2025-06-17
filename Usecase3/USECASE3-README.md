@@ -116,7 +116,7 @@ However, before joining both streams together we need to make sure that there ar
    ALTER TABLE unique_payments
    MODIFY WATERMARK FOR ts AS ts
    ```
-3. Let's validate that the new `unique_payments` does not comtain any duplicates
+3. Let's validate that the new `unique_payments` does not contain any duplicates
    ```sql
    SELECT order_id, COUNT(*) AS count_total FROM `unique_payments` GROUP BY order_id;
    ```
