@@ -92,7 +92,7 @@ public class ProducerApp implements Runnable {
                     
                     counter++;
                     
-                    Thread.sleep(1000);
+                    Thread.sleep(2000);
                     } catch (Exception e) {
                         // Catch and log the serialization error but continue to next record
                         // logger.error("Serialization error in ProducerApp.run: ", e);
