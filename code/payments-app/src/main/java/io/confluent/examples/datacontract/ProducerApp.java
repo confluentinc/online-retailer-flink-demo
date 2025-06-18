@@ -2,6 +2,7 @@ package io.confluent.examples.datacontract;
 
 import com.github.javafaker.Faker;
 import io.confluent.examples.datacontract.datagen.SalesDataGen;
+import io.confluent.examples.datacontract.pojo.avro.Sale;
 import io.confluent.examples.datacontract.utils.ClientsUtils;
 import io.confluent.kafka.serializers.AbstractKafkaSchemaSerDeConfig;
 import org.apache.kafka.clients.producer.*;
@@ -63,8 +64,11 @@ public class ProducerApp implements Runnable {
                     }
                     System.out.println("------------------------- ");
 
-                    // Create a sales record
-                    ProducerRecord record = new ProducerRecord<>(topic, sales);
+		    // For Kafka clients >= 2.4, the producer defaults to the Sticky Partitioner for keyless messages.
+		    // Messages with a key use hashing to determine the partition, aiming for an even spread and guaranteeing order per key.
+
+		    // Create a sales record
+                    ProducerRecord record = new ProducerRecord<>(topic, String.valueOf(((Sale)sales).getOrderId()), sales);
                     producer.send(record, new Callback() {
                         public void onCompletion(RecordMetadata metadata, Exception e) {
                             if(e != null) {
