@@ -18,13 +18,13 @@ Analytics teams are focused on general sales trends, so they don't need access t
 
 ##### **Using Confluent Cloud Data Quality Rules**
 
-We want to make sure that any data produced adheres to a specific format. In our case, we want to make sure that any payment event generated needs to have a valide `Confimation Code`. This check is done by using [Data Quality Rules](https://docs.confluent.io/cloud/current/sr/fundamentals/data-contracts.html#data-quality-rules), these rules are set in Confluent Schema registry, and pushed to the clients, where they are enforced. No need to change any code.
+We want to make sure that any data produced adheres to a specific format. In our case, we want to make sure that any payment event generated needs to have a valid `Confirmation Code`. This check is done by using [Data Quality Rules](https://docs.confluent.io/cloud/current/sr/fundamentals/data-contracts.html#data-quality-rules), these rules are set in Confluent Schema registry, and pushed to the clients, where they are enforced. No need to change any code.
 
 The rules were already created by Terraform, there is no need to do anything here except validate that it is working.
 
 1. In the [`payments`](https://confluent.cloud/go/topics) Topic UI, select **Data Contracts**. Under **Rules** notice that there is a rule already created.
 
-   The rule basically says that `confirmation_code` field value should follow this regex expression `^[A-Z0-9]{8}$`. Any event that doesnt match, will be sent to a dead letter queue topic named `error-payments`.
+   The rule basically says that `confirmation_code` field value should follow this regex expression `^[A-Z0-9]{8}$`. Any event that doesn't match, will be sent to a dead letter queue topic named `error-payments`.
 
    ![Data Quality Rule](./assets/usecase3_dqr.png)
 
@@ -35,12 +35,12 @@ The rules were already created by Terraform, there is no need to do anything her
 
 ##### **Data Protection using Confluent Cloud Client Side Field Level Encryption**
 
-[Client Side Field Level Encryption(CSFLE)](https://docs.confluent.io/cloud/current/security/encrypt/csfle/client-side.html) in Confluent Cloud works by setting the rules in Confluent Schema registry, these rules are then pushed to the clients, where they are enforced. The symmetric key is created in providor and the client should have necessary permissi the providor and the client should have permission to use the key to encrypt the data.
+[Client Side Field Level Encryption(CSFLE)](https://docs.confluent.io/cloud/current/security/encrypt/csfle/client-side.html) in Confluent Cloud works by setting the rules in Confluent Schema registry, these rules are then pushed to the clients, where they are enforced. The symmetric key is created in provider and the client should have necessary permission the provider and the client should have permission to use the key to encrypt the data.
 
 1. In the `payments` topic we notice that, the topic contains credit card information in unencrypted form.
     ![Architecture](./assets/usecase3_msg.png)
 
-This field should be encrypted, the Symmetric Key was already created by the Terraform in AWS KMS. The key ARN was also immported to Confluent by Terraform. We just need to create the rule in Confluent
+This field should be encrypted, the Symmetric Key was already created by the Terraform in AWS KMS. The key ARN was also imported to Confluent by Terraform. We just need to create the rule in Confluent
 
 2. In the [`payments`](
    https://confluent.cloud/go/topics) Topic UI, select **Data Contracts** then click **Evolve**. Tag `cc_number` field as `PII`.
@@ -53,7 +53,7 @@ This field should be encrypted, the Symmetric Key was already created by the Ter
 
     Then click **Add** and **Save**
 
-    Our rule instructs the serailizer to ecrypt any field in this topic that is tagged as PII
+    Our rule instructs the serializer to encrypt any field in this topic that is tagged as PII
 
     ![CSFLE Rule](./assets/usecase3_rule.png)
 4. Restart the ECS Service for the changes to take effect immediately. Run ```terraform output``` to get the ECS command that should be used to restart the service. The command should look like this:
@@ -81,7 +81,7 @@ However, before joining both streams together we need to make sure that there ar
     GROUP BY order_id, amount )
    WHERE total > 1;
    ```
-   This query shows all `order_id`s with multiple payments coming in. Since the output returns results, this indicates that the there are duplicicates in the `payments` table.
+   This query shows all `order_id`s with multiple payments coming in. Since the output returns results, this indicates that the there are duplicates in the `payments` table.
 
 2. To fix this run the following query in a new Flink cell
    ```sql
@@ -129,7 +129,7 @@ ALTER TABLE `unique_payments` SET ('changelog.mode' = 'append');
 
 #### **Using Interval joins to filter out invalid orders**
 
-Now let's filter out invalid orders (orders with no payment recieved within 96 hours). To achieve this we will use Flink Interval joins.
+Now let's filter out invalid orders (orders with no payment received within 96 hours). To achieve this we will use Flink Interval joins.
 
 
 1. Create a new table that will hold all completed orders.
@@ -142,7 +142,7 @@ Now let's filter out invalid orders (orders with no payment recieved within 96 h
         WATERMARK FOR ts AS ts - INTERVAL '5' SECOND
     );
    ```
-2. Filter out orders with no valid payment recieved within `96` hours of the order being placed.
+2. Filter out orders with no valid payment received within `96` hours of the order being placed.
    ```sql
    SET 'client.statement-name' = 'completed-orders-materializer';
    INSERT INTO completed_orders
@@ -169,7 +169,7 @@ Now let's filter out invalid orders (orders with no payment recieved within 96 h
    ```
 
 2. Finally, we calculate the total revenue within fixed 5-second windows by summing the amount from completed_orders. This is done using the TUMBLE function, which groups data into 5-second intervals, providing a clear view of sales trends over time:
-   >Note: The 5-second window is done for demo puposes you can change to the interval to 1 HOUR.
+   >Note: The 5-second window is done for demo purposes you can change to the interval to 1 HOUR.
 
     ```sql
     SET 'client.statement-name' = 'revenue-summary-materializer';
@@ -209,7 +209,7 @@ This data can be made available seamlessly to your Data lake query engines using
    SHOW TABLES in `<Confluent_Cluster_ID>`
    ```
 
-   Next preview `reveue_summary` table:
+   Next preview `revenue_summary` table:
 
    ```
    %%sql
