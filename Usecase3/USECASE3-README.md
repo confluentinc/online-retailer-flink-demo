@@ -89,6 +89,7 @@ However, before joining both streams together we need to make sure that there ar
    SET 'sql.state-ttl' = '1 hour';
 
    CREATE TABLE unique_payments
+   WITH ('kafka.consumer.isolation-level' = 'read-uncommitted')
    AS SELECT
      order_id,
      product_id,
@@ -135,12 +136,12 @@ Now let's filter out invalid orders (orders with no payment received within 96 h
 1. Create a new table that will hold all completed orders.
    ```sql
     CREATE TABLE completed_orders (
-        order_id INT,
+        order_id INT PRIMARY KEY NOT ENFORCED,
         amount DOUBLE,
         confirmation_code STRING,
         ts TIMESTAMP_LTZ(3),
-        WATERMARK FOR ts AS ts - INTERVAL '5' SECOND
-    );
+        WATERMARK FOR ts AS ts - INTERVAL '5' SECOND)
+        WITH ('kafka.consumer.isolation-level' = 'read-uncommitted');
    ```
 2. Filter out orders with no valid payment received within `96` hours of the order being placed.
    ```sql
@@ -163,8 +164,8 @@ Now let's filter out invalid orders (orders with no payment received within 96 h
    CREATE TABLE revenue_summary (
         window_start TIMESTAMP(3),
         window_end TIMESTAMP(3),
-        total_revenue DECIMAL(10, 2)
-    );
+        total_revenue DECIMAL(10, 2))
+   WITH ('kafka.consumer.isolation-level' = 'read-uncommitted');
 
    ```
 
