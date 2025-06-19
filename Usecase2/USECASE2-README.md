@@ -2,18 +2,18 @@
 ## Product Sales Aggregation
 In this usecase we will create a new Data Product ```Product_Sales``` by joining, cleaning and aggregating three tables—`products`, `order_items`, and `orders`—to generate a detailed view of orders and their associated products.
 
-![Architecture](./assets/usecase2.png) 
+![Architecture](./assets/usecase2.png)
 
 
-1. Flink jobs can measure time using either the system clock (processing time), or timestamps in the events (event time). For the ```orders``` table, notice that each order has ```orderdate```, this is a timestamp for each order created. 
-   
+1. Flink jobs can measure time using either the system clock (processing time), or timestamps in the events (event time). For the ```orders``` table, notice that each order has ```orderdate```, this is a timestamp for each order created.
+
    ```
     SHOW CREATE TABLE `shiftleft.public.orders`;
    ```
 2. We want to set the ```orderdate``` field as the event time for the table, enabling Flink to use it for accurate time-based processing and watermarking:
 
     ```
-    ALTER TABLE `<CONFLUENT_ENVIRONEMNT_NAME>`.`<CONFLUENT_CLUSTER_NAME>`.`shiftleft.public.orders` MODIFY WATERMARK FOR `orderdate` AS `orderdate`;
+    ALTER TABLE `<CONFLUENT_ENVIRONMENT_NAME>`.`<CONFLUENT_CLUSTER_NAME>`.`shiftleft.public.orders` MODIFY WATERMARK FOR `orderdate` AS `orderdate`;
     ```
 
 3. To perform a temporal join with ```products``` table, the ```products``` table needs to have a ```PRIMARY KEY```. Which is not defined at the moment. Create a new table that has the same schema as ```products``` table but with a PRIMARY KEY constraint
@@ -54,7 +54,7 @@ In this usecase we will create a new Data Product ```Product_Sales``` by joining
 
 
    Create a new Apache Flink table ```product_sales``` to represent the new data product.
-   
+
    ```
    CREATE TABLE product_sales (
         orderdate TIMESTAMP_LTZ(3),
@@ -72,41 +72,41 @@ In this usecase we will create a new Data Product ```Product_Sales``` by joining
    ```
     SET 'sql.state-ttl' = '7 DAYS';
     SET 'client.statement-name' = 'product-sales-materializer';
-    INSERT INTO product_sales 
-    SELECT 
+    INSERT INTO product_sales
+    SELECT
         o.orderdate,
         o.orderid,
         p.productid,
         oi.orderitemid,
         p.brand,
         p.productname,
-        p.price, 
-        oi.quantity, 
-        oi.quantity * p.price AS total_amount 
-    FROM 
+        p.price,
+        oi.quantity,
+        oi.quantity * p.price AS total_amount
+    FROM
         `shiftleft.public.orders` o
-    JOIN 
+    JOIN
         `shiftleft.public.order_items` oi ON oi.orderid = o.orderid
-    JOIN 
+    JOIN
         `products_with_pk` FOR SYSTEM_TIME AS OF o.orderdate AS p ON p.productid = oi.productid
-    WHERE 
-        p.productname <> '' 
+    WHERE
+        p.productname <> ''
         AND p.price > 0;
 
    ```
     The join uses the ```FOR SYSTEM_TIME AS OF``` keyword, making it a temporal join. Temporal joins are more efficient than regular joins because they use the time-based nature of the data, enriching each order with product information available at the order's creation time. If product details change later, the join result remains unchanged, reflecting the original order context. Additionally, temporal joins are preferable as regular joins would require Flink to keep the state indefinitely.
 
-5. Now let's sink the new data product to our data warehourse. Update the same Connector and add the new topic `product_sales`. Here is an example of the Snoflake connector, do the same if you are using Redshift. After adding the topic, click **Save changes** then **Apply changes**.
-   
-   ![Update Snowflake Conector](./assets/usecase2_sf.png)
+5. Now let's sink the new data product to our data warehouse. Update the same Connector and add the new topic `product_sales`. Here is an example of the Snowflake connector, do the same if you are using Redshift. After adding the topic, click **Save changes** then **Apply changes**.
+
+   ![Update Snowflake Connector](./assets/usecase2_sf.png)
 
 
 <details>
 <summary>Query from Redshift</summary>
 
-1. In the [Amazon Redshift Query V2 Editor page](console.aws.amazon.com/sqlworkbench/home), run the follwing SQL Statement to preview the new table.
+1. In the [Amazon Redshift Query V2 Editor page](console.aws.amazon.com/sqlworkbench/home), run the following SQL Statement to preview the new table.
     ```
-    
+
     SELECT
         *
     FROM
@@ -122,7 +122,7 @@ In this usecase we will create a new Data Product ```Product_Sales``` by joining
 <details>
 <summary>Query from Snowflake </summary>
 
-1. In Snowflake UI, go to Worksheets and run the follwing SQL Statement to preview the new table.
+1. In Snowflake UI, go to Worksheets and run the following SQL Statement to preview the new table.
     ```
     SELECT * FROM PRODUCTION.PUBLIC.PRODUCT_SALES
     ```
