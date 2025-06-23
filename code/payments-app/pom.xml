@@ -27,14 +27,14 @@
         </pluginRepository>
     </pluginRepositories>
     <properties>
-        <confluent.version>7.6.0</confluent.version>
-        <kafka.version>3.4.0</kafka.version>
+        <confluent.version>7.9.1-177</confluent.version>
+        <kafka.version>3.9.0</kafka.version>
         <jsonschema2pojo-maven-plugin>1.0.2</jsonschema2pojo-maven-plugin>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <java.version>1.8</java.version>
         <maven.compiler.source>8</maven.compiler.source>
         <maven.compiler.target>8</maven.compiler.target>
-        <avro-maven-plugin>1.11.3</avro-maven-plugin>
+        <avro-maven-plugin>1.12.0</avro-maven-plugin>
         <protoc.jar.maven.plugin>3.11.4</protoc.jar.maven.plugin>
         <schema.registry.url>${env.SR_URL}</schema.registry.url>
         <schema.registry.basic.auth.user.info>
@@ -140,14 +140,14 @@
         <dependency>
             <groupId>javax.mail</groupId>
             <artifactId>mail</artifactId>
-            <version>1.4</version>
+            <version>1.4.7</version>
         </dependency>
 
         <!-- Misc -->
         <dependency>
             <groupId>javax.mail</groupId>
             <artifactId>mail</artifactId>
-            <version>1.4</version>
+            <version>1.4.7</version>
         </dependency>
         <!-- https://mvnrepository.com/artifact/com.squareup.okhttp/okhttp -->
         <dependency>
@@ -159,7 +159,7 @@
         <dependency>
             <groupId>com.slack.api</groupId>
             <artifactId>slack-api-client</artifactId>
-            <version>1.32.1</version>
+            <version>1.45.3</version>
         </dependency>
         <dependency>
             <groupId>com.squareup.okhttp</groupId>
@@ -174,7 +174,7 @@
                <plugin>
                     <groupId>org.codehaus.mojo</groupId>
                     <artifactId>exec-maven-plugin</artifactId>
-                    <version>3.1.0</version>
+                    <version>3.5.0</version>
                     <executions>
                         <execution>
                             <goals>
