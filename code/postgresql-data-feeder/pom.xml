@@ -17,7 +17,7 @@
     <dependency>
       <groupId>org.postgresql</groupId>
       <artifactId>postgresql</artifactId>
-      <version>42.7.5</version>
+      <version>42.7.7</version>
     </dependency>
   </dependencies>
   <build>
@@ -37,7 +37,7 @@
       <plugin>
         <groupId>org.codehaus.mojo</groupId>
         <artifactId>exec-maven-plugin</artifactId>
-        <version>3.5.0</version>
+        <version>3.5.1</version>
         <configuration>
           <mainClass>com.example.DataFeeder</mainClass>
         </configuration>

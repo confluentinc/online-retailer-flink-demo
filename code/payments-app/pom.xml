@@ -27,8 +27,8 @@
         </pluginRepository>
     </pluginRepositories>
     <properties>
-        <confluent.version>7.9.1-177</confluent.version>
-        <kafka.version>3.9.0</kafka.version>
+        <confluent.version>7.9.1-180</confluent.version>
+        <kafka.version>3.9.1</kafka.version>
         <jsonschema2pojo-maven-plugin>1.0.2</jsonschema2pojo-maven-plugin>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <java.version>1.8</java.version>
@@ -174,7 +174,7 @@
                <plugin>
                     <groupId>org.codehaus.mojo</groupId>
                     <artifactId>exec-maven-plugin</artifactId>
-                    <version>3.5.0</version>
+                    <version>3.5.1</version>
                     <executions>
                         <execution>
                             <goals>
