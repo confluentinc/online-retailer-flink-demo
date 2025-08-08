@@ -45,8 +45,8 @@ resource "local_file" "destroy_sh" {
   content  = <<-EOT
     confluent schema-registry dek delete --kek-name CSFLE_Key --subject payments-value --force --environment ${confluent_environment.staging.id}
     confluent schema-registry dek delete --kek-name CSFLE_Key --subject payments-value --force --permanent --environment ${confluent_environment.staging.id}
-    aws ecr delete-repository --repository-name ${aws_ecr_repository.payment_app_repo.name} --force
-    aws ecr delete-repository --repository-name ${aws_ecr_repository.dbfeeder_app_repo.name} --force
+    aws ecr delete-repository --repository-name ${aws_ecr_repository.payment_app_repo.name} --force --region ${var.cloud_region}
+    aws ecr delete-repository --repository-name ${aws_ecr_repository.dbfeeder_app_repo.name} --force --region ${var.cloud_region}
     terraform destroy -var="local_architecture=$ARCH" --auto-approve
   EOT
   depends_on = [ 

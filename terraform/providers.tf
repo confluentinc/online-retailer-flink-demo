@@ -49,7 +49,7 @@ module "redshift" {
   vpc_id     = aws_vpc.ecs_vpc.id
 }
 
-/*
+
 # UNCOMMENT THE FOLLOWING 2 CONFIG BLOCKS, IF YOU WANT TO DEPLOY THE DEMO WITH SNOWFLAKE
 
 # Snowflake provider configuration
@@ -74,7 +74,7 @@ module "snowflake" {
   snowflake_password = var.snowflake_password
   public_key_no_headers = local.public_key_no_headers
 }
-*/
+
 
 resource "tls_private_key" "rsa_key" {
   algorithm = "RSA"
