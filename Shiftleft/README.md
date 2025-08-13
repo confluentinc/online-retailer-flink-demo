@@ -174,9 +174,45 @@ The following sources are coming into Confluent Cloud
 
     ![Actions](./assets/shiftleft_actions.png)
 
-    Click on this and chose the **Deduplicate topic**.  Under **Fields to deduplicate** select `order_id`, `product_id`, and `amount`. Once you launch this ation behind the scenes it will generate and execute a flink statement.  In fact we can see what this looks like by scrolling to the buttom and selcting the **Show SQL** switch.  Naturally for a production system you would use sql that was checked into source control and use CI/CD etc. rather than launched an action from a production cluster for developing actions can be handy for giving you a starting point.  Click the **Confirm and run** button.
+    Click on this and chose the **Deduplicate topic**.  Under **Fields to deduplicate** select `customer_id`, and `confirmation_code`. Once you launch this ation behind the scenes it will generate and execute a flink statement.  In fact we can see what this looks like by scrolling to the buttom and selcting the **Show SQL** switch.  Naturally for a production system you would use sql that was checked into source control and use CI/CD etc. rather than launched an action from a production cluster for developing actions can be handy for giving you a starting point.  Rather than just launch this action with default settings we will tweak the query.  Click the **Open SQL editor** link ![Show SQL](./assets/shiftleft_show_sql.png) and then click on `Open SQL editor`.  In the shown sql change the changelog.mode property from `'upsert'` to `'append'`. This effects how the de-deduplicated topic will be joined.  We are saying that payments will not be updated they will only be added and we are ensuring this by removing duplicates as well.   In the same `with` clause add the following property `'kafka.consumer.isolation-level' = 'read-uncommitted'`. This allows the Flink consumer to read records from Kafka transactions that haven't been committed yet, rather than waiting for the transaction to complete. This reduces latency and makes the data pipeline more responsive.  For production systems requiring exactly-once semantics, you would use `read-committed` (the default), but for this demonstration, `read-uncommitted` provides better responsiveness. Your query will now look something like
 
-    If we now go back to Flink we can run the same query against the new topic ``payments_deduplicate``
+    ```sql
+    CREATE TABLE `shiftleft-environment-5e96ebef`.`shiftleft-cluster-5e96ebef`.`payments_deduplicate` (
+	   PRIMARY KEY (`confirmation_code`, `customer_id`) NOT ENFORCED
+    ) DISTRIBUTED BY HASH(
+	   `confirmation_code`, `customer_id`
+    ) WITH (
+	   'changelog.mode' = 'append',
+	   'value.format'='avro-registry',
+	   'key.format'='avro-registry',
+     'kafka.consumer.isolation-level' = 'read-uncommitted' 
+    ) AS 
+      SELECT `confirmation_code`, `customer_id`, `key`, `order_id`, `product_id`, `cc_number`, `expiration`, `amount`, `ts` FROM (
+	      SELECT *, ROW_NUMBER() 
+          OVER (PARTITION BY `confirmation_code`, `customer_id` ORDER BY $rowtime ASC) AS row_num
+	      FROM `shiftleft-environment-5e96ebef`.`shiftleft-cluster-5e96ebef`.`payments`
+        ) WHERE row_num = 1;
+    ```
+    Click the **Run** button to launch this.
+    
+    Lastly lets update the watermark for ``payments`` and ``payments_deduplicate`` to use the `ts` field by running these two queries.
+    ```sql
+    ALTER TABLE payments
+    MODIFY WATERMARK FOR ts AS ts
+    ```
+    ```sql
+    ALTER TABLE unique_payments
+    MODIFY WATERMARK FOR ts AS ts
+    ```
+    We can now verify that the new topic has no duplicates by running the same query as before 
+    
+    ```sql
+    SELECT * FROM 
+      ( SELECT order_id, amount, count(*) total 
+        FROM `payments_deduplicate`
+        GROUP BY order_id, amount )
+     WHERE total > 1;
+    ```
 
 
 1.  You may have noticed the credit card nummber is showing in clear text which isn't good so lets add a rule that encrypts all fields that are marked PII and mark the credit card field PII so that unencrypted PII doesn't land in redshift or anywhere else.
@@ -189,18 +225,25 @@ The following sources are coming into Confluent Cloud
        * Encrypt fields with: `PII`
        * using: The key added by Terraform (probably called CSFLE_Key)
   
-       Then click **Add** and **Save**
+    Our rule instructs the serailizer to ecrypt any field marked PII to be encrypted before being written into this topic
+       
+    ![CSFLE Rule](./assets/shiftleft_rule.png)
 
-       Our rule instructs the serailizer to ecrypt any field marked PII to be encrypted before being written into this topic
+    Click **Add**
 
-       ![CSFLE Rule](./assets/shiftleft_rule.png)
+       
+    Notice that the Encryption rules is listed after the validateConfirmationCode.  These domain rules are applied in sequential order.  This means that if you save it as is records with bad confirmation codes will be sent to the dead letter topic before the second rule has executed.  This would mean the credit cards numbers are not getting encrypted for these malformed records which is not good.  To fix this click on the up arrow next to the encryption rule.
 
-    Restart the ECS Service where the payments services is running for the changes to take effect immediately. Run ```terraform output``` to get the ECS command that should be used to restart the service. The command should look like this:
+    ![Rule Order](./assets/shiftleft_rule_order.png)
+
+    Now click **Save** in the bottom right to save the new version of the data contract.
+
+    Restart the ECS Service where the payments services is running for the changes to take effect immediately. Run ```terraform output``` to get the ECS command that should be used to restart the service. The dedu should look like this:
     ```
        aws ecs update-service --cluster <ECS_CLUSTER_NAME> --service payment-app-service --force-new-deployment
     ```
     
-    It will take a 30 seconds to a minute to roll the payment java prducer app so lets go to the next step and we will come back to observe the encrypted fild Go back to the `payments` topic UI, you can see that the Credit number is now encrypted. 
+    It will take around 30 seconds to roll the payment java producer app but we can go back to the `payments` topic UI, and soon you will see that the Credit number is being encrypted. 
 
     ![Encrypted Field](./assets/shiftleft_msgenc.png)
 
@@ -218,8 +261,11 @@ The following sources are coming into Confluent Cloud
       WATERMARK FOR ts AS ts - INTERVAL '5' SECOND
     );
     ```
+  
+    <!-- TODO need to understand WITH ('kafka.consumer.isolation-level' = 'read-uncommitted') and see if this fixes the join issues -->
 
     ```sql
+    SET 'sql.state-ttl' = '7 DAYS';
     SET 'client.statement-name' = 'sales-materializer';
     INSERT INTO sales
     SELECT 
@@ -236,7 +282,7 @@ The following sources are coming into Confluent Cloud
 
     And we should tag this as a ```DataProduct``` as well
 
-1.  Let's ingest our data product topics to the data wharehouse you have.
+1.  Let's ingest our data product topics to the data warehouse you have.
 
     <details> 
       <summary>Click to expand Amazon Redshift instructions</summary>
