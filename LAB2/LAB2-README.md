@@ -1,13 +1,15 @@
 
 ## Daily Sales Trends
 
-In this use case, we utilize Confluent Cloud and Apache Flink to validate payments and analyze daily sales trends, creating a valuable data product that empowers sales teams to make informed business decisions. While such analyses are typically conducted within a Lakehouse—as demonstrated in use cases 1 and 2—Confluent offers multiple integration options to seamlessly bring data streams into Lakehouses. This includes a suite of connectors that read data from Confluent and write to various engines. Another option is [Tableflow](https://www.confluent.io/product/tableflow/) .
+In this use case, we utilize Confluent Cloud and Apache Flink to validate payments and create completed orders, creating a valuable data product that could be used to analyse daily sales trends to empower sales teams to make informed business decisions.
+
+While such analyses are typically conducted within a Lakehouse—as demonstrated in use cases 1 and 2. Confluent offers multiple integration options to seamlessly bring data streams into Lakehouses. This includes a suite of connectors that read data from Confluent and write to various engines. Another option is [Tableflow](https://www.confluent.io/product/tableflow/) .
 
 Tableflow simplifies the process of transferring data from Confluent into a data lake, warehouse, or analytics engine. It enables users to convert Kafka topics and their schemas into Apache Iceberg tables with zero effort, significantly reducing the engineering time, compute resources, and costs associated with traditional data pipelines. This efficiency is achieved by leveraging Confluent's Kora Storage Layer and a new metadata materializer that works with Confluent Schema Registry to manage schema mapping and evolution.
 
 Since sales team in our fictitious company store all their data in Iceberg format. Instead of sending data to S3 and transforming it there, we’ll leverage Tableflow, which allows Confluent to handle the heavy lifting of data movement, conversion, and compaction. With Tableflow enabled, data stored in a Confluent topic, is ready for analytics in Iceberg format.
 
-![Architecture](./assets/usecase3.png)
+![Architecture](./assets/LAB2.png)
 
 
 But before doing this, let's make sure that the data is reliable and protected first.
@@ -26,11 +28,11 @@ The rules were already created by Terraform, there is no need to do anything her
 
    The rule basically says that `confirmation_code` field value should follow this regex expression `^[A-Z0-9]{8}$`. Any event that doesn't match, will be sent to a dead letter queue topic named `error-payments`.
 
-   ![Data Quality Rule](./assets/usecase3_dqr.png)
+   ![Data Quality Rule](./assets/LAB2_dqr.png)
 
 2. To validate that it is working go to the DLQ topic and inspect the message headers there.
 
-![Data Quality Rule](./assets/usecase3_msgdlq.png)
+![Data Quality Rule](./assets/LAB2_msgdlq.png)
 
 
 ##### **Data Protection using Confluent Cloud Client Side Field Level Encryption**
@@ -38,7 +40,7 @@ The rules were already created by Terraform, there is no need to do anything her
 [Client Side Field Level Encryption(CSFLE)](https://docs.confluent.io/cloud/current/security/encrypt/csfle/client-side.html) in Confluent Cloud works by setting the rules in Confluent Schema registry, these rules are then pushed to the clients, where they are enforced. The symmetric key is created in provider and the client should have necessary permission the provider and the client should have permission to use the key to encrypt the data.
 
 1. In the `payments` topic we notice that, the topic contains credit card information in unencrypted form.
-    ![Architecture](./assets/usecase3_msg.png)
+    ![Architecture](./assets/LAB2_msg.png)
 
 This field should be encrypted, the Symmetric Key was already created by the Terraform in AWS KMS. The key ARN was also imported to Confluent by Terraform. We just need to create the rule in Confluent
 
@@ -55,14 +57,14 @@ This field should be encrypted, the Symmetric Key was already created by the Ter
 
     Our rule instructs the serializer to encrypt any field in this topic that is tagged as PII
 
-    ![CSFLE Rule](./assets/usecase3_rule.png)
+    ![CSFLE Rule](./assets/LAB2_rule.png)
 4. Restart the ECS Service for the changes to take effect immediately. Run ```terraform output``` to get the ECS command that should be used to restart the service. The command should look like this:
    ```
    aws ecs update-service --cluster <ECS_CLUSTER_NAME> --service payment-app-service --force-new-deployment
    ```
 5. Go back to the `payments` Topic UI, you can see that the Credit number is now encrypted.
 
-    ![Encrypted Field](./assets/usecase3_msgenc.png)
+    ![Encrypted Field](./assets/LAB2_msgenc.png)
 
 
 ### **Analyzing Daily Sales Trends using Confluent Cloud for Apache Flink**
@@ -88,22 +90,31 @@ However, before joining both streams together we need to make sure that there ar
    SET 'client.statement-name' = 'unique-payments-maintenance';
    SET 'sql.state-ttl' = '1 hour';
 
-   CREATE TABLE unique_payments
-   WITH ('kafka.consumer.isolation-level' = 'read-uncommitted')
+   CREATE TABLE unique_payments (
+   order_id INT NOT NULL,
+   product_id INT,
+   customer_id INT,
+   confirmation_code STRING,
+   cc_number STRING,
+   expiration STRING,
+   amount DOUBLE,
+   ts TIMESTAMP_LTZ(3),
+   WATERMARK FOR ts AS ts - INTERVAL '5' SECOND
+   )
    AS SELECT
-     order_id,
-     product_id,
-     customer_id,
-     confirmation_code,
-     cc_number,
-     expiration,
-     `amount`,
-     `ts`
+   COALESCE(order_id, 0) AS order_id,
+   product_id,
+   customer_id,
+   confirmation_code,
+   cc_number,
+   expiration,
+   amount,
+   ts
    FROM (
-      SELECT * ,
-             ROW_NUMBER() OVER (PARTITION BY order_id ORDER BY `$rowtime` ASC) AS rownum
-      FROM payments
-         )
+   SELECT *,
+            ROW_NUMBER() OVER (PARTITION BY order_id ORDER BY ts ASC) AS rownum
+   FROM payments
+   )
    WHERE rownum = 1;
    ```
    This query creates the `unique_payments` table, ensuring only the latest recorded payment for each `order_id` is retained. It uses `ROW_NUMBER()` to order payments by event time (`$rowtime`) and filters for the earliest entry per order. This removes any duplicate entries.
@@ -123,103 +134,117 @@ However, before joining both streams together we need to make sure that there ar
    ```
    Every `order_id` will have a `count_total` of `1`, ensuring no duplicates exist in the new table. You will not find any `order_id` with a value greater than `1`.
 
-4. Finally, let's set the new table to `append`-only, meaning payments will not be updated once inserted.
-```sql
-ALTER TABLE `unique_payments` SET ('changelog.mode' = 'append');
-```
-
 #### **Using Interval joins to filter out invalid orders**
 
 Now let's filter out invalid orders (orders with no payment received within 96 hours). To achieve this we will use Flink Interval joins.
 
 
-1. Create a new table that will hold all completed orders.
-   ```sql
-    CREATE TABLE completed_orders (
-        order_id INT PRIMARY KEY NOT ENFORCED,
-        amount DOUBLE,
-        confirmation_code STRING,
-        ts TIMESTAMP_LTZ(3),
-        WATERMARK FOR ts AS ts - INTERVAL '5' SECOND)
-        WITH ('kafka.consumer.isolation-level' = 'read-uncommitted');
-   ```
-2. Filter out orders with no valid payment received within `96` hours of the order being placed.
+1. Create a new table that will hold all completed orders and filter out orders with no valid payment recieved within `96` hours of the order being placed.
    ```sql
    SET 'client.statement-name' = 'completed-orders-materializer';
-   INSERT INTO completed_orders
-    SELECT
-        pymt.order_id,
-        pymt.amount,
-        pymt.confirmation_code,
-        pymt.ts
-    FROM unique_payments pymt, `shiftleft.public.orders` ord
-    WHERE pymt.order_id = ord.orderid
-    AND orderdate BETWEEN pymt.ts - INTERVAL '96' HOUR AND pymt.ts;
+   CREATE TABLE completed_orders (
+      order_id INT,
+      amount DOUBLE,
+      confirmation_code STRING,
+      ts TIMESTAMP_LTZ(3),
+      WATERMARK FOR ts AS ts - INTERVAL '5' SECOND
+   ) AS
+   SELECT
+      pymt.order_id,
+      pymt.amount,
+      pymt.confirmation_code,
+      pymt.ts
+   FROM unique_payments pymt, `shiftleft.public.orders` ord
+   WHERE pymt.order_id = ord.orderid
+   AND orderdate BETWEEN pymt.ts - INTERVAL '96' HOUR AND pymt.ts;
    ```
 
-#### **Analyzing Sales Trends**
+#### **Analyzing Sales Trends using Amazon Athena**
 
-1. Create a ```revenue_summary``` table. This table will hold aggregated revenue data, helping to track and visualize sales over specific time intervals:
+This data can be made available seamlessly to your Data lake query engines using Confluent Cloud Tableflow feature. When Tableflow is enabled on a topic, the topic is materialized as an Iceberg Table and is available for any Query engine. In this demo, we use Amazon Athena, you can use any Engine that supports Iceberg Rest Catalog.
+
+##### Setting up Tableflow
+
+1. First enable Tableflow on the topic. In the topic UI, click on **Enable Tableflow**, then **Use Confluent Storage**.
+
+   ![Tableflow Enable Tableflow](./assets/LAB2_enable_tableflow.png)
+
+
+2. In Tableflow UI, copy the **REST Catalog Endpoint** to text editor we will use it later.
+3. In the same page click **Create/View API keys**
+
+   ![Tableflow API Key](./assets/LAB2_create_tableflow_apikey.png)
+
+4. In the API keys page click on **+ Add API Key**, then **Service Account** and choose your service account created by the Terraform script (run `terraform output resource-ids` and check the Service account name under **Service Accounts and their Kafka API Keys** section) the service account should start with prefix. Click **Next**
+
+5. Choose **Tableflow**, then **Next**.
+
+6. Give it a name and click **Create API Key**.
+
+7. Copy the Key and Secret and click **Complete**
+
+
+
+##### Query with Athena
+
+>**NOTE: After enabling Tableflow, it may take up to 15 minutes for the data to become available for analysis in Amazon Athena.**
+
+1. In Amazon Athena UI, create a new Spark Notebook and configure it as follows:
+   ![Athena Notebook](./assets/LAB2_notebook1.png)
+
+   You can click **Edit in JSON** and copy the following Spark properties configuration to the Athena Notebook. Replace:
+
+   * `<KAFKA_CLUSTER_NAME>` with your Confluent Cluster name. It should start with your prefix
+   * `<TABLEFLOW_ENDPOINT>` that you copied from previous section
+   * `<TABLEFLOW_API_KEY>:<TABLEFLOW_SECRET>` with Tableflow API key and secret created in the previous section
+
+   ```
+   {
+   "spark.sql.catalog.<KAFKA_CLUSTER_NAME>": "org.apache.iceberg.spark.SparkCatalog",
+   "spark.sql.catalog.<KAFKA_CLUSTER_NAME>.catalog-impl": "org.apache.iceberg.rest.RESTCatalog",
+   "spark.sql.catalog.<KAFKA_CLUSTER_NAME>.uri": "<TABLEFLOW_ENDPOINT>",
+   "spark.sql.catalog.<KAFKA_CLUSTER_NAME>.credential": "<TABLEFLOW_API_KEY>:<TABLEFLOW_SECRET>",
+   "spark.sql.catalog.tableflowdemo.s3.remote-signing-enabled": "true",
+   "spark.sql.defaultCatalog": "<KAFKA_CLUSTER_NAME>",
+   "spark.sql.extensions": "org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions"
+   }
+
+   ```
+
+
+2. `completed_orders` data can now be queried in Athena. In the notebook run this query to SHOW available tables:
    ```sql
-   CREATE TABLE revenue_summary (
-        window_start TIMESTAMP(3),
-        window_end TIMESTAMP(3),
-        total_revenue DECIMAL(10, 2))
-   WITH ('kafka.consumer.isolation-level' = 'read-uncommitted');
-
-   ```
-
-2. Finally, we calculate the total revenue within fixed 5-second windows by summing the amount from completed_orders. This is done using the TUMBLE function, which groups data into 5-second intervals, providing a clear view of sales trends over time:
-   >Note: The 5-second window is done for demo purposes you can change to the interval to 1 HOUR.
-
-    ```sql
-    SET 'client.statement-name' = 'revenue-summary-materializer';
-    INSERT INTO revenue_summary
-    SELECT
-        window_start,
-        window_end,
-        SUM(amount) AS total_revenue
-    FROM
-        TABLE(
-            TUMBLE(TABLE completed_orders, DESCRIPTOR(`ts`), INTERVAL '5' SECONDS)
-        )
-    GROUP BY
-        window_start,
-        window_end;
-
-    ```
-
-5. Preview the final output:
-    ```sql
-     SELECT * FROM revenue_summary
-    ```
-
-#### **Data Lake Integration using Confluent Cloud Tableflow and Amazon Athena**
-
-This data can be made available seamlessly to your Data lake query engines using Confluent Cloud Tableflow feature. When Tableflow is enabled on the cluster, all topics in the cluster are materialized as Iceberg Tables and are available for any Query engine. In this demo, we use Amazon Athena, you can use any Engine that supports Iceberg Rest Catalog.
-
-1. First get the Tableflow access details from the Data Portal UI.
-   ![Tableflow Access Details](./assets/usecase3_tableflow.png)
-
-2. In Amazon Athena UI, create a new Spark Notebook and configure it as follows:
-   ![Athena Notebook](./assets/usecase3_notebook.png)
-
-3. `revenue_summary` data can now be queried in Athena. In the notebook run this query to SHOW available tables:
-   ```
-   %sql
-   SHOW TABLES in `<Confluent_Cluster_ID>`
+   %%sql
+   SHOW TABLES in `<Confluent_Cluster_ID>`;
    ```
 
    Next preview `revenue_summary` table:
 
-   ```
+   ```sql
    %%sql
-   SELECT * FROM `<Confluent_Cluster_ID>`.`revenue_summary`;
+   SELECT * FROM `<Confluent_Cluster_ID>`.`completed_orders`;
    ```
 
-   That's it we are now able to query the data in Athena.
+4. Now we can start analyzing daily sales trends in Athena.
+   > NOTE: For demo puposes we will do hourly windows
+
+   In a new cell copy the follwoing SQL
+
+   ```sql
+   %%sql
+   SELECT
+   date_trunc('hour', ts) AS window_start,
+   date_trunc('hour', ts) + INTERVAL '1' hour AS window_end,
+   COUNT(*) AS total_orders,
+   SUM(amount) AS total_revenue
+   FROM `<Confluent_Cluster_ID>`.completed_orders
+   GROUP BY date_trunc('hour', ts)
+   ORDER BY window_start;
+   ```
+That's it we were able analyse the data in Athena.
+
 ## Topics
 
-**Next topic:** [Managing Data Pipelines](../Usecase4/USECASE4-README.md)
+**Next topic:** [Cleanup](../README.md#clean-up)
 
-**Previous topic:** [Usecase 2 - Product Sales Aggregation](../Usecase2/USECASE2-README.md)
+**Previous topic:** [Usecase 2 - Product Sales and Customer360 Aggregation](../LAB1/LAB1-README.md)

@@ -4,7 +4,7 @@ This repository showcases a demo for an online retailer that leverages Confluent
 
 It shows how to harness the power of a Data Streaming Platform (DSP) to clean and govern data at the time it is created, and deliver fresh trustworthy data to your data warehouse and data lake to maximize the ROI.
 
-This demo showcases how an online retailer can leverage Confluent to implement real-time analytics across three critical use cases: ***Low Inventory Alerts***, ***Product Sales Analysis*** and ***Daily Sales Trend Analysis***. The solution demonstrates the power of real-time data streaming to enhance operational efficiency and decision-making. Below is the high-level architecture diagram:
+This demo showcases how an online retailer can leverage Confluent to implement real-time analytics across three critical use cases: ***Custommer360***, ***Product Sales Analysis*** and ***Daily Sales Trend Analysis***. The solution demonstrates the power of real-time data streaming to enhance operational efficiency and decision-making. Below is the high-level architecture diagram:
 
 ![Architecture](./assets/HLD.png)
 
@@ -34,10 +34,8 @@ You can choose to deploy the demo with with either Snowflake or Amazon Redshift.
 │   ├── payments-app                      <-- Payments App code and dockerfile
 │   ├── postgres-data-feeder              <-- DB Feeder code and dockerfile
 ├── terraform                             <-- Directory that holds terraform scripts
-├── Usecase 1                             <-- Directory that holds usecase 1 instructions and screenshots
-├── Usecase 2                             <-- Directory that holds usecase 2 instructions and screenshots
-├── Usecase 3                             <-- Directory that holds usecase 3 instructions and screenshots
-├── Usecase 4                             <-- Directory that holds usecase 4 instructions and screenshots
+├── LAB1                                  <-- Directory that holds  LAB1 instructions and screenshots
+├── LAB2                                  <-- Directory that holds  LAB2 instructions and screenshots
 └── README.md
 ```
 
@@ -58,11 +56,27 @@ This [video](https://www.confluent.io/resources/demo/shift-left-dsp-demo/) showc
 * **Confluent CLI** - Used in the destroy script to delete resources created outside terraform. Run `brew install confluent`.
 * **Unix machine** - The Terraform script requires a Unix environment. If you're using a Windows machine, consider deploying an EC2 instance with CentOS and run the deployment steps from there.
 
+<details>
+<summary>Installing pre-reqs on MAC</summary>
+Run the following to install local dependencies on your laptop.
+
+```
+brew install git terraform awscli confluent-cli postgresql docker
+```
+
+Configure AWS CLI
+
+```
+aws configure
+```
+
+</details>
+
 ## Setup
 
 > Estimated time: 25 mins
 
-1. Clone the repo onto your local development machine using `git clone https://github.com/confluentinc/online-retailer-flink-demo`.
+1. Clone the repo onto your local development machine using `git clone -b cdc-update-branch git@github.com:confluentinc/online-retailer-flink-demo.git`.
 2. Change directory to demo repository and terraform directory.
 
 ```
@@ -138,22 +152,25 @@ chmod +x ./demo-provision.sh
 ## Demo
 > Estimated time: 20 minutes
 
-There are two options for demonstration.  One is to walk through 4 discrete technical use case demonstrations and the other is to walk through an end-to-end demonstration of "shifting left" which takes a more integrated approach.  For the shiftleft approach go [HERE](./Shiftleft/README.md).  Otherwise go to each of the use cases below individually.
+We will now build **three discrete use case demonstrations spread across two labs**. Follow the individual use cases listed below:
 
-In this demo we will implement 3 use cases and then at the end visualise everything we have built:
-1. [Usecase 1 - Low inventory stock alerts](./Usecase1/USECASE1-README.md): Use Confluent Cloud for Apache Flink to process low inventory stock data and leverage the Snowflake/Redshift Sink Connector to stream the data into Snowflake or Redshift.
-2. [Usecase 2 - Product Sales Aggregation](./Usecase2/USECASE2-README.md): Use Confluent Cloud for Apache Flink to clean and aggrgate Product Sales Data and sink the results to Snowflake or Redshift.
-3. [Usecase 3 - Daily Sales Trends](./Usecase3/USECASE3-README.md): Use Confluent Cloud for Apache Flink for Payment Validation and compute daily sales trends. The results are stored in a topic that has Tableflow enabled - which materializes the topic as Iceberg data. We then use Amazon Athena for further Analysis.
-4. [Usecase 4 - Managing Data Pipeines](./Usecase4/USECASE4-README.md): Use Confluent Cloud to manage and gain complete visibility into the entire data pipeline from a unified, single-pane view.
+   - [**LAB1 – Product Sales and Customer360 Aggregation**](./LAB1/LAB1-README.md):  
+   Use Confluent Cloud for Apache Flink to clean and aggregate product sales data, then sink the results to Snowflake or Redshift. Additionally, create a derived data product for a customer snapshot and send the result back to an operational database.
+
+   - [**LAB2 – Daily Sales Trends**](./LAB2/LAB2-README.md):  
+   Use Confluent Cloud for Apache Flink for payment validation and to compute daily sales trends. The results are stored in a topic with Tableflow enabled, which materializes the topic as Iceberg data. We then use Amazon Athena for further analysis.
+
+
 
 ## Topics
 
-**Next topic:** [Usecase 1: Low inventory stock alerts](./Usecase1/USECASE1-README.md)
+**Next topic:** [LAB1: Product Sales and Customer360 Aggregation](./LAB1/LAB1-README.md)
 
 ## Clean-up
 Once you are finished with this demo, remember to destroy the resources you created, to avoid incurring charges. You can always spin it up again anytime you want.
 
-Before tearing down the infrastructure, delete the Snowflake or Redshift connector, as it was created outside of Terraform and won't be automatically removed:
+Before tearing down the infrastructure, delete the Postgres Sink and Snowflake/Redshift connectors, as they were created outside of Terraform and won't be automatically removed:
+Run the below for all connectors created outside terraform:
 
 ```
 confluent connect cluster delete <CONNECTOR_ID> --cluster <CLUSTER_ID> --environment <ENVIRONMENT_ID> --force

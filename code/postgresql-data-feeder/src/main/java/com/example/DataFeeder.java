@@ -26,11 +26,13 @@ public class DataFeeder {
 
         // Load data from three different CSV files
         List<String[]> customerData = readDataFromCSV("customers_sample_data.csv");
+        List<String[]> addressData = readDataFromCSV("address_sample_data.csv");
         List<String[]> productData = readDataFromCSV("products_sample_data.csv");
         List<String[]> orderData = readDataFromCSV("orders_sample_data.csv");
         List<String[]> orderItemData = readDataFromCSV("order_items_sample_data.csv");
 
-        String insertCustomerSQL = "INSERT INTO customers (CustomerID, CustomerName, Email, Segment, Address) VALUES (?, ?, ?, ?, ?)";
+        String insertCustomerSQL = "INSERT INTO customers (CustomerID, CustomerName, Email, Segment, shipping_address_id, billing_address_id) VALUES (?, ?, ?, ?, ?, ?)";
+        String insertAddressSQL = "INSERT INTO addresses (AddressID, Street, City, State, PostalCode, Country) VALUES (?, ?, ?, ?, ?, ?)";
         String insertProductSQL = "INSERT INTO products (ProductID,Brand,ProductName,Category,Description,Color,Size,Price,Stock) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
         String insertOrderSQL = "INSERT INTO orders (OrderID, CustomerID, OrderDate, Status)VALUES (?, ?, ?, ?)";
         String insertOrderItemsSQL = "INSERT INTO order_items (OrderItemID, OrderID, ProductID, Quantity) VALUES (?, ?, ?, ?)";
@@ -42,6 +44,7 @@ public class DataFeeder {
 
         try (Connection connection = DriverManager.getConnection(dbUrl, dbUser, dbPassword)) {
             insertCustomerData(connection, insertCustomerSQL, customerData);
+            insertAddressData(connection, insertAddressSQL, addressData);
             insertProductData(connection, insertProductSQL, productData);
             insertOrderData(connection, insertOrderSQL, orderData);
             insertOrderItemsData(connection, insertOrderItemsSQL, orderItemData);
@@ -158,7 +161,23 @@ public class DataFeeder {
                 preparedStatement.setString(2, row[1].trim()); // CustomerName
                 preparedStatement.setString(3, row[2].trim()); // Email
                 preparedStatement.setString(4, row[3].trim()); // Segment
-                preparedStatement.setString(5, row[4].trim()); // Address
+                preparedStatement.setString(5, row[4].trim()); // shipping_address_id
+                preparedStatement.setString(6, row[5].trim()); // billing_address_id
+                int rowsInserted = preparedStatement.executeUpdate();
+                // Handle insertion result
+            }
+        }
+    }
+
+    public static void insertAddressData(Connection connection, String insertSQL, List<String[]> data) throws SQLException {
+        try (PreparedStatement preparedStatement = connection.prepareStatement(insertSQL)) {
+            for (String[] row : data) {
+                preparedStatement.setString(1, row[0].trim()); //AddressID
+                preparedStatement.setString(2, row[1].trim()); // Street
+                preparedStatement.setString(3, row[2].trim()); // City
+                preparedStatement.setString(4, row[3].trim()); // State
+                preparedStatement.setString(5, row[4].trim()); // PostalCode
+                preparedStatement.setString(6, row[5].trim()); // Country
                 int rowsInserted = preparedStatement.executeUpdate();
                 // Handle insertion result
             }

@@ -80,7 +80,17 @@ resource "null_resource" "create_tables" {
           CustomerName VARCHAR(255) NOT NULL,
           Email VARCHAR(255) NOT NULL UNIQUE,
           Segment VARCHAR(50) NOT NULL,
-          Address VARCHAR(255) NOT NULL
+          shipping_address_id VARCHAR(255) NOT NULL,
+          billing_address_id VARCHAR(255) NOT NULL
+      );"
+      PGPASSWORD=${var.db_password} psql -h ${aws_db_instance.postgres_db.address} -p ${aws_db_instance.postgres_db.port} -U ${aws_db_instance.postgres_db.username} -d ${aws_db_instance.postgres_db.db_name} -c "
+      CREATE TABLE IF NOT EXISTS addresses (
+          AddressID VARCHAR(255) PRIMARY KEY,
+          Street VARCHAR(255) NOT NULL,
+          City VARCHAR(255) NOT NULL UNIQUE,
+          State VARCHAR(50) NOT NULL,
+          PostalCode VARCHAR(255) NOT NULL,
+          Country VARCHAR(255) NOT NULL
       );"
       PGPASSWORD=${var.db_password} psql -h ${aws_db_instance.postgres_db.address} -p ${aws_db_instance.postgres_db.port} -U ${aws_db_instance.postgres_db.username} -d ${aws_db_instance.postgres_db.db_name} -c "
       CREATE TABLE IF NOT EXISTS orders (
