@@ -4,7 +4,7 @@ This repository showcases a demo for an online retailer that leverages Confluent
 
 It shows how to harness the power of a Data Streaming Platform (DSP) to clean and govern data at the time it is created, and deliver fresh trustworthy data to your data warehouse and data lake to maximize the ROI.
 
-This demo showcases how an online retailer can leverage Confluent to implement real-time analytics across three critical use cases: ***Custommer360***, ***Product Sales Analysis*** and ***Daily Sales Trend Analysis***. The solution demonstrates the power of real-time data streaming to enhance operational efficiency and decision-making. Below is the high-level architecture diagram:
+This demo showcases how an online retailer can leverage Confluent to implement real-time analytics across three critical use cases: ***Customer360***, ***Product Sales Analysis*** and ***Daily Sales Trend Analysis***. The solution demonstrates the power of real-time data streaming to enhance operational efficiency and decision-making. Below is the high-level architecture diagram:
 
 ![Architecture](./assets/HLD.png)
 
@@ -152,7 +152,9 @@ chmod +x ./demo-provision.sh
 ## Demo
 > Estimated time: 20 minutes
 
-We will now build **three discrete use case demonstrations spread across two labs**. Follow the individual use cases listed below:
+There are two options for demonstration. One is to walk through the different technical use case demonstrations and the other is to walk through an end-to-end demonstration of "shifting left" which takes a more integrated approach. For the shiftleft approach go [HERE](./Shiftleft/README.md). 
+
+Otherwise, we will now build **three discrete use case demonstrations spread across two labs**. Follow the individual labs listed below:
 
    - [**LAB1 – Product Sales and Customer360 Aggregation**](./LAB1/LAB1-README.md):  
    Use Confluent Cloud for Apache Flink to clean and aggregate product sales data, then sink the results to Snowflake or Redshift. Additionally, create a derived data product for a customer snapshot and send the result back to an operational database.
