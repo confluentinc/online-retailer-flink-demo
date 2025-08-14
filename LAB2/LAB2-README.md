@@ -1,7 +1,7 @@
 
 ## Daily Sales Trends
 
-In this use case, we utilize Confluent Cloud and Apache Flink to validate payments and create completed orders, creating a valuable data product that could be used to analyse daily sales trends to empower sales teams to make informed business decisions. 
+In this use case, we utilize Confluent Cloud and Apache Flink to validate payments and create completed orders, creating a valuable data product that could be used to analyse daily sales trends to empower sales teams to make informed business decisions.
 
 While such analyses are typically conducted within a Lakehouse—as demonstrated in use cases 1 and 2. Confluent offers multiple integration options to seamlessly bring data streams into Lakehouses. This includes a suite of connectors that read data from Confluent and write to various engines. Another option is [Tableflow](https://www.confluent.io/product/tableflow/) .
 
@@ -20,42 +20,42 @@ Analytics teams are focused on general sales trends, so they don't need access t
 
 ##### **Using Confluent Cloud Data Quality Rules**
 
-We want to make sure that any data produced adheres to a specific format. In our case, we want to make sure that any payment event generated needs to have a valide `Confimation Code`. This check is done by using [Data Quality Rules](https://docs.confluent.io/cloud/current/sr/fundamentals/data-contracts.html#data-quality-rules), these rules are set in Confluent Schema registry, and pushed to the clients, where they are enforced. No need to change any code.
+We want to make sure that any data produced adheres to a specific format. In our case, we want to make sure that any payment event generated needs to have a valid `Confirmation Code`. This check is done by using [Data Quality Rules](https://docs.confluent.io/cloud/current/sr/fundamentals/data-contracts.html#data-quality-rules), these rules are set in Confluent Schema registry, and pushed to the clients, where they are enforced. No need to change any code.
 
 The rules were already created by Terraform, there is no need to do anything here except validate that it is working.
 
 1. In the [`payments`](https://confluent.cloud/go/topics) Topic UI, select **Data Contracts**. Under **Rules** notice that there is a rule already created.
-   
-   The rule basically says that `confirmation_code` field value should follow this regex expression `^[A-Z0-9]{8}$`. Any event that doesnt match, will be sent to a dead letter queue topic named `error-payments`.
+
+   The rule basically says that `confirmation_code` field value should follow this regex expression `^[A-Z0-9]{8}$`. Any event that doesn't match, will be sent to a dead letter queue topic named `error-payments`.
 
    ![Data Quality Rule](./assets/LAB2_dqr.png)
 
 2. To validate that it is working go to the DLQ topic and inspect the message headers there.
-   
+
 ![Data Quality Rule](./assets/LAB2_msgdlq.png)
 
 
 ##### **Data Protection using Confluent Cloud Client Side Field Level Encryption**
 
-[Client Side Field Level Encryption(CSFLE)](https://docs.confluent.io/cloud/current/security/encrypt/csfle/client-side.html) in Confluent Cloud works by setting the rules in Confluent Schema registry, these rules are then pushed to the clients, where they are enforced. The symmetric key is created in providor and the client should have necessary permissi the providor and the client should have permission to use the key to encrypt the data.
+[Client Side Field Level Encryption(CSFLE)](https://docs.confluent.io/cloud/current/security/encrypt/csfle/client-side.html) in Confluent Cloud works by setting the rules in Confluent Schema registry, these rules are then pushed to the clients, where they are enforced. The symmetric key is created in provider and the client should have necessary permission the provider and the client should have permission to use the key to encrypt the data.
 
 1. In the `payments` topic we notice that, the topic contains credit card information in unencrypted form.
     ![Architecture](./assets/LAB2_msg.png)
 
-This field should be encrypted, the Symmetric Key was already created by the Terraform in AWS KMS. The key ARN was also immported to Confluent by Terraform. We just need to create the rule in Confluent
-   
-2. In the [`payments`](    
+This field should be encrypted, the Symmetric Key was already created by the Terraform in AWS KMS. The key ARN was also imported to Confluent by Terraform. We just need to create the rule in Confluent
+
+2. In the [`payments`](
    https://confluent.cloud/go/topics) Topic UI, select **Data Contracts** then click **Evolve**. Tag `cc_number` field as `PII`.
-   
+
 2. Click **Rules** and then **+ Add rules** button. Configure as the following:
    * Category: Data Encryption Rule
    * Rule name: `Encrypt_PII`
    * Encrypt fields with: `PII`
    * using: The key added by Terraform (probably called CSFLE_Key)
-  
+
     Then click **Add** and **Save**
 
-    Our rule instructs the serailizer to ecrypt any field in this topic that is tagged as PII
+    Our rule instructs the serializer to encrypt any field in this topic that is tagged as PII
 
     ![CSFLE Rule](./assets/LAB2_rule.png)
 4. Restart the ECS Service for the changes to take effect immediately. Run ```terraform output``` to get the ECS command that should be used to restart the service. The command should look like this:
@@ -78,40 +78,40 @@ However, before joining both streams together we need to make sure that there ar
 1. Check if there are any duplicates in `payments` table
    ```sql
    SELECT * FROM
-   ( SELECT order_id, amount, count(*) total 
+   ( SELECT order_id, amount, count(*) total
     FROM `payments`
     GROUP BY order_id, amount )
    WHERE total > 1;
    ```
-   This query shows all `order_id`s with multiple payments coming in. Since the output returns results, this indicates that the there are duplicicates in the `payments` table.
+   This query shows all `order_id`s with multiple payments coming in. Since the output returns results, this indicates that the there are duplicates in the `payments` table.
 
 2. To fix this run the following query in a new Flink cell
    ```sql
    SET 'client.statement-name' = 'unique-payments-maintenance';
    SET 'sql.state-ttl' = '1 hour';
-   
+
    CREATE TABLE unique_payments (
-   order_id INT NOT NULL, 
-   product_id INT, 
-   customer_id INT, 
+   order_id INT NOT NULL,
+   product_id INT,
+   customer_id INT,
    confirmation_code STRING,
    cc_number STRING,
    expiration STRING,
    amount DOUBLE,
    ts TIMESTAMP_LTZ(3),
    WATERMARK FOR ts AS ts - INTERVAL '5' SECOND
-   ) 
-   AS SELECT 
-   COALESCE(order_id, 0) AS order_id, 
-   product_id, 
-   customer_id, 
+   )
+   AS SELECT
+   COALESCE(order_id, 0) AS order_id,
+   product_id,
+   customer_id,
    confirmation_code,
    cc_number,
    expiration,
    amount,
    ts
    FROM (
-   SELECT *, 
+   SELECT *,
             ROW_NUMBER() OVER (PARTITION BY order_id ORDER BY ts ASC) AS rownum
    FROM payments
    )
@@ -119,7 +119,16 @@ However, before joining both streams together we need to make sure that there ar
    ```
    This query creates the `unique_payments` table, ensuring only the latest recorded payment for each `order_id` is retained. It uses `ROW_NUMBER()` to order payments by event time (`$rowtime`) and filters for the earliest entry per order. This removes any duplicate entries.
 
-3. Let's validate that the new `unique_payments` does not comtain any duplicates
+   Update the watermarks from the default `source_watermark()` to `ts` for the payments stream.
+   ```sql
+   ALTER TABLE payments
+   MODIFY WATERMARK FOR ts AS ts
+   ```
+   ```sql
+   ALTER TABLE unique_payments
+   MODIFY WATERMARK FOR ts AS ts
+   ```
+3. Let's validate that the new `unique_payments` does not contain any duplicates
    ```sql
    SELECT order_id, COUNT(*) AS count_total FROM `unique_payments` GROUP BY order_id;
    ```
@@ -127,7 +136,7 @@ However, before joining both streams together we need to make sure that there ar
 
 #### **Using Interval joins to filter out invalid orders**
 
-Now let's filter out invalid orders (orders with no payment recieved within 96 hours). To achieve this we will use Flink Interval joins.
+Now let's filter out invalid orders (orders with no payment received within 96 hours). To achieve this we will use Flink Interval joins.
 
 
 1. Create a new table that will hold all completed orders and filter out orders with no valid payment recieved within `96` hours of the order being placed.
@@ -140,12 +149,12 @@ Now let's filter out invalid orders (orders with no payment recieved within 96 h
       ts TIMESTAMP_LTZ(3),
       WATERMARK FOR ts AS ts - INTERVAL '5' SECOND
    ) AS
-   SELECT 
+   SELECT
       pymt.order_id,
-      pymt.amount, 
-      pymt.confirmation_code, 
+      pymt.amount,
+      pymt.confirmation_code,
       pymt.ts
-   FROM unique_payments pymt, `shiftleft.public.orders` ord 
+   FROM unique_payments pymt, `shiftleft.public.orders` ord
    WHERE pymt.order_id = ord.orderid
    AND orderdate BETWEEN pymt.ts - INTERVAL '96' HOUR AND pymt.ts;
    ```
@@ -161,8 +170,8 @@ This data can be made available seamlessly to your Data lake query engines using
    ![Tableflow Enable Tableflow](./assets/LAB2_enable_tableflow.png)
 
 
-2. In Tableflow UI, copy the **REST Catalog Endpoint** to text editor we will use it later. 
-3. In the same page click **Create/View API keys** 
+2. In Tableflow UI, copy the **REST Catalog Endpoint** to text editor we will use it later.
+3. In the same page click **Create/View API keys**
 
    ![Tableflow API Key](./assets/LAB2_create_tableflow_apikey.png)
 
@@ -200,7 +209,7 @@ This data can be made available seamlessly to your Data lake query engines using
    "spark.sql.extensions": "org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions"
    }
 
-   ``` 
+   ```
 
 
 2. `completed_orders` data can now be queried in Athena. In the notebook run this query to SHOW available tables:
@@ -209,14 +218,14 @@ This data can be made available seamlessly to your Data lake query engines using
    SHOW TABLES in `<Confluent_Cluster_ID>`;
    ```
 
-   Next preview `reveue_summary` table:
+   Next preview `revenue_summary` table:
 
    ```sql
    %%sql
    SELECT * FROM `<Confluent_Cluster_ID>`.`completed_orders`;
    ```
 
-4. Now we can start analyzing daily sales trends in Athena. 
+4. Now we can start analyzing daily sales trends in Athena.
    > NOTE: For demo puposes we will do hourly windows
 
    In a new cell copy the follwoing SQL
@@ -239,4 +248,3 @@ That's it we were able analyse the data in Athena.
 **Next topic:** [Cleanup](../README.md#clean-up)
 
 **Previous topic:** [Usecase 2 - Product Sales and Customer360 Aggregation](../LAB1/LAB1-README.md)
-
