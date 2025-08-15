@@ -49,7 +49,102 @@ resource "local_file" "destroy_sh" {
     aws ecr delete-repository --repository-name ${aws_ecr_repository.dbfeeder_app_repo.name} --force --region ${var.cloud_region}
     terraform destroy -var="local_architecture=$ARCH" --auto-approve
   EOT
-  depends_on = [ 
-    random_id.env_display_id 
-  ] 
-  }
+  depends_on = [
+    random_id.env_display_id
+  ]
+}
+
+# Create Windows PowerShell destroy script
+resource "local_file" "destroy_ps1" {
+  filename = "./demo-destroy.ps1"
+  content  = <<-EOT
+    # PowerShell script for Windows cleanup
+    # Equivalent to demo-destroy.sh
+
+    # Detect local machine architecture
+    if ([Environment]::Is64BitOperatingSystem) {
+        if ([Environment]::GetEnvironmentVariable("PROCESSOR_ARCHITECTURE") -eq "ARM64") {
+            $ARCH = "arm64"
+        } else {
+            $ARCH = "amd64"
+        }
+    } else {
+        $ARCH = "386"
+    }
+
+    Write-Host "Detected architecture: $ARCH"
+    Write-Host "Starting cleanup process..."
+
+    try {
+        Write-Host "Deleting schema registry DEKs..."
+        confluent schema-registry dek delete --kek-name CSFLE_Key --subject payments-value --force --environment ${confluent_environment.staging.id}
+        confluent schema-registry dek delete --kek-name CSFLE_Key --subject payments-value --force --permanent --environment ${confluent_environment.staging.id}
+
+        Write-Host "Deleting ECR repositories..."
+        aws ecr delete-repository --repository-name ${aws_ecr_repository.payment_app_repo.name} --force --region ${var.cloud_region}
+        aws ecr delete-repository --repository-name ${aws_ecr_repository.dbfeeder_app_repo.name} --force --region ${var.cloud_region}
+
+        Write-Host "Running terraform destroy..."
+        terraform destroy -var="local_architecture=$ARCH" --auto-approve
+
+        if ($LASTEXITCODE -eq 0) {
+            Write-Host "Cleanup completed successfully!"
+        } else {
+            Write-Error "Terraform destroy failed with exit code $LASTEXITCODE"
+            exit $LASTEXITCODE
+        }
+    }
+    catch {
+        Write-Error "An error occurred during cleanup: $_"
+        exit 1
+    }
+  EOT
+  depends_on = [
+    random_id.env_display_id
+  ]
+}
+
+# Create Windows batch destroy script
+resource "local_file" "destroy_bat" {
+  filename = "./demo-destroy.bat"
+  content  = <<-EOT
+    @echo off
+    REM Batch script for Windows cleanup
+    REM Equivalent to demo-destroy.sh
+
+    REM Detect local machine architecture
+    if "%PROCESSOR_ARCHITECTURE%"=="AMD64" (
+        set ARCH=amd64
+    ) else if "%PROCESSOR_ARCHITECTURE%"=="ARM64" (
+        set ARCH=arm64
+    ) else (
+        set ARCH=386
+    )
+
+    echo Detected architecture: %ARCH%
+    echo Starting cleanup process...
+
+    echo Deleting schema registry DEKs...
+    confluent schema-registry dek delete --kek-name CSFLE_Key --subject payments-value --force --environment ${confluent_environment.staging.id}
+    confluent schema-registry dek delete --kek-name CSFLE_Key --subject payments-value --force --permanent --environment ${confluent_environment.staging.id}
+
+    echo Deleting ECR repositories...
+    aws ecr delete-repository --repository-name ${aws_ecr_repository.payment_app_repo.name} --force --region ${var.cloud_region}
+    if %ERRORLEVEL% neq 0 echo Warning: Failed to delete payment app repository
+
+    aws ecr delete-repository --repository-name ${aws_ecr_repository.dbfeeder_app_repo.name} --force --region ${var.cloud_region}
+    if %ERRORLEVEL% neq 0 echo Warning: Failed to delete dbfeeder app repository
+
+    echo Running terraform destroy...
+    terraform destroy -var="local_architecture=%ARCH%" --auto-approve
+    if %ERRORLEVEL% neq 0 (
+        echo Terraform destroy failed
+        exit /b %ERRORLEVEL%
+    )
+
+    echo Cleanup completed successfully!
+  EOT
+  depends_on = [
+    random_id.env_display_id
+  ]
+}

@@ -7,7 +7,7 @@ The first is `product_sales`, which joins `enriched_customers`, `products`, `ord
 
 Then from `product_sales` we will create `thirty_day_customer_snapshot` view that provides daily aggregated metrics per customer. This data product will be written back to the operational PostgreSQL database.
 
-![Architecture](./assets/LAB1.png) 
+![Architecture](./assets/LAB1.png)
 
 ### Data Masking
 
@@ -21,18 +21,20 @@ Then from `product_sales` we will create `thirty_day_customer_snapshot` view tha
 6. You will use the code editor to query existing Flink tables (Kafka topics) and to write new queries.
 7. In Confluent Cloud, each topic is represented as a table within the Apache Flink catalog. When you create a table in Apache Flink, a corresponding topic and schema are automatically generated to back the table.
 
-   ```
+   ```sql
    SHOW TABLES;
    ```
+
 8. First, let's make sure that the connector SMT is working and that it is masking the `email` field value:
 
-    ```
+    ```sql
     SELECT
         customername,
         email
     FROM
         `shiftleft.public.customers`
     ```
+
    ![Masked Message](./assets/LAB1_msg.png)
 
 ### De-normalization - preparing Customer data
@@ -41,9 +43,10 @@ First we need to denormalise customer information.
 
 Let's preview Customer data:
 
-```SQL
+```sql
 SELECT * FROM `shiftleft.public.customers`;
 ```
+
 Notice that Customer data includes references to the address table. To create our customer data product, we will denormalize the customer information by joining it with the address table.
 
 ```sql
@@ -105,21 +108,18 @@ LEFT JOIN `shiftleft.public.addresses` ba
   AND (ba.__deleted IS NULL OR ba.__deleted <> 'true')
 
 WHERE c.__deleted IS NULL OR c.__deleted <> 'true';
-
-
 ```
 
 The new data product holds a single entry for each customer and the key is `customerid`.
 
-
-
 ### 1a: Product Sales Data Product
 
-1. Flink jobs can measure time using either the system clock (processing time), or timestamps in the events (event time). For the ```orders``` table, notice that each order has ```orderdate```, this is a timestamp for each order created. 
-   
+1. Flink jobs can measure time using either the system clock (processing time), or timestamps in the events (event time). For the ```orders``` table, notice that each order has ```orderdate```, this is a timestamp for each order created.
+
    ```sql
     SHOW CREATE TABLE `shiftleft.public.orders`;
    ```
+
 2. We want to set the ```orderdate``` field as the event time for the table, enabling Flink to use it for accurate time-based processing and watermarking:
 
     ```sql
@@ -157,9 +157,8 @@ The new data product holds a single entry for each customer and the key is `cust
 
     This analysis is useful for understanding product sales trends, calculating revenue, and generating reports on order compositions.
 
-
    Create a new Apache Flink table ```product_sales``` to represent the new data product.
-   
+
    ```sql
    SET 'sql.state-ttl' = '1 DAYS';
    SET 'client.statement-name' = 'product-sales-materializer';
@@ -181,7 +180,7 @@ The new data product holds a single entry for each customer and the key is `cust
         WATERMARK FOR orderdate AS orderdate - INTERVAL '5' SECOND
     )
     AS
-    SELECT 
+    SELECT
         o.orderdate,
         o.orderid,
         p.productid,
@@ -194,34 +193,34 @@ The new data product holds a single entry for each customer and the key is `cust
         c.shipping_address.city as shipping_address_city,
         c.shipping_address.`state` as shipping_address_state,
         c.billing_address.`state` as billing_address_state,
-        oi.quantity, 
-        oi.quantity * p.price AS total_amount 
-    FROM 
+        oi.quantity,
+        oi.quantity * p.price AS total_amount
+    FROM
         `shiftleft.public.orders` o
-    JOIN 
+    JOIN
         `shiftleft.public.order_items` oi ON oi.orderid = o.orderid
-    JOIN 
+    JOIN
         `products_with_pk` FOR SYSTEM_TIME AS OF o.orderdate AS p ON p.productid = oi.productid
-    JOIN 
+    JOIN
         `enriched_customers` FOR SYSTEM_TIME AS OF o.orderdate AS c ON c.customerid = o.customerid
-    WHERE 
-        p.productname <> '' 
+    WHERE
+        p.productname <> ''
         AND p.price > 0;
    ```
     The join uses the ```FOR SYSTEM_TIME AS OF``` keyword, making it a temporal join. Temporal joins are more efficient than regular joins because they use the time-based nature of the data, enriching each order with product information available at the order's creation time. If product details change later, the join result remains unchanged, reflecting the original order context. Additionally, temporal joins are preferable as regular joins would require Flink to keep the state indefinitely.
 
-5. Now let's sink the new data product to our data warehourse. 
+5. Now let's sink the new data product to our data warehourse.
 
 <details>
 <summary>Click to expand Amazon Redshift instructions</summary>
 
-We will sink data to Amazon Redshift using the Confluent Cloud Redshift Sink Connector. 
+We will sink data to Amazon Redshift using the Confluent Cloud Redshift Sink Connector.
 
 1. In the [Connectors UI](https://confluent.cloud/go/connectors), add a new Redshift Sink Connector.
 2. Choose ```product_sales``` topic and click **Continue**
 3.   Enter Confluent Cluster credentials, you can use API Keys generated by Terraform
      1.   In CMD run ```terraform output resource-ids``` you will find the API Keys in a section that looks like this:
-   
+
         ```
             Service Accounts and their Kafka API Keys (API Keys inherit the permissions granted to the owner):
                 shiftleft-app-manager-d217a8e3:                     sa-*****
@@ -233,7 +232,7 @@ We will sink data to Amazon Redshift using the Confluent Cloud Redshift Sink Con
     2.  **Connection user**: ```admin```
     3.  **Connection password**: ```Admin123456!```
     4.  **Database name**: ```mydb```
-    
+
     ![Redshif Connection Details](./assets/LAB1_rs.png)
 
     >**NOTE: It's not recommended to use ADMIN user for data ingestion. We are using it here for demo purposes only.**
@@ -243,14 +242,14 @@ We will sink data to Amazon Redshift using the Confluent Cloud Redshift Sink Con
     * ```AVRO``` as **Input Kafka record value format**.
     *  Set **Auto create table** to `True`.
     *  Then follow the the wizard to create the connector.
-  
+
 6.  In the [Amazon Redshift Query V2 Editor page](https://console.aws.amazon.com/sqlworkbench/home), select the Cluster and enter the connection parameters to establish a connection with the database.
-   
+
     ![Redshift Query Editor](./assets/LAB1_rs_editorconfig.png)
-   
+
 7.   Run the follwing SQL Statement to preview the new table.
         > Note: The connector will take less than a minute to run, **but the data will be available for querying in Snowflake after 3-5 minutes.**
-    
+
         ```
             SELECT
             *
@@ -266,7 +265,7 @@ We will sink data to Amazon Redshift using the Confluent Cloud Redshift Sink Con
 <details>
 <summary>Click to expand Snowflake instructions</summary>
 
-We will sink data to Snowflake using the Confluent Cloud Snowflake Sink Connector. 
+We will sink data to Snowflake using the Confluent Cloud Snowflake Sink Connector.
 
 1. In the [Connectors UI](https://confluent.cloud/go/connectors), add a new Snowflake Sink Connector.
 2. Choose ```product_sales``` topic and click **Continue**
@@ -285,7 +284,7 @@ We will sink data to Snowflake using the Confluent Cloud Snowflake Sink Connecto
     4.  **Snowflake role**: `ACCOUNTADMIN`
     5.  **Database name**: ```PRODUCTION```
     6.  **Schema name**: ```PUBLIC```
-    
+
     ![Snowflake Connection Details](./assets/LAB1_sf.png)
 
     >**NOTE: It's not recommended to use ACCOUNTADMIN role for data ingestion. We are using it here for demo purposes only.**
@@ -294,10 +293,10 @@ We will sink data to Snowflake using the Confluent Cloud Snowflake Sink Connecto
 18. Choose:
     * ```AVRO``` as **Input Kafka record value format**.
     *  ```SNOWPIPE_STREMAING``` as **Snowflake Connection**.
-    *  Set **Enable Schemitization** to `True`. Doing this will allow the connector to infer schema from Schema registry and write the data to Snowflake with the correct schema. 
+    *  Set **Enable Schemitization** to `True`. Doing this will allow the connector to infer schema from Schema registry and write the data to Snowflake with the correct schema.
     *  Then follow the the wizard to create the connector.
-  
-    
+
+
 
 18. In Snowflake UI, go to Worksheets and run the follwing SQL Statement to preview the new table.
     > Note: The connector will take less than a minute to run, **but the data will be available for querying in Snowflake after 3-5 minutes.**
@@ -321,28 +320,28 @@ Here is the SQL:
 SET 'client.statement-name' = 'customer-snapshot-materializer';
 CREATE TABLE thirty_day_customer_snapshot (
   customerid INT,
-  customername STRING, 
+  customername STRING,
   total_amount INT,
   number_of_orders BIGINT,
-  updated_at TIMESTAMP, 
+  updated_at TIMESTAMP,
   PRIMARY KEY (customerid) NOT ENFORCED
 )
-AS 
+AS
 WITH agg_per_customer_30d AS (
-  SELECT 
+  SELECT
     customerid,
     customername,
-    SUM(total_amount) OVER w AS total_amount, 
+    SUM(total_amount) OVER w AS total_amount,
     COUNT(DISTINCT orderid) OVER w AS number_of_orders,
     orderdate
   FROM product_sales
   WINDOW w AS (
-    PARTITION BY customerid 
+    PARTITION BY customerid
     ORDER BY orderdate
     RANGE BETWEEN INTERVAL '30' DAY PRECEDING AND CURRENT ROW
   )
-) 
-SELECT 
+)
+SELECT
   COALESCE(customerid, 0) AS customerid,
   customername,
   total_amount,
@@ -350,7 +349,7 @@ SELECT
   orderdate AS updated_at
 FROM agg_per_customer_30d;
 
-``` 
+```
 
 The above query creates the `thirty_day_customer_snapshot` table, which aggregates customer data over the last 30 days. It calculates the total amount spent and the number of distinct orders placed by each customer, updating the snapshot with the most recent order date. The table provides valuable insights into customer behavior by summarizing key metrics for each customer within a rolling 30-day window.
 
@@ -363,7 +362,7 @@ After creating the new data product for the Customer Services team, we’ll sink
 2. Choose ```thirty_day_customer_snapshot``` topic and click **Continue**
 3.   Enter Confluent Cluster credentials, you can use API Keys generated by Terraform
      1.   In CMD run ```terraform output resource-ids``` you will find the API Keys in a section that looks like this:
-   
+
         ```
             Service Accounts and their Kafka API Keys (API Keys inherit the permissions granted to the owner):
                 shiftleft-app-manager-d217a8e3:                     sa-*****
@@ -376,7 +375,7 @@ After creating the new data product for the Customer Services team, we’ll sink
     3.  **Connection user**: ```postgres``` (change if you chnaged in variables file)
     4.  **Connection password**: ```Admin123456!!``` (change if you chnaged in variables file)
     5.  **Database name**: ```onlinestoredb```
-    
+
     ![Postgres Connection Details](./assets/LAB1_pg.png)
 
     >**NOTE: It's not recommended to use ADMIN user for data ingestion. We are using it here for demo purposes only.**

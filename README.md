@@ -43,7 +43,6 @@ You can choose to deploy the demo with with either Snowflake or Amazon Redshift.
 
 This [video](https://www.confluent.io/resources/demo/shift-left-dsp-demo/) showcases how to run the demo. To deploy the demo follow this repo.
 
-
 ## General Requirements
 
 * **Confluent Cloud API Keys** - [Cloud resource management API Keys](https://docs.confluent.io/cloud/current/security/authenticate/workload-identities/service-accounts/api-keys/overview.html#resource-scopes) with Organisation Admin permissions are needed by Terraform to deploy the necessary Confluent resources.
@@ -54,19 +53,60 @@ This [video](https://www.confluent.io/resources/demo/shift-left-dsp-demo/) showc
 * **Docker** - Make sure Docker is installed locally. If not installed, follow [this](https://docs.docker.com/desktop/)
 * **PSQL** - Make sure psql is installed locally.
 * **Confluent CLI** - Used in the destroy script to delete resources created outside terraform. Run `brew install confluent`.
-* **Unix machine** - The Terraform script requires a Unix environment. If you're using a Windows machine, consider deploying an EC2 instance with CentOS and run the deployment steps from there.
+* **Cross-platform support** - This demo supports Windows, macOS, and Linux environments. Windows users can run this workshop natively using PowerShell, Command Prompt, or Windows Subsystem for Linux (WSL).
 
 <details>
-<summary>Installing pre-reqs on MAC</summary>
+<summary>Installing pre-reqs on macOS</summary>
 Run the following to install local dependencies on your laptop.
 
-```
+```sh
 brew install git terraform awscli confluent-cli postgresql docker
 ```
 
 Configure AWS CLI
 
+```sh
+aws configure
 ```
+
+</details>
+
+<details>
+<summary>Installing pre-reqs on Windows</summary>
+
+### Native Windows Installation
+
+**Install using Package Managers:**
+
+Using [Chocolatey](https://chocolatey.org/install) (run as Administrator):
+
+```powershell
+choco install git terraform awscli confluent-cli postgresql docker-desktop
+```
+
+Using [Winget](https://docs.microsoft.com/en-us/windows/package-manager/winget/) (built-in Windows package manager):
+
+```powershell
+winget install Git.Git
+winget install Hashicorp.Terraform
+winget install Amazon.AWSCLI
+winget install ConfluentInc.ConfluentCLI
+winget install PostgreSQL.PostgreSQL
+winget install Docker.DockerDesktop
+```
+
+**Manual Installation:**
+
+1. **Git** - Download from [git-scm.com](https://git-scm.com/download/win)
+2. **Terraform** - Download from [terraform.io](https://developer.hashicorp.com/terraform/install)
+3. **AWS CLI** - Download from [AWS documentation](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html)
+4. **Confluent CLI** - Download from [Confluent documentation](https://docs.confluent.io/confluent-cli/current/install.html)
+5. **PostgreSQL** - Download from [postgresql.org](https://www.postgresql.org/download/windows/)
+6. **Docker Desktop** - Download from [docker.com](https://docs.docker.com/desktop/install/windows-install/)
+
+Configure AWS CLI (same for all platforms):
+
+```sh
 aws configure
 ```
 
@@ -79,110 +119,135 @@ aws configure
 1. Clone the repo onto your local development machine using `git clone -b cdc-update-branch git@github.com:confluentinc/online-retailer-flink-demo.git`.
 2. Change directory to demo repository and terraform directory.
 
-```
-cd online-retailer-flink-demo/terraform
+**All Platforms:**
 
+```sh
+cd online-retailer-flink-demo
+cd terraform
 ```
+
 3. Decide whether to deploy the demo with Redshift or Snowflake, then follow the corresponding instructions below.
-   
 
 <details>
 <summary>Click to expand Amazon Redshift instructions</summary>
 
-4. Update the ```terraform.tfvars``` file by setting the ```data_warehouse``` variable to ```"redshift"```. Remove any Snowflake-related variables from the file.
+Update the ```terraform.tfvars``` file by setting the ```data_warehouse``` variable to ```"redshift"```. Remove any Snowflake-related variables from the file.
    >Note: The ```data_warehouse``` variable only accepts one of two values: ```"redshift"``` or ```"snowflake"```.
-   
-5. Run the following script to provision demo infrastructure
-
-```
-chmod +x ./demo-provision.sh
-./demo-provision.sh
-```
 
 </details>
 
 <details>
 <summary>Click to expand Snowflake instructions</summary>
 
-4. Update the ```terraform.tfvars``` file by setting:
-   1. The ```data_warehouse``` variable to ```"snowflake"```.
-      >Note: The ```data_warehouse``` variable only accepts one of two values: ```"redshift"``` or ```"snowflake"```.
-   2. And Snowflake Variables:
-      ```
-      snowflake_account="<SNOWFLAKE_ACCOUNT_NUMBER>" #GET THIS FROM SNOWFLAKE Home Page --> Admin --> Accounts --> Copy the first part of the URL before .snowflake, it should look like this <organization_id-account_name>
-      snowflake_username="<SNOWFLAKE_USENAME>"
-      snowflake_password="<SNOWFLAKE_PASSWORD>"
-      ```
-   
-5. Update the ```providers.tf``` file and Uncomment the following blocks at the end of the file:
-   ```
-   provider "snowflake" {
-   alias = "snowflake"
-   account  = var.data_warehouse == "snowflake" ? var.snowflake_account : "na"
-   user     = var.data_warehouse == "snowflake" ? var.snowflake_username : "na"
-   password = var.data_warehouse == "snowflake" ? var.snowflake_password : "na"
-   }
+First, update the ```terraform.tfvars``` file by setting:
 
-   module "snowflake" {
-   source = "./modules/snowflake"
-   count  = var.data_warehouse == "snowflake" ? 1 : 0  # Only deploy module if Snowflake is selected
-   providers = {
-      snowflake = snowflake.snowflake
-   }
-   # Pass the variables required for Snowflake resources
-   snowflake_account  = var.snowflake_account
-   snowflake_username = var.snowflake_username
-   snowflake_password = var.snowflake_password
-   public_key_no_headers = local.public_key_no_headers
-   }
-   ```
-6. Run the following script to provision demo infrastructure
+* The ```data_warehouse``` variable to ```"snowflake"```.
+   >Note: The ```data_warehouse``` variable only accepts one of two values: ```"redshift"``` or ```"snowflake"```.
+* And Snowflake Variables:
 
-```
-chmod +x ./demo-provision.sh
-./demo-provision.sh
+   ```tf
+   snowflake_account="<SNOWFLAKE_ACCOUNT_NUMBER>" #GET THIS FROM SNOWFLAKE Home Page --> Admin --> Accounts --> Copy the first part of the URL before .snowflake, it should look like this <organization_id-account_name>
+   snowflake_username="<SNOWFLAKE_USENAME>"
+   snowflake_password="<SNOWFLAKE_PASSWORD>"
+   ```
+
+Next, Update the ```providers.tf``` file and Uncomment the following blocks at the end of the file:
+
+```tf
+provider "snowflake" {
+alias = "snowflake"
+account  = var.data_warehouse == "snowflake" ? var.snowflake_account : "na"
+user     = var.data_warehouse == "snowflake" ? var.snowflake_username : "na"
+password = var.data_warehouse == "snowflake" ? var.snowflake_password : "na"
+}
+
+module "snowflake" {
+source = "./modules/snowflake"
+count  = var.data_warehouse == "snowflake" ? 1 : 0  # Only deploy module if Snowflake is selected
+providers = {
+   snowflake = snowflake.snowflake
+}
+# Pass the variables required for Snowflake resources
+snowflake_account  = var.snowflake_account
+snowflake_username = var.snowflake_username
+snowflake_password = var.snowflake_password
+public_key_no_headers = local.public_key_no_headers
+}
 ```
 
 </details>
 
+4. Run the following script to provision demo infrastructure
 
+**macOS/Linux:**
+
+```sh
+chmod +x ./demo-provision.sh
+./demo-provision.sh
+```
+
+**Windows (PowerShell):**
+
+```powershell
+.\demo-provision.ps1
+```
+
+**Windows (Command Prompt):**
+
+```cmd
+demo-provision.bat
+```
 
 >Note: The terraform script will take around 20 minutes to deploy.
 
 ## Demo
+
 > Estimated time: 20 minutes
 
-There are two options for demonstration. One is to walk through the different technical use case demonstrations and the other is to walk through an end-to-end demonstration of "shifting left" which takes a more integrated approach. For the shiftleft approach go [HERE](./Shiftleft/README.md). 
+There are two options for demonstration. One is to walk through the different technical use case demonstrations and the other is to walk through an end-to-end demonstration of "shifting left" which takes a more integrated approach. For the shiftleft approach go [HERE](./Shiftleft/README.md).
 
 Otherwise, we will now build **three discrete use case demonstrations spread across two labs**. Follow the individual labs listed below:
 
-   - [**LAB1 – Product Sales and Customer360 Aggregation**](./LAB1/LAB1-README.md):  
-   Use Confluent Cloud for Apache Flink to clean and aggregate product sales data, then sink the results to Snowflake or Redshift. Additionally, create a derived data product for a customer snapshot and send the result back to an operational database.
+* [**LAB1 – Product Sales and Customer360 Aggregation**](./LAB1/LAB1-README.md):
+Use Confluent Cloud for Apache Flink to clean and aggregate product sales data, then sink the results to Snowflake or Redshift. Additionally, create a derived data product for a customer snapshot and send the result back to an operational database.
 
-   - [**LAB2 – Daily Sales Trends**](./LAB2/LAB2-README.md):  
-   Use Confluent Cloud for Apache Flink for payment validation and to compute daily sales trends. The results are stored in a topic with Tableflow enabled, which materializes the topic as Iceberg data. We then use Amazon Athena for further analysis.
-
-
+* [**LAB2 – Daily Sales Trends**](./LAB2/LAB2-README.md):
+Use Confluent Cloud for Apache Flink for payment validation and to compute daily sales trends. The results are stored in a topic with Tableflow enabled, which materializes the topic as Iceberg data. We then use Amazon Athena for further analysis.
 
 ## Topics
 
 **Next topic:** [LAB1: Product Sales and Customer360 Aggregation](./LAB1/LAB1-README.md)
 
 ## Clean-up
+
 Once you are finished with this demo, remember to destroy the resources you created, to avoid incurring charges. You can always spin it up again anytime you want.
 
 Before tearing down the infrastructure, delete the Postgres Sink and Snowflake/Redshift connectors, as they were created outside of Terraform and won't be automatically removed:
 Run the below for all connectors created outside terraform:
 
-```
+```sh
 confluent connect cluster delete <CONNECTOR_ID> --cluster <CLUSTER_ID> --environment <ENVIRONMENT_ID> --force
 ```
 
 To destroy all the resources created run the command below from the ```terraform``` directory:
 
-```
+**macOS/Linux:**
+
+```sh
 chmod +x ./demo-destroy.sh
 ./demo-destroy.sh
-
 ```
+
+**Windows (PowerShell):**
+
+```powershell
+.\demo-destroy.ps1
+```
+
+**Windows (Command Prompt):**
+
+```cmd
+demo-destroy.bat
+```
+
 > **Note: If you run terraform destroy instead of the provided shell script, the ECR repositories in AWS will not be deleted.**
