@@ -10,4 +10,4 @@ code/postgresql-data-feeder/src/main/resources/db.properties
 code/payments-app/src/main/resources/cc-orders.properties
 code/payments-app/src/main/datacontracts/avro/payments-value-dqr.json
 .DS_STORE
-my-personal-terraform.tfvars
+*my-personal-terraform.tfvars*
