@@ -354,7 +354,7 @@ resource "confluent_schema" "avro-payments" {
     domain_rules {
       name = "validateConfirmationCode"
       kind = "CONDITION"
-      mode = "WRITE"
+      mode = "WRITEREAD"
       type = "CEL"
       expr = "message.confirmation_code.matches('^[A-Z0-9]{8}$')"
       on_failure = "DLQ"

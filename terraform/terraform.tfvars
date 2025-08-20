@@ -1,11 +1,11 @@
-email="<YOUR_EMAIL>"
-confluent_cloud_api_key = "<CONFLUE_CLOUD_API_KEY>"
-confluent_cloud_api_secret = "<CONFLUE_CLOUD_API_SECRET>"
+email="jber@confluent.io"
+confluent_cloud_api_key    = "AP5RNHOSYODFDDDA"
+confluent_cloud_api_secret = "HpIGWcGnIObrotXiXrc6aXhC6rnoNSKNnJCTxQMB4neHvY62STupvJXBSlhsCsC+"
 
-data_warehouse = "<redshift or snowflake>" #The value has to be snowflake or redshift
+data_warehouse = "snowflake" #The value has to be snowflake or redshift
 
 
 # The follwoing three variables are only needed if data_warehouse is set to "snowflake"
-snowflake_account="<SNOWFLAKE_ACCOUNT_NUMBER>" #GET THIS FROM SNOWFLAKE Home Page --> Admin --> Accounts --> Copy the first part of the URL before .snowflake, it should look like this <organization_id-account_name>
-snowflake_username="<SNOWFLAKE_USENAME>"
-snowflake_password="<SNOWFLAKE_PASSWORD>"
+snowflake_account="confluentpartner1-jber_snowflake" #GET THIS FROM SNOWFLAKE Home Page --> Admin --> Accounts --> Copy the first part of the URL before .snowflake, it should look like this <organization_id-account_name>
+snowflake_username="jber"
+snowflake_password="2025 Snowflake Password"
