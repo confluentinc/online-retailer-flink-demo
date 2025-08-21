@@ -194,6 +194,8 @@ This data can be made available seamlessly to your Data lake query engines using
    
 </details>
 
+### Important: If you would like to complete Lab 3, you must choose your own storage (not Confluent Managed Storage)
+
 
 ##### Configure with Glue Data Catalog
 
@@ -261,6 +263,8 @@ That's it we were able analyse the data in Athena.
 
 ## Topics
 
-**Next topic:** [Cleanup](../README.md#clean-up)
+**➡️ Next topic:** [Analyze the data in Snowflake](../LAB3/LAB3-README.md)
 
-**Previous topic:** [Usecase 2 - Product Sales and Customer360 Aggregation](../LAB1/LAB1-README.md)
+**🏁 Finished?** [Cleanup](../README.md#clean-up)
+
+**🔙 Previous topic:** [Usecase 2 - Product Sales and Customer360 Aggregation](../LAB1/LAB1-README.md)
