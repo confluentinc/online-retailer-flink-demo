@@ -162,7 +162,7 @@ Otherwise, we will now build **three discrete use case demonstrations spread acr
    - [**LAB2 – Daily Sales Trends**](./LAB2/LAB2-README.md):  
    Use Confluent Cloud for Apache Flink for payment validation and to compute daily sales trends. The results are stored in a topic with Tableflow enabled, which materializes the topic as Iceberg data. We then use Amazon Athena for further analysis.
 
-   - [**LAB3 - Integration with Snowflake](./LAB3/LAB3-README.md):
+   - [**LAB3 - Integration with Snowflake**](./LAB3/LAB3-README.md):
    Use Snowflake to integrate with Amazon S3 using AWS IAM Roles to pull in metadata and data in Snowflake. Perform analysis similar to what was done in Lab 2 with Amazon Athena, only this time via Snowflake and Glue Data Catalog for further analysis.
 
 
