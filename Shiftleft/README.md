@@ -1,10 +1,10 @@
 ## Shift Left End to End Demonstration
 
-This is an end-to-end demo walkthrough of shift left where we will be curating and enforcing data quality prior to it landing in downstream analytical technologies like lakehouses while also getting benefits in operational systems. This walk through does not depend on use cases 1-4 and is intended to be a self contained narrative.
+This is an end-to-end demo walkthrough of shifting left where we will be curating and enforcing data quality prior to it landing in downstream analytical technologies like lakehouses while also getting benefits in operational systems. This walk through does not depend on lab 1 and lab 2 but uses much of the same queries and is intended to give you the flavor of creating universal data products.
 
 ### Scenario
 
-The scenario is of a retailer moving from a legacy commerce system based on Postgres to an event driven architectural with MongoDB as the operational database.  They have already started building new customer experiencs on top of MongoDB.
+The scenario is of a retailer moving from a legacy commerce system based on Postgres to an event driven architectural with MongoDB as the operational database.  They have already started building new customer experiences on top of MongoDB.
 
 Their entire stack is deployed on AWS and the analytics and AI team is making heavy use of Redshift.
 
@@ -23,11 +23,12 @@ They are facing  the following problems
 - Each consumer could try and fix these problems separately but yeah... this is a bad idea
 
 The following sources are coming into Confluent Cloud
+<!-- TODO: Update the image below to reflect the latest data sources and architecture. -->
 
-![Sources](./assets/shiftleft_sources.png)
+![Sources](./assets/shiftleft_sources.png) 
 
 - E-commerce site backed by Postgres
-	- customers, products, orders, order item table data is captured through an off the shelf CDC (change data capture) connector.  
+	- customers, products, orders, order items, and addresses table data is captured through an off the shelf CDC (change data capture) connector.  
 - Separately a payment processing service is emitting payment events upon successful completion of payments
 
 ### Walkthrough
@@ -85,82 +86,116 @@ The following sources are coming into Confluent Cloud
       FROM `shiftleft.public.products`;
     ```
 
-1.  Ok lets now create a target Flink table produce the joined output of these 4 streams.  We will create the table for the new data product, set the watermark for the orderdate in this table, and perform the 4 way join.
+1.  Build data products used across the demo.
+
+    First, create `customers` by joining customers with addresses to produce denormalized customer profiles.
+
+    ```sql
+    SET 'client.statement-name' = 'customer-materializer';
+    CREATE TABLE customers (
+      customerid INT,
+      customername STRING,
+      email STRING,
+      segment STRING,
+      shipping_address ROW<street STRING, city STRING, state STRING, postalcode STRING, country STRING>,
+      billing_address ROW<street STRING, city STRING, state STRING, postalcode STRING, country STRING>,
+      event_time TIMESTAMP_LTZ(3),
+      WATERMARK FOR event_time AS event_time - INTERVAL '5' SECOND,
+      PRIMARY KEY (customerid) NOT ENFORCED
+    )
+    AS
+    SELECT
+      c.customerid,
+      c.customername,
+      c.email,
+      c.segment,
+      ROW(sa.street, sa.city, sa.state, sa.postalcode, sa.country) AS shipping_address,
+      ROW(ba.street, ba.city, ba.state, ba.postalcode, ba.country) AS billing_address,
+      c.`$rowtime` AS event_time
+    FROM `shiftleft.public.customers` c
+    LEFT JOIN `shiftleft.public.addresses` sa ON c.shipping_address_id = sa.addressid AND (sa.__deleted IS NULL OR sa.__deleted <> 'true')
+    LEFT JOIN `shiftleft.public.addresses` ba ON c.billing_address_id = ba.addressid AND (ba.__deleted IS NULL OR ba.__deleted <> 'true')
+    WHERE c.__deleted IS NULL OR c.__deleted <> 'true';
+    ```
+
+    Next, create `product_sales`, a curated product-level fact by joining orders, order items, products, and enriched customers using temporal joins.
+
+    ```sql
+    SET 'sql.state-ttl' = '1 DAYS';
+    SET 'client.statement-name' = 'product-sales-materializer';
+    CREATE TABLE product_sales (
+         orderdate TIMESTAMP_LTZ(3),
+         orderid INT,
+         productid INT,
+         orderitemid INT,
+         brand STRING,
+         productname STRING,
+         price INT,
+         customerid INT,
+         customername STRING,
+         shipping_address_city STRING,
+         shipping_address_state STRING,
+         billing_address_state STRING,
+         quantity INT,
+         total_amount INT,
+         WATERMARK FOR orderdate AS orderdate - INTERVAL '5' SECOND
+     )
+     AS
+     SELECT 
+         o.orderdate,
+         o.orderid,
+         p.productid,
+         oi.orderitemid,
+         p.brand,
+         p.productname,
+         p.price,
+         c.customerid,
+         c.customername,
+         c.shipping_address.city as shipping_address_city,
+         c.shipping_address.`state` as shipping_address_state,
+         c.billing_address.`state` as billing_address_state,
+         oi.quantity, 
+         oi.quantity * p.price AS total_amount 
+     FROM 
+         `shiftleft.public.orders` o
+     JOIN 
+         `shiftleft.public.order_items` oi ON oi.orderid = o.orderid
+     JOIN 
+         `products_with_pk` FOR SYSTEM_TIME AS OF o.orderdate AS p ON p.productid = oi.productid
+     JOIN 
+         `customers` FOR SYSTEM_TIME AS OF o.orderdate AS c ON c.customerid = o.customerid
+     WHERE 
+         p.productname <> '' 
+         AND p.price > 0;
+    ```
     
-    ```sql
-    CREATE TABLE orders (
-	   orderdate TIMESTAMP_LTZ(3) NOT NULL,
-	   orderid INT NOT NULL,
-	   customername STRING NOT NULL,
-	   customerid INT NOT NULL,
-	   productid INT NOT NULL,
-	   orderitemid INT NOT NULL,
-	   brand STRING NOT NULL,
-	   productname STRING NOT NULL,
-	   price INT NOT NULL,
-	   quantity INT NOT NULL,
-	   total_amount INT NOT NULL
-    );
-    ```
-    ```sql
-    ALTER TABLE `<CONFLUENT_ENVIRONEMNT_NAME>`.`<CONFLUENT_CLUSTER_NAME>`.`orders` MODIFY WATERMARK FOR `orderdate` AS `orderdate`;
-    ```
-    ```sql
-    SET 'sql.state-ttl' = '7 DAYS';
-    SET 'client.statement-name' = 'dp-orders-materializer';
-    INSERT INTO orders 
-    SELECT 
-	   o.orderdate,
-	   o.orderid,
-	   cu.customername,
-	   cu.customerid,
-	   p.productid,
-	   oi.orderitemid,
-	   p.brand,
-	   p.productname,
-	   p.price, 
-	   oi.quantity, 
-	   oi.quantity * p.price AS total_amount 
-    FROM 
-	   `shiftleft.public.orders` o
-    JOIN 
-	   `shiftleft.public.order_items` oi ON oi.orderid = o.orderid
-    JOIN 
-	   `shiftleft.public.customers` cu ON o.customerid= cu.customerid
-    JOIN 
-	   `products_with_pk` FOR SYSTEM_TIME AS OF o.orderdate AS p ON p.productid = oi.productid
-    WHERE 
-	   p.productname <> '' 
-	   AND p.price > 0;
-    ```
-    
-1.  We now have a new orders table that is properly joind and enirched.  But if someone is looking for the correct orders data set how do they know which of the topics with "orders" in it is the right one?  To make this a data product we need to apply metadata and should ensure that it has a data contract that both describes (and enforces) schema and field data formatting.
+1.  We now have two data streams that is properly joind and enirched and can serve as the basis of a data product.  To be real data products they need rich data contracts and metadata associated with them so lets take a quick look at theses aspects.  Metadata is important for someone looking at a data product to understand what they will be getting but they also help someone find the data products in the first place.  If I'm looking for customer data how do I know if `customers` or `shiftleft.public.customers` is right topic?  How do I know what data products exist?
 
-    Navigate to the `orders` topic through the ***Data portal*** and click `Manage topic`.
+    Navigate to the `customers` topic through the ***Data portal***. Click the **Add tags** link
 
-    ![ManageOrdersTopic](./assets/shiftleft_orders_manage_topic.png)
+    ![CustomerTopicDataPortal](./assets/shiftleft_customers_data_portal.png)
 
-    Add the tag `DataProduct`.  Since we don't have any DataProducts yet it will prompt you to create it.  Optionally you can give it a description and an owner.  You could also define and add arbitrary ***business metadata***
+    Add the tag `DataProduct`.  Since we don't have any DataProducts yet it will prompt you to create it.  Optionally you can give it a description and an owner.  In practice you would also add business metadata like domain, POC, SLO, provence, etc. You will see a link for that called **+ Add business metadata**
 
-    Lets take a look at the `Data contracts`.  We have a schema, and the data contract itself does not have metadata associated with it.  In practice you would probaly want to embed the metadata we just manually added in the UI into the data contract directly and place it all under source control.
+    Lets take a look at the `Data contract` by clicking on **View full data contract**.  We have a schema, and the data contract itself does not have metadata associated with it.  In practice you would probably want to embed the metadata we just manually added in the UI into the data contract directly and place it all under source control.
     
     Under `Rules` we currently don't have any but in practice for a data contract you would want to try and have a rich set of rules to ensure bad data does not end up in the data product AND the consumer understands exactly what they will be getting.  We will demonstrate an example with the `payments` data.
    
-    Go back to the data portal and you can see that it shows up as a `DataProduct`
+    Go back to the data portal and you can see that `customers` shows up as a **DataProduct**.  Go ahead and tag `product_sales` as a **DataProduct** as well.
 
-1.  Lets go examine the `payments` topic in the kafka cluster. Recall that in some cases it has been discovered that a payment goes through but when it lands in Redshift it has an invalid confirmation code.  If our business rule is that a payment is not considered to be a valid record outside of the domain without a valid confirmation then we should have a rule in the contract that enforces this.
+1.  Lets go examine the `payments` topic in the kafka cluster.  Recall that in some cases it has been discovered that a payment goes through but when it lands in Redshift it has an invalid confirmation code.  If our business rule is that a payment is not considered to be a valid record outside of the domain without a valid confirmation then we should have a rule in the contract that enforces this.
 
     Go to `Data contract` and then click on the `Rules` tab.  You can see we aready have a rule to do this.
    
-    Click on the `validateConfimrationCode`  You can see that rules stipulates that the field must exsit and be an 8 character long uppercase alphanumeric sequence.  If this is not the case the payment record will be dropped but written to a DLQ topic of error-payments.
+    Click on the `validateConfimrationCode`  You can see that rules stipulates that the field must exist and be an 8 character long uppercase alphanumeric sequence.  If this is not the case the payment record will not be dropped but written to a DLQ topic of error-payments.
 
     ![ValidateConfirmationCode](./assets/shiftleft_validation.png)
     
-    Examine the `error-payments`. You can see that messages in here are bad and have a `confirmation_code` of `0`.  More bad data we have stopped from landing in consumers
+    Examine the `error-payments` topic. You can see that messages in here are bad and have a `confirmation_code` of `0`.  More bad data we have stopped from landing in consumers
 
     ![ErrorPayments](./assets/shiftleft_error_payments.png)
 
-1.  The other issue with `payments` is that we sometimes have duplicates that are being emitted.  Lets demonstrate this to be the case.  lets go back to our Flink noteback and run the following
+1.  The other issue with `payments` is that we sometimes have duplicates that are being emitted.  Let's detect duplicates and permanently maintain a deduplicated table with Flink so downstream consumers have a clean source.
 
     ```sql
     SELECT * FROM 
@@ -169,15 +204,52 @@ The following sources are coming into Confluent Cloud
         GROUP BY order_id, amount )
      WHERE total > 1;
     ```
-    
-    So lets dedupe this stream so that consumers don't get these.  Go to the data portal and click on the payments topic.  You will see there is a button called **Actions**
 
-    ![Actions](./assets/shiftleft_actions.png)
+    Create a `unique_payments` table keeping one record per `order_id` and align watermarks to `ts`:
 
-    Click on this and chose the **Deduplicate topic**.  Under **Fields to deduplicate** select `order_id`, `product_id`, and `amount`. Once you launch this ation behind the scenes it will generate and execute a flink statement.  In fact we can see what this looks like by scrolling to the buttom and selcting the **Show SQL** switch.  Naturally for a production system you would use sql that was checked into source control and use CI/CD etc. rather than launched an action from a production cluster for developing actions can be handy for giving you a starting point.  Click the **Confirm and run** button.
+    ```sql
+    SET 'client.statement-name' = 'unique-payments-maintenance';
+    SET 'sql.state-ttl' = '1 hour';
+    CREATE TABLE unique_payments (
+      order_id INT NOT NULL,
+      product_id INT,
+      customer_id INT,
+      confirmation_code STRING,
+      cc_number STRING,
+      expiration STRING,
+      amount DOUBLE,
+      ts TIMESTAMP_LTZ(3),
+      WATERMARK FOR ts AS ts - INTERVAL '5' SECOND
+    ) AS
+    SELECT
+      COALESCE(order_id, 0) AS order_id,
+      product_id,
+      customer_id,
+      confirmation_code,
+      cc_number,
+      expiration,
+      amount,
+      ts
+    FROM (
+      SELECT *, ROW_NUMBER() OVER (PARTITION BY order_id ORDER BY ts ASC) AS rownum
+      FROM payments
+    )
+    WHERE rownum = 1;
+    ```
 
-    If we now go back to Flink we can run the same query against the new topic ``payments_deduplicate``
+    ```sql
+    ALTER TABLE payments MODIFY WATERMARK FOR ts AS ts;
+    ```
 
+1. Go ahead verify that this new stream does not have duplicates by running
+
+   ```sql
+    SELECT * FROM 
+      ( SELECT order_id, amount, count(*) total 
+        FROM `unique_payments`
+        GROUP BY order_id, amount )
+     WHERE total > 1;
+   ```
 
 1.  You may have noticed the credit card nummber is showing in clear text which isn't good so lets add a rule that encrypts all fields that are marked PII and mark the credit card field PII so that unencrypted PII doesn't land in redshift or anywhere else.
 
@@ -200,166 +272,102 @@ The following sources are coming into Confluent Cloud
        aws ecs update-service --cluster <ECS_CLUSTER_NAME> --service payment-app-service --force-new-deployment
     ```
     
-    It will take a 30 seconds to a minute to roll the payment java prducer app so lets go to the next step and we will come back to observe the encrypted fild Go back to the `payments` topic UI, you can see that the Credit number is now encrypted. 
+    Go back to the `payments` topic UI, you can see that the Credit number is now encrypted.  Sometimes it can take time for the ECS cluster to actually role and if so you can go to the next step and come back later to verify
 
     ![Encrypted Field](./assets/shiftleft_msgenc.png)
 
 
-1.  Data consumers aren't just looking for raw payments data.  What they really want is sales data and so we will join the payments with the orders to produce this.  In reality we would probably enrich this further with things like product names, etc.
+1.  Lets create a reliable view of completed orders using an interval join between `unique_payments` and orders where a valid payment arrives within 96 hours of the order.
 
     ```sql
-    CREATE TABLE sales (
-      order_id INT,
-      brand STRING,
-      productname STRING,
-      amount DOUBLE,
-      confirmation_code STRING,
-      ts TIMESTAMP_LTZ(3),
-      WATERMARK FOR ts AS ts - INTERVAL '5' SECOND
-    );
-    ```
-
-    ```sql
-    SET 'client.statement-name' = 'sales-materializer';
-    INSERT INTO sales
-    SELECT 
-      pymt.order_id,
-      ord.brand,
-      ord.productname,
-      pymt.amount, 
-      pymt.confirmation_code, 
-      pymt.ts
-    FROM payments pymt, `orders` ord 
+    SET 'client.statement-name' = 'completed-orders-materializer';
+    CREATE TABLE completed_orders (
+       order_id INT,
+       amount DOUBLE,
+       confirmation_code STRING,
+       ts TIMESTAMP_LTZ(3),
+       WATERMARK FOR ts AS ts - INTERVAL '5' SECOND
+    ) AS
+    SELECT
+       pymt.order_id,
+       pymt.amount,
+       pymt.confirmation_code,
+       pymt.ts
+    FROM unique_payments pymt, `shiftleft.public.orders` ord
     WHERE pymt.order_id = ord.orderid
     AND orderdate BETWEEN pymt.ts - INTERVAL '96' HOUR AND pymt.ts;
     ```
 
-    And we should tag this as a ```DataProduct``` as well
+1.  Lets take a look at the streaming lineage of these real-time pipelines.  Start by clicking on completed_orders in the explorer panel on the left, then clicking on the **i** icon, then click **View Full Lineage**
 
-1.  Let's ingest our data product topics to the data wharehouse you have.
+    ![StreamingLineage](./assets/shiftleft_lineage_path.png)
 
-    <details> 
-      <summary>Click to expand Amazon Redshift instructions</summary>
+    Play around with streaming lineage.  If you have been working through this demo over a long period of time change the window of time in the upper left hand.  Try clicking and hovering overs nodes and links.  
 
-      We will sink data to Amazon Redshift using the Confluent Cloud Redshift Sink Connector. 
+1.  Let's provide our data products to an analytical engine.  In this case we will use Amazon Athena.  To do this we will leverage Confluent Cloud's Tableflow feature. When Tableflow is enabled on a topic, the topic is materialized as an Iceberg Table and is available for any Query engine. 
 
-      1. In the [Connectors UI](https://confluent.cloud/go/connectors), add a new Redshift Sink Connector.
-      2. Choose ```orders``` and ```sales``` topic and click **Continue**
-      3. Enter Confluent Cluster credentials, you can use API keys generated by Terraform by running ```terraform output resource-ids``` you will find the API Keys in a section that looks like this:
-   
-         ```
-         Service Accounts and their Kafka API Keys (API Keys inherit the permissions granted to the owner):
-           shiftleft-app-manager-d217a8e3:                     sa-*****
-           shiftleft-app-manager-d217a8e3's Kafka API Key:     "SYAKE*****"
-           shiftleft-app-manager-d217a8e3's Kafka API Secret:  "rn7Y392xM49c******"
-         ```
-      4. Enter Redshift details
-         1.  **AWS Redshift Domian**: Get it by running ```terraform output redshift-output```
-         2.  **Connection user**: ```admin```
-         3.  **Connection password**: ```Admin123456!```
-         4.  **Database name**: ```mydb```
-    
-         ![Redshif Connection Details](./assets/shiftleft_rs.png)
+##### Setting up Tableflow
 
-         >**NOTE: It's not recommended to use ADMIN user for data ingestion. We are using it here for demo purposes only.**
+1. First enable Tableflow on the topic.  Go to the `product_sales` topic and click on **Enable Tableflow**, then **Use Confluent Storage**.
+
+   ![Tableflow Enable Tableflow](./assets/shiftleft_enable_tableflow.png)
 
 
-      5. Choose:
-        * ```AVRO``` as **Input Kafka record value format**.
-        *  Set **Auto create table** to `True`.
-        *  Then follow the the wizard to create the connector.
-  
-      6. In the [Amazon Redshift Query V2 Editor page](https://console.aws.amazon.com/sqlworkbench/home), select the Cluster 
-         and enter the connection parameters to establish a connection with the database.
-   
-         ![Redshift Query Editor](./assets/shiftleft_rs_editorconfig.png)
-   
-      7.  Run the follwing SQL Statement to preview the new table.
-          > Note: The connector will take less than a minute to run, **but the data will be available for querying in Snowflake after 3-5 minutes.**
-    
-          ```sql
-            SELECT
-            *
-            FROM
-                "mydb"."public"."orders";
-          ```
+1. In Tableflow UI, copy the **REST Catalog Endpoint** to text editor we will use it later.
+1. In the same page click **Create/View API keys**
 
-          ![Redshift Results](./assets/shiftleft_rs_res.png)
+   ![Tableflow API Key](./assets/shiftleft_create_tableflow_apikey.png)
 
-    </details>
+1. In the API keys page click on **+ Add API Key**, then **Service Account** and choose your service account created by the Terraform script (run `terraform output resource-ids` and check the Service account name under **Service Accounts and their Kafka API Keys** section) the service account should start with prefix. Click **Next**
 
-    <details>
-    <summary>Click to expand Snowflake instructions</summary>
+1. Choose **Tableflow**, then **Next**.
 
-      We will sink data to Snowflake using the Confluent Cloud Snowflake Sink Connector. 
+1. Give it a name and click **Create API Key**.
 
-      1. In the [Connectors UI](https://confluent.cloud/go/connectors), add a new Snowflake Sink Connector.
-      2. Choose `orders` and ```sales``` topic and click **Continue**
-      3. Enter Confluent Cluster credentials, you can use API Keys generated by Terraform. By tunning ```terraform output resource-ids``` you will find the API Keys in a section that looks like this:
-         ```
-         Service Accounts and their Kafka API Keys (API Keys inherit the permissions granted to the owner):
-            shiftleft-app-manager-d217a8e3:                     sa-*****
-            shiftleft-app-manager-d217a8e3's Kafka API Key:     "SYAKE*****"
-            shiftleft-app-manager-d217a8e3's Kafka API Secret:  "rn7Y392xM49c******"
-         ```
-      4. Enter Snowflake details
-         1.  **Snowflake locator URL**: Get it under Admin --> Accounts in (Snowflake Console)[https://app.snowflake.com/]. It should look like this: *https://<snowflake_locator>.<cloud_region>.aws.snowflakecomputing.com*
-         2.  **Connection username**: ```confluent```
-         3.  **Private Key**: In CMD run ```terraform output resource-ids``` and copy the PrivateKey from there.
-         4.  **Snowflake role**: `ACCOUNTADMIN`
-         5.  **Database name**: ```PRODUCTION```
-         6.  **Schema name**: ```PUBLIC```
-    
-             ![Snowflake Connection Details](./assets/shiftleft_sf.png)
-
-         >**NOTE: It's not recommended to use ACCOUNTADMIN role for data ingestion. We are using it here for demo purposes only.**
+1. Copy the Key and Secret and click **Complete**
 
 
-     5. Choose:
-        * ```AVRO``` as **Input Kafka record value format**.
-        *  ```SNOWPIPE_STREMAING``` as **Snowflake Connection**.
-        *  Set **Enable Schemitization** to `True`. Doing this will allow the connector to infer schema from Schema registry and write the data to Snowflake with the correct schema. 
-        *  Then follow the the wizard to create the connector.
-  
-    
 
-     6. In Snowflake UI, go to Worksheets and run the follwing SQL Statement to preview the new table.
-        > Note: The connector will take less than a minute to run, **but the data will be available for querying in Snowflake after 3-5 minutes.**
-        ``` sql
-        SELECT * FROM PRODUCTION.PUBLIC.LOW_STOCK_ALERTS
-        ```
+##### Query with Athena
 
-        ![Snowflake Results](./assets/shiftleft_sf_res.png)
+>**NOTE: After enabling Tableflow, it may take up to 15 minutes for the data to become available for analysis in Amazon Athena.**
 
-    </details>
+1. In Amazon Athena UI, create a new Spark Notebook and configure it as follows:
 
-1.  Optionally lets look at some pre-aggregation and analysis that can be done continuously in Flink and then sent into the lakehouse.
+   ![Athena Notebook](./assets/shiftleft_notebook1.png)
 
-    That detailed level of sales data can no doubt be valuable in a lakehouse, but if they want to look at revenue from a temporal perspective one thing that can be done very effectively is to compute temporal aggregates on a continuous basis in flink rather then in batches. Regardless of it being computed in Flink you still probably want that to flow to you lakehouse for further analytiss.  Lets compute our sales revenue on a minute basis
+   You can click **Edit in JSON** and copy the following Spark properties configuration to the Athena Notebook. Replace:
 
-     ```sql
-      CREATE TABLE incremental_revenue (
-        window_start TIMESTAMP(3) NOT NULL,
-        window_end TIMESTAMP(3) NOT NULL,
-        total_revenue DECIMAL NOT NULL
-      );
-    ```
-    
-    ```sql
-     SET 'client.statement-name' = 'revenue-summary-materializer';
-     INSERT INTO incremental_revenue
-         SELECT 
-           window_start, 
-           window_end, 
-           SUM(amount) AS total_revenue
-         FROM 
-            TABLE(
-              TUMBLE(TABLE sales, DESCRIPTOR(`ts`), INTERVAL '10' SECONDS)
-            )
-        GROUP BY 
-          window_start, 
-          window_end;
-    ```
+   * `<KAFKA_CLUSTER_NAME>` with your Confluent Cluster name. It should start with your prefix
+   * `<TABLEFLOW_ENDPOINT>` that you copied from previous section
+   * `<TABLEFLOW_API_KEY>:<TABLEFLOW_SECRET>` with Tableflow API key and secret created in the previous section
 
-    Continuously computed calculations and aggregations can easily trigger immediate action based upon threashold.  One can easily imagine that if the inventory at a certain location falls below a certain threashold or is trending a certain way that alert would automatically trigger a supply request.
+   ```
+   {
+   "spark.sql.catalog.<KAFKA_CLUSTER_NAME>": "org.apache.iceberg.spark.SparkCatalog",
+   "spark.sql.catalog.<KAFKA_CLUSTER_NAME>.catalog-impl": "org.apache.iceberg.rest.RESTCatalog",
+   "spark.sql.catalog.<KAFKA_CLUSTER_NAME>.uri": "<TABLEFLOW_ENDPOINT>",
+   "spark.sql.catalog.<KAFKA_CLUSTER_NAME>.credential": "<TABLEFLOW_API_KEY>:<TABLEFLOW_SECRET>",
+   "spark.sql.catalog.tableflowdemo.s3.remote-signing-enabled": "true",
+   "spark.sql.defaultCatalog": "<KAFKA_CLUSTER_NAME>",
+   "spark.sql.extensions": "org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions"
+   }
+
+   ```
+
+
+1. `product_sales` data can now be queried in Athena. In the notebook run this query to SHOW available tables:
+   ```sql
+   %%sql
+   SHOW TABLES in `<Confluent_Cluster_ID>`;
+   ```
+
+   Next preview `product_sales` table:
+
+   ```sql
+   %%sql
+   SELECT * FROM `<Confluent_Cluster_ID>`.`product_sales`;
+   ```
+
+This demonstrates shift-left governed data flowing directly to the lakehouse as optimized Iceberg tables without bespoke pipelines.
     
