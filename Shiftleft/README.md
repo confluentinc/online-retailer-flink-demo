@@ -4,7 +4,7 @@ This is an end-to-end demo walkthrough of shifting left where we will be curatin
 
 ### Scenario
 
-The scenario is of a retailer moving from a legacy commerce system based on Postgres to an event driven architectural with MongoDB as the operational database.  They have already started building new customer experiences on top of MongoDB.
+The scenario is of a retailer moving from a legacy commerce system based on Postgres to an event driven architecture with MongoDB as the operational database.  They have already started building new customer experiences on top of MongoDB.
 
 Their entire stack is deployed on AWS and the analytics and AI team is making heavy use of Redshift.
 
@@ -25,33 +25,33 @@ They are facing  the following problems
 The following sources are coming into Confluent Cloud
 <!-- TODO: Update the image below to reflect the latest data sources and architecture. -->
 
-![Sources](./assets/shiftleft_sources.png) 
+![Sources](./assets/shiftleft_sources.png)
 
 - E-commerce site backed by Postgres
-	- customers, products, orders, order items, and addresses table data is captured through an off the shelf CDC (change data capture) connector.  
+	- customers, products, orders, order items, and addresses table data is captured through an off-the-shelf CDC (change data capture) connector.
 - Separately a payment processing service is emitting payment events upon successful completion of payments
 
 ### Walkthrough
 
-1.  First lets take a look at the raw order data as it lands in Confluent kafka topics from the CDC connector.  Any data in Confluent cloud topics with a schema is automatically visible and usable from Flink and vice versa so we will start there.
+1.  First let's take a look at the raw order data as it lands in Confluent kafka topics from the CDC connector.  Any data in Confluent cloud topics with a schema is automatically visible and usable from Flink and vice versa so we will start there.
 
 
-    The data coming from Postgres is raw normalized table data.  In isolation, this raw orderstream doesn't mean much so every consumer who wants to use this data would need to understand the schema and join it with the other tables to make sense of it. Lets use Flink to make a enriched data product so this only needs to be done one time.
+    The data coming from Postgres is raw normalized table data.  In isolation, this raw orderstream doesn't mean much so every consumer who wants to use this data would need to understand the schema and join it with the other tables to make sense of it. Let's use Flink to make a enriched data product so this only needs to be done one time.
 
     ```
     SELECT * FROM `shiftleft.public.orders`
-    ```  
-   
-   
+    ```
+
+
     We need to join this with **order items**, **products**, and **customers** to have a complete picture of what a given order represents.
 
-1.  As opposed to static snapshots in time, when joining streams of data you need to consider the temporal aspect and [tell Flink how to interpret the time of record](https://docs.confluent.io/cloud/current/flink/concepts/timely-stream-processing.html).  By default Confluent Cloud's Flink will use the Kafka record time but we want it to use the ```orderdate``` field which is when the order actually occurred in the source system.  We set that with the following SQL 
+1.  As opposed to static snapshots in time, when joining streams of data you need to consider the temporal aspect and [tell Flink how to interpret the time of record](https://docs.confluent.io/cloud/current/flink/concepts/timely-stream-processing.html).  By default Confluent Cloud's Flink will use the Kafka record time but we want it to use the ```orderdate``` field which is when the order actually occurred in the source system.  We set that with the following SQL
 
     ```SQL
     ALTER TABLE `<CONFLUENT_ENVIRONEMNT_NAME>`.`<CONFLUENT_CLUSTER_NAME>`.`shiftleft.public.orders` MODIFY WATERMARK FOR `orderdate` AS `orderdate`;
     ```
 
-1.  To perform the join with the ```products``` stream [using the version of the product at the specific time of the order](https://docs.confluent.io/cloud/current/flink/reference/queries/joins.html#temporal-joins) we need to define a ```PRIMARY KEY```.  Lets create a new table that has a similar schema as ```products``` table but with a ```PRIMARY KEY``` constraint
+1.  To perform the join with the ```products``` stream [using the version of the product at the specific time of the order](https://docs.confluent.io/cloud/current/flink/reference/queries/joins.html#temporal-joins) we need to define a ```PRIMARY KEY```.  Let's create a new table that has a similar schema as ```products``` table but with a ```PRIMARY KEY``` constraint
 
     ```sql
     CREATE TABLE `products_with_pk` (
@@ -73,7 +73,7 @@ The following sources are coming into Confluent Cloud
     ```sql
     SET 'client.statement-name' = 'products-with-pk-materializer';
     INSERT INTO `products_with_pk`
-      SELECT  
+      SELECT
         `productid`,
 	     `brand`,
 	     `productname`,
@@ -141,7 +141,7 @@ The following sources are coming into Confluent Cloud
          WATERMARK FOR orderdate AS orderdate - INTERVAL '5' SECOND
      )
      AS
-     SELECT 
+     SELECT
          o.orderdate,
          o.orderid,
          p.productid,
@@ -154,22 +154,22 @@ The following sources are coming into Confluent Cloud
          c.shipping_address.city as shipping_address_city,
          c.shipping_address.`state` as shipping_address_state,
          c.billing_address.`state` as billing_address_state,
-         oi.quantity, 
-         oi.quantity * p.price AS total_amount 
-     FROM 
+         oi.quantity,
+         oi.quantity * p.price AS total_amount
+     FROM
          `shiftleft.public.orders` o
-     JOIN 
+     JOIN
          `shiftleft.public.order_items` oi ON oi.orderid = o.orderid
-     JOIN 
+     JOIN
          `products_with_pk` FOR SYSTEM_TIME AS OF o.orderdate AS p ON p.productid = oi.productid
-     JOIN 
+     JOIN
          `customers` FOR SYSTEM_TIME AS OF o.orderdate AS c ON c.customerid = o.customerid
-     WHERE 
-         p.productname <> '' 
+     WHERE
+         p.productname <> ''
          AND p.price > 0;
     ```
-    
-1.  We now have two data streams that is properly joind and enirched and can serve as the basis of a data product.  To be real data products they need rich data contracts and metadata associated with them so lets take a quick look at theses aspects.  Metadata is important for someone looking at a data product to understand what they will be getting but they also help someone find the data products in the first place.  If I'm looking for customer data how do I know if `customers` or `shiftleft.public.customers` is right topic?  How do I know what data products exist?
+
+1. We now have two data streams that are properly joined and enriched and can serve as the basis of a data product.  To be real data products they need rich data contracts and metadata associated with them so let's take a quick look at these aspects.  Metadata is important for someone looking at a data product to understand what they will be getting but they also help someone find the data products in the first place.  If I'm looking for customer data how do I know if `customers` or `shiftleft.public.customers` is the right topic?  How do I know what data products exist?
 
     Navigate to the `customers` topic through the ***Data portal***. Click the **Add tags** link
 
@@ -177,29 +177,29 @@ The following sources are coming into Confluent Cloud
 
     Add the tag `DataProduct`.  Since we don't have any DataProducts yet it will prompt you to create it.  Optionally you can give it a description and an owner.  In practice you would also add business metadata like domain, POC, SLO, provence, etc. You will see a link for that called **+ Add business metadata**
 
-    Lets take a look at the `Data contract` by clicking on **View full data contract**.  We have a schema, and the data contract itself does not have metadata associated with it.  In practice you would probably want to embed the metadata we just manually added in the UI into the data contract directly and place it all under source control.
-    
+    Let's take a look at the `Data contract` by clicking on **View full data contract**.  We have a schema, and the data contract itself does not have metadata associated with it.  In practice you would probably want to embed the metadata we just manually added in the UI into the data contract directly and place it all under source control.
+
     Under `Rules` we currently don't have any but in practice for a data contract you would want to try and have a rich set of rules to ensure bad data does not end up in the data product AND the consumer understands exactly what they will be getting.  We will demonstrate an example with the `payments` data.
-   
+
     Go back to the data portal and you can see that `customers` shows up as a **DataProduct**.  Go ahead and tag `product_sales` as a **DataProduct** as well.
 
-1.  Lets go examine the `payments` topic in the kafka cluster.  Recall that in some cases it has been discovered that a payment goes through but when it lands in Redshift it has an invalid confirmation code.  If our business rule is that a payment is not considered to be a valid record outside of the domain without a valid confirmation then we should have a rule in the contract that enforces this.
+1. Let's go examine the `payments` topic in the kafka cluster.  Recall that in some cases it has been discovered that a payment goes through but when it lands in Redshift it has an invalid confirmation code.  If our business rule is that a payment is not considered to be a valid record outside of the domain without a valid confirmation then we should have a rule in the contract that enforces this.
 
-    Go to `Data contract` and then click on the `Rules` tab.  You can see we aready have a rule to do this.
-   
-    Click on the `validateConfimrationCode`  You can see that rules stipulates that the field must exist and be an 8 character long uppercase alphanumeric sequence.  If this is not the case the payment record will not be dropped but written to a DLQ topic of error-payments.
+    Go to `Data contract` and then click on the `Rules` tab.  You can see we already have a rule to do this.
+
+    Click on the `validateConfirmationCode`  You can see that rules stipulates that the field must exist and be an 8 character long uppercase alphanumeric sequence.  If this is not the case the payment record will not be dropped but written to a DLQ topic of error-payments.
 
     ![ValidateConfirmationCode](./assets/shiftleft_validation.png)
-    
+
     Examine the `error-payments` topic. You can see that messages in here are bad and have a `confirmation_code` of `0`.  More bad data we have stopped from landing in consumers
 
     ![ErrorPayments](./assets/shiftleft_error_payments.png)
 
-1.  The other issue with `payments` is that we sometimes have duplicates that are being emitted.  Let's detect duplicates and permanently maintain a deduplicated table with Flink so downstream consumers have a clean source.
+1. The other issue with `payments` is that we sometimes have duplicates that are being emitted.  Let's detect duplicates and permanently maintain a deduplicated table with Flink so downstream consumers have a clean source.
 
     ```sql
-    SELECT * FROM 
-      ( SELECT order_id, amount, count(*) total 
+    SELECT * FROM
+      ( SELECT order_id, amount, count(*) total
         FROM `payments`
         GROUP BY order_id, amount )
      WHERE total > 1;
@@ -244,14 +244,14 @@ The following sources are coming into Confluent Cloud
 1. Go ahead verify that this new stream does not have duplicates by running
 
    ```sql
-    SELECT * FROM 
-      ( SELECT order_id, amount, count(*) total 
+    SELECT * FROM
+      ( SELECT order_id, amount, count(*) total
         FROM `unique_payments`
         GROUP BY order_id, amount )
      WHERE total > 1;
    ```
 
-1.  You may have noticed the credit card nummber is showing in clear text which isn't good so lets add a rule that encrypts all fields that are marked PII and mark the credit card field PII so that unencrypted PII doesn't land in redshift or anywhere else.
+1.  You may have noticed the credit card nummber is showing in clear text which isn't good so let's add a rule that encrypts all fields that are marked PII and mark the credit card field PII so that unencrypted PII doesn't land in redshift or anywhere else.
 
     In the `payments` Topic UI, select `Data Contracts` then click `Evolve`. Tag `cc_number` field as `PII`.
 
@@ -260,7 +260,7 @@ The following sources are coming into Confluent Cloud
        * Rule name: `Encrypt_PII`
        * Encrypt fields with: `PII`
        * using: The key added by Terraform (probably called CSFLE_Key)
-  
+
        Then click **Add** and **Save**
 
        Our rule instructs the serailizer to ecrypt any field marked PII to be encrypted before being written into this topic
@@ -271,13 +271,13 @@ The following sources are coming into Confluent Cloud
     ```
        aws ecs update-service --cluster <ECS_CLUSTER_NAME> --service payment-app-service --force-new-deployment
     ```
-    
-    Go back to the `payments` topic UI, you can see that the Credit number is now encrypted.  Sometimes it can take time for the ECS cluster to actually role and if so you can go to the next step and come back later to verify
+
+    Go back to the `payments` topic UI, you can see that the Credit number is now encrypted.  Sometimes it can take time for the ECS cluster to actually restart and if so you can go to the next step and come back later to verify
 
     ![Encrypted Field](./assets/shiftleft_msgenc.png)
 
 
-1.  Lets create a reliable view of completed orders using an interval join between `unique_payments` and orders where a valid payment arrives within 96 hours of the order.
+1.  Let's create a reliable view of completed orders using an interval join between `unique_payments` and orders where a valid payment arrives within 96 hours of the order.
 
     ```sql
     SET 'client.statement-name' = 'completed-orders-materializer';
@@ -298,13 +298,13 @@ The following sources are coming into Confluent Cloud
     AND orderdate BETWEEN pymt.ts - INTERVAL '96' HOUR AND pymt.ts;
     ```
 
-1.  Lets take a look at the streaming lineage of these real-time pipelines.  Start by clicking on completed_orders in the explorer panel on the left, then clicking on the **i** icon, then click **View Full Lineage**
+1.  Let's take a look at the streaming lineage of these real-time pipelines.  Start by clicking on completed_orders in the explorer panel on the left, then clicking on the **i** icon, then click **View Full Lineage**
 
     ![StreamingLineage](./assets/shiftleft_lineage_path.png)
 
-    Play around with streaming lineage.  If you have been working through this demo over a long period of time change the window of time in the upper left hand.  Try clicking and hovering overs nodes and links.  
+    Play around with streaming lineage.  If you have been working through this demo over a long period of time change the window of time in the upper left hand.  Try clicking and hovering overs nodes and links.
 
-1.  Let's provide our data products to an analytical engine.  In this case we will use Amazon Athena.  To do this we will leverage Confluent Cloud's Tableflow feature. When Tableflow is enabled on a topic, the topic is materialized as an Iceberg Table and is available for any Query engine. 
+1.  Let's provide our data products to an analytical engine.  In this case we will use Amazon Athena.  To do this we will leverage Confluent Cloud's Tableflow feature. When Tableflow is enabled on a topic, the topic is materialized as an Iceberg Table and is available for any Query engine.
 
 ##### Setting up Tableflow
 
@@ -370,4 +370,3 @@ The following sources are coming into Confluent Cloud
    ```
 
 This demonstrates shift-left governed data flowing directly to the lakehouse as optimized Iceberg tables without bespoke pipelines.
-    
