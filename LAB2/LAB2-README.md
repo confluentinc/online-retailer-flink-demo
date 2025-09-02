@@ -165,79 +165,97 @@ This data can be made available seamlessly to your Data lake query engines using
 
 ##### Setting up Tableflow
 
-1. First enable Tableflow on the topic. In the topic UI, click on **Enable Tableflow**, then **Use Confluent Storage**.
+<details>
+<summary>If you would like to leverage Confluent Managed Storage, follow the instructions here:</summary>
 
-   ![Tableflow Enable Tableflow](./assets/LAB2_enable_tableflow.png)
+1. First enable Tableflow on the topic. In the topic UI, click on **Enable Tableflow**, then **Use Confluent Storage**
+
+![Tableflow Enable Tableflow](./assets/LAB2_enable_tableflow.png)
+
+</details>
+<details>
+   <summary>If you would like to use your own storage (Amazon S3), click here to expand those instructions.</summary>
+   
+   1. As an alternative to using Confluent Managed Storage, you can leverage Amazon S3 storage in your own Amazon S3 Bucket.
+
+   1. First enable Tableflow on the topic. In the topic UI, click on **Enable Tableflow** then **Configure Custom Storage**
+
+   ![configure custom storage](./assets/LAB2_enable_tableflow_custom_storage.png)
+
+   2. In the next menu, you will be able to choose the Provider Integration we created in the previous section. You can identify it by either the name of the provider integration or the IAM Role you created. 
+
+   3. There should be only one provider integration created, so select that one. It can also be found in the outputs by running `terraform output resource-ids` and looking for the provider integration name.
+
+   4. Provide the AWS S3 bucket name (`shiftleft-tableflow-bucket...`) which can be found in the `resource-ids` list from terraform as well.
+
+   ![alt text](assets/byos-instructions.png)
+
+   5. Click Continue and Launch. The tableflow topic will now be materialized in the Amazon S3 Bucket you specified.
+   
+</details>
+
+### Important: If you would like to complete Lab 3, you must choose your own storage (not Confluent Managed Storage)
 
 
-2. In Tableflow UI, copy the **REST Catalog Endpoint** to text editor we will use it later.
-3. In the same page click **Create/View API keys**
+##### Configure with Glue Data Catalog
 
-   ![Tableflow API Key](./assets/LAB2_create_tableflow_apikey.png)
+We will now share our topic metadata with Amazon Glue Data Catalog for the purposes of querying via Amazon Athena as well as Snowflake.
 
-4. In the API keys page click on **+ Add API Key**, then **Service Account** and choose your service account created by the Terraform script (run `terraform output resource-ids` and check the Service account name under **Service Accounts and their Kafka API Keys** section) the service account should start with prefix. Click **Next**
+- Navigate to the Tableflow main page within your environment (Environments > {Your Environment} > Clusters > {Your Cluster} > Tableflow (on Left Hand Side).
 
-5. Choose **Tableflow**, then **Next**.
+   ![Navigate to tableflow](assets/navigate-to-tableflow.gif)
 
-6. Give it a name and click **Create API Key**.
 
-7. Copy the Key and Secret and click **Complete**
+- You will see we already have the Storage Provider Integration enabled. Scroll down to External Catalog Integrations and click **+ Add integration** on the right hand side. 
+- Select **AWS Glue** as the integration type and give the integration a name, `my-glue-integration`.
+- Select **Iceberg** as the supported format and click **Continue**.
 
+   ![Set up Glue Integration](assets/set-up-glue-integration.png)
+
+- On the next page, you can choose the provider integration that was previously created. If there is more than one, it can also be found in the outputs by running `terraform output resource-ids` and looking for the provider integration ARN.
+
+- Click Continue and Launch.
+
+- The External Catalog Integration will show as Status Pending for some time, and transition to Connected. Once the Status shows as **Connected** you can proceed to the next section.
+
+   ![Catalog Connected](assets/catalog-connected.png)
 
 
 ##### Query with Athena
 
 >**NOTE: After enabling Tableflow, it may take up to 15 minutes for the data to become available for analysis in Amazon Athena.**
 
-1. In Amazon Athena UI, create a new Spark Notebook and configure it as follows:
-   ![Athena Notebook](./assets/LAB2_notebook1.png)
-
-   You can click **Edit in JSON** and copy the following Spark properties configuration to the Athena Notebook. Replace:
-
-   * `<KAFKA_CLUSTER_NAME>` with your Confluent Cluster name. It should start with your prefix
-   * `<TABLEFLOW_ENDPOINT>` that you copied from previous section
-   * `<TABLEFLOW_API_KEY>:<TABLEFLOW_SECRET>` with Tableflow API key and secret created in the previous section
-
-   ```
-   {
-   "spark.sql.catalog.<KAFKA_CLUSTER_NAME>": "org.apache.iceberg.spark.SparkCatalog",
-   "spark.sql.catalog.<KAFKA_CLUSTER_NAME>.catalog-impl": "org.apache.iceberg.rest.RESTCatalog",
-   "spark.sql.catalog.<KAFKA_CLUSTER_NAME>.uri": "<TABLEFLOW_ENDPOINT>",
-   "spark.sql.catalog.<KAFKA_CLUSTER_NAME>.credential": "<TABLEFLOW_API_KEY>:<TABLEFLOW_SECRET>",
-   "spark.sql.catalog.tableflowdemo.s3.remote-signing-enabled": "true",
-   "spark.sql.defaultCatalog": "<KAFKA_CLUSTER_NAME>",
-   "spark.sql.extensions": "org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions"
-   }
-
-   ```
+1. Open AWS and Navigate to your Glue Data Catalog by searching for `AWS Glue` in top search bar, and then clicking on `Glue Data Catalog on left hand side.
 
 
-2. `completed_orders` data can now be queried in Athena. In the notebook run this query to SHOW available tables:
-   ```sql
-   %%sql
-   SHOW TABLES in `<Confluent_Cluster_ID>`;
-   ```
+![Navigate to GDC](assets/navigate-to-gdc.png)
 
-   Next preview `revenue_summary` table:
+2. Once on the Data Catalog Tables page, search for the `completed_orders` table by first searching for our database which will have the same name as our **Cluster ID** on Confluent Cloud. This value can be found under the `Environment & Cluster Info` section of the `terraform output resource-ids` command.
+
+
+3. Scroll to the right in the `completed_orders` row and click the link that reads **Table data** under View Data. It will ask you to confirm you will be charged separately for Athena queries. Click **Proceed**.
+
+![Search for Cluster ID](assets/search-for-cluster-id.png)
+
+
+2. `completed_orders` data can now be queried in Athena. A query should have automatically run, showcasing a sample of 10 `completed` orders by running the query below:
 
    ```sql
-   %%sql
-   SELECT * FROM `<Confluent_Cluster_ID>`.`completed_orders`;
+   SELECT * FROM "AwsDataCatalog"."<<cluster-id>>"."completed_orders" limit 10;
    ```
 
 4. Now we can start analyzing daily sales trends in Athena.
    > NOTE: For demo puposes we will do hourly windows
 
-   In a new cell copy the follwoing SQL
+   In a new cell copy the following SQL
 
    ```sql
-   %%sql
    SELECT
    date_trunc('hour', ts) AS window_start,
    date_trunc('hour', ts) + INTERVAL '1' hour AS window_end,
    COUNT(*) AS total_orders,
    SUM(amount) AS total_revenue
-   FROM `<Confluent_Cluster_ID>`.completed_orders
+   FROM "AwsDataCatalog"."<<cluster-id>>"."completed_orders"
    GROUP BY date_trunc('hour', ts)
    ORDER BY window_start;
    ```
@@ -245,6 +263,8 @@ That's it we were able analyse the data in Athena.
 
 ## Topics
 
-**Next topic:** [Cleanup](../README.md#clean-up)
+**➡️ Next topic:** [Analyze the data in Snowflake](../LAB3/LAB3-README.md)
 
-**Previous topic:** [Usecase 2 - Product Sales and Customer360 Aggregation](../LAB1/LAB1-README.md)
+**🏁 Finished?** [Cleanup](../README.md#clean-up)
+
+**🔙 Previous topic:** [Usecase 2 - Product Sales and Customer360 Aggregation](../LAB1/LAB1-README.md)

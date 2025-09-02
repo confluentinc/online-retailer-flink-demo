@@ -171,3 +171,37 @@ resource "aws_kms_key" "kms_key" {
     ]
   })
 }
+
+
+
+
+locals {
+  tableflow_iam_role_name = "${var.prefix}-tableflow-role-${random_id.env_display_id.hex}"
+  tableflow_bucket_name   = "${var.prefix}-tableflow-bucket-${random_id.env_display_id.hex}"
+  customer_s3_access_role_arn = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/${local.tableflow_iam_role_name}"
+
+}
+
+module "aws_s3_bucket" {
+  source        = "./modules/aws_s3_bucket"
+  bucket_name = local.tableflow_bucket_name
+}
+
+module "provider_integration" {
+  source            = "./modules/provider_integration"
+  environment_id    = confluent_environment.staging.id
+  customer_role_arn = local.customer_s3_access_role_arn
+  depends_on        = [confluent_environment.staging, module.aws_s3_bucket, confluent_kafka_cluster.standard]
+}
+
+
+# creates IAM role for Tableflow Provider Integration
+module "aws_iam_role" {
+  source                           = "./modules/aws_iam_role"
+  customer_role_name               = local.tableflow_iam_role_name
+  s3_bucket_name                   = local.tableflow_bucket_name
+  provider_integration_role_arn    = module.provider_integration.confluent_iam_role_arn
+  provider_integration_external_id = module.provider_integration.provider_integration_external_id
+  random_suffix                    = random_id.env_display_id.hex
+  aws_account_id                   = data.aws_caller_identity.current.account_id
+}
