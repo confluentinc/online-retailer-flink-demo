@@ -11,3 +11,9 @@ code/payments-app/src/main/resources/cc-orders.properties
 code/payments-app/src/main/datacontracts/avro/payments-value-dqr.json
 .DS_STORE
 *my-personal-terraform.tfvars*
+
+.env
+
+# Generated destroy scripts
+terraform/demo-destroy.ps1
+terraform/demo-destroy.bat

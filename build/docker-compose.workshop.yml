@@ -1,0 +1,31 @@
+services:
+  workshop:
+    build:
+      context: ..
+      dockerfile: build/Dockerfile.workshop
+    container_name: online-retailer-flink-workshop
+    volumes:
+      # Mount the entire workshop directory (parent of build/)
+      - ..:/workspace
+      # Mount AWS credentials (cross-platform compatible)
+      - ${AWS_CREDENTIALS_PATH:-~/.aws}:/root/.aws:ro
+      # Mount Docker socket (cross-platform compatible)
+      - ${DOCKER_SOCK:-/var/run/docker.sock}:/var/run/docker.sock
+      # Optional: mount terraform cache
+      - terraform-cache:/root/.terraform.d
+    environment:
+      # Preserve AWS environment variables if set
+      - AWS_PROFILE
+      - AWS_REGION
+      - AWS_ACCESS_KEY_ID
+      - AWS_SECRET_ACCESS_KEY
+      - AWS_SESSION_TOKEN
+    working_dir: /workspace
+    stdin_open: true
+    tty: true
+    # Remove network_mode: host for better cross-platform compatibility
+    ports:
+      - "8080:8080"  # Add specific ports as needed
+
+volumes:
+  terraform-cache:
