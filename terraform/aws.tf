@@ -31,7 +31,7 @@ resource "aws_security_group_rule" "allow_outbound_postgres" {
 resource "aws_db_instance" "postgres_db" {
   allocated_storage    = 30
   engine             = "postgres"
-  engine_version     = "16.4"
+  engine_version     = "16.11"
   instance_class     = "db.t3.medium"
   identifier         = "${var.prefix}-onlinestoredb-${random_id.env_display_id.hex}"
   db_name = "onlinestoredb"
