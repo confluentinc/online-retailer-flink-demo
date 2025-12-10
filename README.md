@@ -76,13 +76,15 @@ aws configure
 
 > Estimated time: 25 mins
 
-1. Clone the repo onto your local development machine using `git clone -b cdc-update-branch git@github.com:confluentinc/online-retailer-flink-demo.git`.
+1. Clone the repo: 
+   ```
+   git clone https://github.com/confluentinc/online-retailer-flink-demo.git
+   ```
 2. Change directory to demo repository and terraform directory.
 
-```
-cd online-retailer-flink-demo/terraform
-
-```
+   ```
+   cd online-retailer-flink-demo/terraform
+   ```
 3. Decide whether to deploy the demo with Redshift or Snowflake, then follow the corresponding instructions below.
    
 
