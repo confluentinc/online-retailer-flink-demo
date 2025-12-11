@@ -5,6 +5,8 @@
 
 In this lab, you will learn how to access your Iceberg tables—created and managed by Confluent Tableflow—in Snowflake using the AWS Glue Data Catalog. This enables your analytics and AI teams to seamlessly query streaming data in Snowflake, leveraging the same open table format used throughout your data platform.
 
+![HLD](assets/LAB3.png)
+
 
 ### Important: If you would like to complete Lab 3, you must have enabled Bring your own Storage (Amazon S3) in Lab 2.
 
