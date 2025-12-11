@@ -20,7 +20,7 @@ terraform {
       version = "2.32.0"                  
     }
     snowflake = {
-      source = "Snowflake-Labs/snowflake"
+      source = "snowflakedb/snowflake"
       version = "0.98.0"  
     }
     docker = {
