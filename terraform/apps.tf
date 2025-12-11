@@ -7,8 +7,22 @@ resource "aws_iam_access_key" "payments_app_aws_key" {
 }
 
 locals {
-  # Determine the CPU architecture based on the input variable
-  cpu_architecture       = var.local_architecture == "arm64" || var.local_architecture == "aarch64" ? "ARM64" : "X86_64"
+  is_windows = fileexists("C:\\Windows\\System32\\cmd.exe")
+}
+
+data "external" "arch_windows" {
+  count   = local.is_windows ? 1 : 0
+  program = ["powershell", "-NoProfile", "-Command", "$arch=$env:PROCESSOR_ARCHITECTURE; Write-Output ('{\"arch\":\"' + $arch + '\"}')"]
+}
+
+data "external" "arch_unix" {
+  count   = local.is_windows ? 0 : 1
+  program = ["/bin/sh", "-c", "printf '{\"arch\":\"%s\"}' \"$(uname -m)\""]
+}
+
+locals {
+  detected_arch     = local.is_windows ? lower(trimspace(data.external.arch_windows[0].result.arch)) : lower(trimspace(data.external.arch_unix[0].result.arch))
+  cpu_architecture  = contains(["arm64", "aarch64"], local.detected_arch) ? "ARM64" : "X86_64"
 }
 
 
@@ -191,6 +205,7 @@ resource "aws_security_group" "ecs_sg" {
 
 resource "aws_ecr_repository" "payment_app_repo" {
   name = "${var.prefix}-payment-app-repo-${random_id.env_display_id.hex}"
+  force_delete = true
   lifecycle {
     prevent_destroy = false
   }
@@ -198,6 +213,7 @@ resource "aws_ecr_repository" "payment_app_repo" {
 
 resource "aws_ecr_repository" "dbfeeder_app_repo" {
   name = "${var.prefix}-dbfeeder-app-repo-${random_id.env_display_id.hex}"
+  force_delete = true
   lifecycle {
     prevent_destroy = false
   }
@@ -213,42 +229,36 @@ locals {
   dbfeeder_app_image_tag = "${aws_ecr_repository.dbfeeder_app_repo.repository_url}:latest"
 }
 
-# Build and Push Payment App
-resource "null_resource" "build_and_push_payment_app" {
-  provisioner "local-exec" {
-    command = <<EOT
-      aws ecr get-login-password --region ${var.cloud_region} | docker login --username AWS --password-stdin ${aws_ecr_repository.payment_app_repo.repository_url}
-      docker build -t payment-app ../code/payments-app
-      docker tag payment-app:latest ${local.payment_app_image_tag}
-      docker push ${local.payment_app_image_tag}
-    EOT
+# Build and Push Payment App using Docker provider
+resource "docker_image" "payment_app" {
+  name = "${aws_ecr_repository.payment_app_repo.repository_url}:latest"
+  build {
+    context = "../code/payments-app"
   }
   depends_on = [
-    local_file.db_feeder_properties,
     local_file.payment_app_properties,
-    local_file.payment_app_dqr,
-    null_resource.create_tables,
+    local_file.payment_app_dqr
   ]
 }
 
+resource "docker_registry_image" "payment_app" {
+  name = docker_image.payment_app.name
+}
 
-
-# Build and Push DB Feeder App
-resource "null_resource" "build_and_push_dbfeeder_app" {
-  provisioner "local-exec" {
-    command = <<EOT
-      aws ecr get-login-password --region ${var.cloud_region} | docker login --username AWS --password-stdin ${aws_ecr_repository.dbfeeder_app_repo.repository_url}
-      docker build -t dbfeeder-app ../code/postgresql-data-feeder
-      docker tag dbfeeder-app:latest ${local.dbfeeder_app_image_tag}
-      docker push ${local.dbfeeder_app_image_tag}
-    EOT
+# Build and Push DB Feeder App using Docker provider
+resource "docker_image" "dbfeeder_app" {
+  name = "${aws_ecr_repository.dbfeeder_app_repo.repository_url}:latest"
+  build {
+    context = "../code/postgresql-data-feeder"
   }
   depends_on = [
     local_file.db_feeder_properties,
-    local_file.payment_app_properties,
-    local_file.payment_app_dqr,
-    null_resource.create_tables,
+    docker_container.psql_init
   ]
+}
+
+resource "docker_registry_image" "dbfeeder_app" {
+  name = docker_image.dbfeeder_app.name
 }
 
 
@@ -351,7 +361,7 @@ resource "aws_ecs_task_definition" "payment_app_task" {
   container_definitions = jsonencode([
     {
       name      = "payment-app"
-      image     = "${local.payment_app_image_tag}"
+      image     = "${aws_ecr_repository.payment_app_repo.repository_url}@${docker_registry_image.payment_app.sha256_digest}"
       essential = true
       logConfiguration = {
         logDriver = "awslogs"
@@ -389,7 +399,7 @@ resource "aws_ecs_task_definition" "dbfeeder_app_task" {
   container_definitions = jsonencode([
     {
       name      = "dbfeeder-app"
-      image     = "${local.dbfeeder_app_image_tag}"
+      image     = "${aws_ecr_repository.dbfeeder_app_repo.repository_url}@${docker_registry_image.dbfeeder_app.sha256_digest}"
       essential = true
       logConfiguration = {
         logDriver = "awslogs"
@@ -425,7 +435,7 @@ resource "aws_ecs_service" "payment_app_service" {
   }
 
   depends_on = [
-  null_resource.build_and_push_payment_app,
+  docker_registry_image.payment_app,
   confluent_kafka_topic.error-payments-topic,
   confluent_kafka_topic.payments-topic,
   confluent_schema.avro-payments
@@ -449,7 +459,7 @@ resource "aws_ecs_service" "dbfeeder_app_service" {
   }
 
   depends_on = [
-    null_resource.build_and_push_dbfeeder_app,
-    null_resource.create_tables
+    docker_registry_image.dbfeeder_app,
+    docker_container.psql_init
     ]
 }

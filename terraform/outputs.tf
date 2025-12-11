@@ -69,13 +69,25 @@ output "redshift-output" {
 
 # Create destroy.sh file based on variables used in this script
 resource "local_file" "destroy_sh" {
+  count    = local.is_windows ? 0 : 1
   filename = "./demo-destroy.sh"
   content  = <<-EOT
     confluent schema-registry dek delete --kek-name CSFLE_Key --subject payments-value --force --environment ${confluent_environment.staging.id}
     confluent schema-registry dek delete --kek-name CSFLE_Key --subject payments-value --force --permanent --environment ${confluent_environment.staging.id}
-    aws ecr delete-repository --repository-name ${aws_ecr_repository.payment_app_repo.name} --force --region ${var.cloud_region}
-    aws ecr delete-repository --repository-name ${aws_ecr_repository.dbfeeder_app_repo.name} --force --region ${var.cloud_region}
-    terraform destroy -var="local_architecture=$ARCH" --auto-approve
+    terraform destroy --auto-approve
+  EOT
+  depends_on = [ 
+    random_id.env_display_id 
+  ] 
+  }
+
+resource "local_file" "destroy_bat" {
+  count    = local.is_windows ? 1 : 0
+  filename = "./demo-destroy.bat"
+  content  = <<-EOT
+    confluent schema-registry dek delete --kek-name CSFLE_Key --subject payments-value --force --environment ${confluent_environment.staging.id}
+    confluent schema-registry dek delete --kek-name CSFLE_Key --subject payments-value --force --permanent --environment ${confluent_environment.staging.id}
+    terraform destroy --auto-approve
   EOT
   depends_on = [ 
     random_id.env_display_id 
