@@ -18,70 +18,80 @@ This [video](https://www.confluent.io/resources/demo/shift-left-dsp-demo/) showc
 
 ## General Requirements
 
-* **Confluent Cloud API Keys** - [Cloud resource management API Keys](https://docs.confluent.io/cloud/current/security/authenticate/workload-identities/service-accounts/api-keys/overview.html#resource-scopes) with Organisation Admin permissions are needed by Terraform to deploy the necessary Confluent resources.
-* **Terraform (v1.9.5+)** - The demo resources are automatically created using [Terraform](https://www.terraform.io). Provide your cloud provider credentials so Terraform can create and manage resources.
-* **AWS account** - This demo runs on AWS
-* **Snowflake Account** -  Sign-up to Snowflake [here](https://signup.snowflake.com/).
-* **Docker Desktop** - Required. Terraform builds/pushes images and runs DB init via Docker. Install from [Docker Desktop](https://docs.docker.com/desktop/).
+### Required Accounts
+
+* **Confluent Cloud Account** 
+
+   [![Sign up for Confluent Cloud](https://img.shields.io/badge/Sign%20up%20for%20Confluent%20Cloud-007BFF?style=for-the-badge&logo=apachekafka&logoColor=white)](https://www.confluent.io/get-started/?utm_campaign=tm.pmm_cd.q4fy25-quickstart-streaming-agents&utm_source=github&utm_medium=demo)
+
+   * **Confluent Cloud API Keys** - [Cloud resource management API Keys](https://docs.confluent.io/cloud/current/security/authenticate/workload-identities/service-accounts/api-keys/overview.html#resource-scopes) with Organisation Admin permissions.
+
+* **AWS account**
+* **[Optional] Snowflake Account** -  Sign-up to Snowflake [here](https://signup.snowflake.com/).
+
+### Required Tools
+* **Terraform**
+* **Docker Desktop** 
 * **Confluent CLI** - Used by the generated destroy script to remove items created outside Terraform. Install with `brew install confluent` or the Windows installer.
 
-<details>
-<summary>Installing pre-reqs on MAC</summary>
-Run the following to install local dependencies on your laptop.
+   <details>
+   <summary>Installing pre-reqs on MAC</summary>
+   Run the following to install local dependencies on your laptop.
 
-```
-brew install git terraform confluent-cli docker
-```
+   ```
+   brew install git terraform confluent-cli docker
+   ```
 
-Configure AWS credentials (any supported method works; environment variables or shared config/credentials files). If you prefer AWS CLI:
+   Configure AWS credentials (any supported method works; environment variables or shared config/credentials files). If you prefer AWS CLI:
 
-```
-aws configure
-```
+   ```
+   aws configure
+   ```
 
-Or export credentials as environment variables (alternative to aws configure):
+   Or export credentials as environment variables (alternative to aws configure):
 
-```
-export AWS_ACCESS_KEY_ID="YOUR_KEY_ID"
-export AWS_SECRET_ACCESS_KEY="YOUR_SECRET"
-export AWS_SESSION_TOKEN="YOUR_SESSION_TOKEN"   # only if using temporary creds
-```
+   ```
+   export AWS_ACCESS_KEY_ID="YOUR_KEY_ID"
+   export AWS_SECRET_ACCESS_KEY="YOUR_SECRET"
+   export AWS_SESSION_TOKEN="YOUR_SESSION_TOKEN"   # only if using temporary creds
+   ```
 
 
 
-</details>
+   </details>
 
-<details>
-<summary>Installing pre-reqs on Windows</summary>
-Run the following in Windows Terminal or PowerShell (winget required):
+   <details>
+   <summary>Installing pre-reqs on Windows</summary>
+   Run the following in Windows Terminal or PowerShell (winget required):
 
-```
-winget install -e --id Git.Git
-winget install -e --id HashiCorp.Terraform
-winget install -e --id Docker.DockerDesktop
-winget install -e --id Confluentinc.CLI
-# Optional:
-winget install -e --id Amazon.AWSCLI
-```
+   ```
+   winget install -e --id Git.Git
+   winget install -e --id HashiCorp.Terraform
+   winget install -e --id Docker.DockerDesktop
+   winget install -e --id Confluentinc.CLI
+   # Optional:
+   winget install -e --id Amazon.AWSCLI
+   ```
 
-Configure AWS credentials via AWS CLI:
+   Configure AWS credentials via AWS CLI:
 
-```
-aws configure
-```
+   ```
+   aws configure
+   ```
 
-Or set environment variables in PowerShell (alternative to aws configure):
+   Or set environment variables in PowerShell (alternative to aws configure):
 
-```
-$env:AWS_ACCESS_KEY_ID="YOUR_KEY_ID"
-$env:AWS_SECRET_ACCESS_KEY="YOUR_SECRET"
-$env:AWS_SESSION_TOKEN="YOUR_SESSION_TOKEN"   # only if using temporary creds
-```
+   ```
+   $env:AWS_ACCESS_KEY_ID="YOUR_KEY_ID"
+   $env:AWS_SECRET_ACCESS_KEY="YOUR_SECRET"
+   $env:AWS_SESSION_TOKEN="YOUR_SESSION_TOKEN"   # only if using temporary creds
+   ```
 
-</details>
+   </details>
+
 ## Setup
 
-> Estimated time: 25 mins
+> Estimated time: 15 mins
 
 1. Clone the repo: 
    ```
