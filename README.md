@@ -10,34 +10,6 @@ This demo showcases how an online retailer can leverage Confluent to implement r
 
 You can choose to deploy the demo with with either Snowflake or Amazon Redshift. We use Terraform to deploy all the necessary resources. The script deploys the following:
 
-1. Confluent Cloud Infrastructure components:
-   1. Environment
-   2. Cluster
-   3. Topics and Schemas
-   4. RBAC role-bindings
-   5. Debezium CDC Connector and Data Quality Rules.
-2. AWS Infrastructure components:
-   1. Redshift Cluster
-   > Note: only if Amazon Redshift is selected as a data warehouse
-   2. Amazon RDS for PostgreSQL Database - holds information about Product, Orders and Customers
-   3. AWS KMS Symmetric key - used for Client Side Field Level Encryption
-   4. Two Amazon ECS Services
-      * DB Feeder to populate Postgres DB
-      * Payments Java Application
-3. Snowflake Infrastructure components:
-   > Note: only if Snowflake is selected as a data warehouse
-   1. Database and Schema
-   2. User with 2048 Public and Private key and the associated Role
-
-```bash
-├── Code                                  <-- Directory that holds demo code and dockerfile
-│   ├── payments-app                      <-- Payments App code and dockerfile
-│   ├── postgres-data-feeder              <-- DB Feeder code and dockerfile
-├── terraform                             <-- Directory that holds terraform scripts
-├── LAB1                                  <-- Directory that holds  LAB1 instructions and screenshots
-├── LAB2                                  <-- Directory that holds  LAB2 instructions and screenshots
-└── README.md
-```
 
 ## Demo Video
 
@@ -46,35 +18,80 @@ This [video](https://www.confluent.io/resources/demo/shift-left-dsp-demo/) showc
 
 ## General Requirements
 
-* **Confluent Cloud API Keys** - [Cloud resource management API Keys](https://docs.confluent.io/cloud/current/security/authenticate/workload-identities/service-accounts/api-keys/overview.html#resource-scopes) with Organisation Admin permissions are needed by Terraform to deploy the necessary Confluent resources.
-* **Terraform (v1.9.5+)** - The demo resources are automatically created using [Terraform](https://www.terraform.io). Besides having Terraform installed locally, will need to provide your cloud provider credentials so Terraform can create and manage the resources for you.
-* **AWS account** - This demo runs on AWS
-* **Snowflake Account** -  Sign-up to Snowflake [here](https://signup.snowflake.com/).
-* **AWS CLI** - Terraform script uses AWS CLI to manage AWS resources
-* **Docker** - Make sure Docker is installed locally. If not installed, follow [this](https://docs.docker.com/desktop/)
-* **PSQL** - Make sure psql is installed locally.
-* **Confluent CLI** - Used in the destroy script to delete resources created outside terraform. Run `brew install confluent`.
-* **Unix machine** - The Terraform script requires a Unix environment. If you're using a Windows machine, consider deploying an EC2 instance with CentOS and run the deployment steps from there.
+### Required Accounts
 
-<details>
-<summary>Installing pre-reqs on MAC</summary>
-Run the following to install local dependencies on your laptop.
+* **Confluent Cloud Account** 
 
-```
-brew install git terraform awscli confluent-cli postgresql docker
-```
+   [![Sign up for Confluent Cloud](https://img.shields.io/badge/Sign%20up%20for%20Confluent%20Cloud-007BFF?style=for-the-badge&logo=apachekafka&logoColor=white)](https://www.confluent.io/get-started/?utm_campaign=tm.pmm_cd.q4fy25-quickstart-streaming-agents&utm_source=github&utm_medium=demo)
 
-Configure AWS CLI
+   * **Confluent Cloud API Keys** - [Cloud resource management API Keys](https://docs.confluent.io/cloud/current/security/authenticate/workload-identities/service-accounts/api-keys/overview.html#resource-scopes) with Organisation Admin permissions.
 
-```
-aws configure
-```
+* **AWS account**
+* **[Optional] Snowflake Account** -  Sign-up to Snowflake [here](https://signup.snowflake.com/).
 
-</details>
+### Required Tools
+* **Terraform**
+* **Docker Desktop** 
+* **Confluent CLI** - Used by the generated destroy script to remove items created outside Terraform. Install with `brew install confluent` or the Windows installer.
+
+   <details>
+   <summary>Installing pre-reqs on MAC</summary>
+   Run the following to install local dependencies on your laptop.
+
+   ```
+   brew install git terraform confluent-cli docker
+   ```
+
+   Configure AWS credentials (any supported method works; environment variables or shared config/credentials files). If you prefer AWS CLI:
+
+   ```
+   aws configure
+   ```
+
+   Or export credentials as environment variables (alternative to aws configure):
+
+   ```
+   export AWS_ACCESS_KEY_ID="YOUR_KEY_ID"
+   export AWS_SECRET_ACCESS_KEY="YOUR_SECRET"
+   export AWS_SESSION_TOKEN="YOUR_SESSION_TOKEN"   # only if using temporary creds
+   ```
+
+
+
+   </details>
+
+   <details>
+   <summary>Installing pre-reqs on Windows</summary>
+   Run the following in Windows Terminal or PowerShell (winget required):
+
+   ```
+   winget install -e --id Git.Git
+   winget install -e --id HashiCorp.Terraform
+   winget install -e --id Docker.DockerDesktop
+   winget install -e --id Confluentinc.CLI
+   # Optional:
+   winget install -e --id Amazon.AWSCLI
+   ```
+
+   Configure AWS credentials via AWS CLI:
+
+   ```
+   aws configure
+   ```
+
+   Or set environment variables in PowerShell (alternative to aws configure):
+
+   ```
+   $env:AWS_ACCESS_KEY_ID="YOUR_KEY_ID"
+   $env:AWS_SECRET_ACCESS_KEY="YOUR_SECRET"
+   $env:AWS_SESSION_TOKEN="YOUR_SESSION_TOKEN"   # only if using temporary creds
+   ```
+
+   </details>
 
 ## Setup
 
-> Estimated time: 25 mins
+> Estimated time: 15 mins
 
 1. Clone the repo: 
    ```
@@ -94,12 +111,12 @@ aws configure
 4. Update the ```terraform.tfvars``` file by setting the ```data_warehouse``` variable to ```"redshift"```. Remove any Snowflake-related variables from the file.
    >Note: The ```data_warehouse``` variable only accepts one of two values: ```"redshift"``` or ```"snowflake"```.
    
-5. Run the following script to provision demo infrastructure
+5. Run Terraform to provision the demo infrastructure
 
-```
-chmod +x ./demo-provision.sh
-./demo-provision.sh
-```
+   ```
+   terraform init
+   terraform apply --auto-approve
+   ```
 
 </details>
 
@@ -138,18 +155,18 @@ chmod +x ./demo-provision.sh
    public_key_no_headers = local.public_key_no_headers
    }
    ```
-6. Run the following script to provision demo infrastructure
+6. Run Terraform to provision the demo infrastructure
 
-```
-chmod +x ./demo-provision.sh
-./demo-provision.sh
-```
+   ```
+   terraform init
+   terraform apply --auto-approve
+   ```
 
 </details>
 
 
 
->Note: The terraform script will take around 20 minutes to deploy.
+>Note: The terraform script will take around 15 minutes to deploy.
 
 ## Demo
 > Estimated time: 20 minutes
@@ -182,11 +199,15 @@ Run the below for all connectors created outside terraform:
 confluent connect cluster delete <CONNECTOR_ID> --cluster <CLUSTER_ID> --environment <ENVIRONMENT_ID> --force
 ```
 
-To destroy all the resources created run the command below from the ```terraform``` directory:
+To destroy all the resources created run the appropriate script from the ```terraform``` directory:
 
+macOS/Linux:
 ```
 chmod +x ./demo-destroy.sh
 ./demo-destroy.sh
-
 ```
-> **Note: If you run terraform destroy instead of the provided shell script, the ECR repositories in AWS will not be deleted.**
+
+Windows (CMD):
+```
+demo-destroy.bat
+```

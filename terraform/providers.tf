@@ -20,8 +20,16 @@ terraform {
       version = "2.32.0"                  
     }
     snowflake = {
-      source = "Snowflake-Labs/snowflake"
+      source = "snowflakedb/snowflake"
       version = "0.98.0"  
+    }
+    docker = {
+      source  = "kreuzwerker/docker"
+      version = "~> 3.0"
+    }
+    external = {
+      source  = "hashicorp/external"
+      version = "~> 2.3"
     }
   }
 }
@@ -37,6 +45,16 @@ provider "local" {}
 
 # TLS provider for generating RSA key-pairs used by Snowflake Connector and certificates.
 provider "tls" {}
+
+data "aws_ecr_authorization_token" "ecr" {}
+
+provider "docker" {
+  registry_auth {
+    address  = replace(data.aws_ecr_authorization_token.ecr.proxy_endpoint, "https://", "")
+    username = data.aws_ecr_authorization_token.ecr.user_name
+    password = data.aws_ecr_authorization_token.ecr.password
+  }
+}
 
 
 module "redshift" {

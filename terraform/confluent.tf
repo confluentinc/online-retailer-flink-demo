@@ -297,7 +297,7 @@ resource "confluent_connector" "postgre-sql-cdc-source" {
     confluent_kafka_acl.app-manager-write-on-topic,
     confluent_kafka_acl.app-manager-create-topic,
     aws_ecs_service.dbfeeder_app_service,
-    null_resource.create_tables,
+    docker_container.psql_init,
   ]
 }
 
