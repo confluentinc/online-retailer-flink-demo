@@ -1,6 +1,6 @@
 email="<YOUR_EMAIL>"
-confluent_cloud_api_key = "<CONFLUE_CLOUD_API_KEY>"
-confluent_cloud_api_secret = "<CONFLUE_CLOUD_API_SECRET>"
+confluent_cloud_api_key = "<CONFLUENT_CLOUD_API_KEY>"
+confluent_cloud_api_secret = "<CONFLUENT_CLOUD_API_SECRET>"
 
 data_warehouse = "<redshift or snowflake>" #The value has to be snowflake or redshift
 
