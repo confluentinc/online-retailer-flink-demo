@@ -227,6 +227,8 @@ Let's see what Tableflow created in our data catalog.
    LIMIT 10;
    ```
 
+> **Note:** You may need to supply an output location for your Athena query if you haven't configured this before. Instructions can be found [here](https://docs.aws.amazon.com/athena/latest/ug/creating-databases-prerequisites.html). Feel free to use the same S3 bucket we are using for Tableflow data.
+
 ---
 
 ### Analyzing Sales Trends
@@ -282,24 +284,21 @@ One of Tableflow's powerful features is automatic schema evolution. Let's see it
 
 We'll add a `payment_method` field to track how customers pay.
 
-1. In Flink SQL Workspace, create an evolved version of `completed_orders`:
+1. First, stop the original statement:
+   * Go to Flink Console > Statements
+   * Find `completed-orders-materializer`
+   * Click **Stop**
+
+2. Add the new column to the existing table using ALTER TABLE:
+   ```sql
+   ALTER TABLE completed_orders ADD (payment_method STRING);
+   ```
+
+3. Start a new statement that populates the evolved schema:
    ```sql
    SET 'client.statement-name' = 'completed-orders-v2-materializer';
 
-   -- First, stop the original statement
-   -- Go to Flink Console > Statements > Find 'completed-orders-materializer' > Stop
-
-   -- Now recreate with additional field
-   DROP TABLE completed_orders;
-
-   CREATE TABLE completed_orders (
-      order_id INT,
-      amount DOUBLE,
-      confirmation_code STRING,
-      payment_method STRING,  -- NEW FIELD
-      ts TIMESTAMP_LTZ(3),
-      WATERMARK FOR ts AS ts - INTERVAL '5' SECOND
-   ) AS
+   INSERT INTO completed_orders
    SELECT
       pymt.order_id,
       pymt.amount,
@@ -314,7 +313,9 @@ We'll add a `payment_method` field to track how customers pay.
    AND orderdate BETWEEN pymt.ts - INTERVAL '96' HOUR AND pymt.ts;
    ```
 
-2. Wait 2-3 minutes, then query in Athena:
+> **Important:** Using `ALTER TABLE` instead of `DROP TABLE` keeps Tableflow enabled throughout the schema evolution. No need to reconfigure storage or re-enable Tableflow!
+
+4. Wait 2-3 minutes, then query in Athena:
    ```sql
    SELECT
       payment_method,
@@ -324,7 +325,7 @@ We'll add a `payment_method` field to track how customers pay.
    GROUP BY payment_method;
    ```
 
-3. Notice what happened:
+5. Notice what happened:
    * Old records have `NULL` for `payment_method` (schema evolution preserves historical data)
    * New records have the derived value
    * No manual DDL changes needed in Glue or Athena

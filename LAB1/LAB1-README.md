@@ -344,7 +344,7 @@ In the next lab, we'll make these data products analytics-ready using Tableflow!
 
 ## Topics
 
-**➡️ Next topic:** [Lab 2 - Payment Validation and Tableflow Deep Dive](../LAB2/LAB2-README-REVISED.md)
+**➡️ Next topic:** [Lab 2 - Payment Validation and Tableflow Deep Dive](../LAB2/LAB2-README.md)
 
 **🔙 Previous topic:** [Demo Introduction and Setup](../README.md)
 
