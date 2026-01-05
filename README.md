@@ -16,7 +16,7 @@ By the end of this workshop, you'll have:
 - ✅ **Live product analytics** using Flink SQL joins and aggregations
 - ✅ **Apache Iceberg tables** with Tableflow for instant data lake integration
 - ✅ **Data governance** with schema validation and field-level encryption
-- ✅ **Analytics-ready datasets** in your data warehouse (Redshift or Snowflake)
+- ✅ **Analytics-ready datasets** in your data warehouse (Redshift)
 
 **Time commitment:** 90 minutes total (45 min setup + 45 min labs)
 
@@ -67,6 +67,11 @@ git clone https://github.com/confluentinc/online-retailer-flink-demo.git
 cd online-retailer-flink-demo/terraform
 ```
 
+#### Step 1.1: Update Your Terraform.tfvars file
+
+- Update `terraform.tfvars` located in `online-retailer-flink-demo/terraform` with your e-mail address, Confluent Cloud API Key and Secret Key. 
+- Leave the rest of the file as default and continue.
+
 
 ### Step 2: Deploy Infrastructure
 
@@ -93,9 +98,6 @@ Learn to join streaming data with Flink SQL, mask PII data, and create enriched 
 
 ### [**LAB 2: Payment Processing & Tableflow**](./LAB2/LAB2-README.md)
 Validate payments in real-time, compute daily trends, and materialize Kafka topics as Iceberg tables.
-
-### [**LAB 3: Snowflake Integration** *(Snowflake users only)*](./LAB3/LAB3-README.md)
-Connect Snowflake to S3 using IAM roles and query Iceberg data via Glue Data Catalog.
 
 ---
 
