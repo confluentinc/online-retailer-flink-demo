@@ -268,3 +268,9 @@ That's it we were able analyse the data in Athena.
 **🏁 Finished?** [Cleanup](../README.md#clean-up)
 
 **🔙 Previous topic:** [Usecase 2 - Product Sales and Customer360 Aggregation](../LAB1/LAB1-README.md)
+
+---
+
+## 🆘 Need Help?
+
+Running into issues? Check the [**Troubleshooting Guide**](../TROUBLESHOOTING.md) for common problems and solutions, or ask a workshop instructor!

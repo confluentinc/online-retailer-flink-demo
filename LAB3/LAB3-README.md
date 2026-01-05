@@ -179,5 +179,11 @@ Congratulations, you have now completed Lab 3!
 ---
 
 
-**Next topic:** [Cleanup](../README.md#clean-up)  
+**Next topic:** [Cleanup](../README.md#clean-up)
 **Previous topic:** [Lab 2 - Daily Sales Trends](../LAB2/LAB2-README.md)
+
+---
+
+## 🆘 Need Help?
+
+Running into issues? Check the [**Troubleshooting Guide**](../TROUBLESHOOTING.md) for common problems and solutions, or ask a workshop instructor!

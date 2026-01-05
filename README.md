@@ -1,213 +1,168 @@
-#  Online Retailer Stream Processing Demo using Confluent for Apache Flink
 
-This repository showcases a demo for an online retailer that leverages Confluent Cloud to process sales orders in real-time, compute sales trends, and pre-process data for advanced analytics in Amazon Athena and a datawarehouse of your choice (Snowflake or Amazon Redshift).
+# Real-Time Stream Processing Workshop
+### Build a Data Streaming Platform with Confluent Cloud & Apache Flink
 
-It shows how to harness the power of a Data Streaming Platform (DSP) to clean and govern data at the time it is created, and deliver fresh trustworthy data to your data warehouse and data lake to maximize the ROI.
+### 🎉👋 Welcome to GKO 2026! 
 
-This demo showcases how an online retailer can leverage Confluent to implement real-time analytics across three critical use cases: ***Customer360***, ***Product Sales Analysis*** and ***Daily Sales Trend Analysis***. The solution demonstrates the power of real-time data streaming to enhance operational efficiency and decision-making. Below is the high-level architecture diagram:
+In this hands-on workshop, you'll build a real-time analytics platform for an online retailer using Confluent Cloud and Apache Flink.
 
 ![Architecture](./assets/HLD.png)
 
-You can choose to deploy the demo with with either Snowflake or Amazon Redshift. We use Terraform to deploy all the necessary resources. The script deploys the following:
+## What You'll Build
 
+By the end of this workshop, you'll have:
 
-## Demo Video
+- ✅ **Real-time customer data** streaming from PostgreSQL to Confluent Cloud
+- ✅ **Live product analytics** using Flink SQL joins and aggregations
+- ✅ **Apache Iceberg tables** with Tableflow for instant data lake integration
+- ✅ **Data governance** with schema validation and field-level encryption
+- ✅ **Analytics-ready datasets** in your data warehouse (Redshift or Snowflake)
 
-This [video](https://www.confluent.io/resources/demo/shift-left-dsp-demo/) showcases how to run the demo. To deploy the demo follow this repo.
+**Time commitment:** 90 minutes total (45 min setup + 45 min labs)
 
+## Prerequisites
 
-## General Requirements
+Before starting, make sure you have:
 
-### Required Accounts
-
-* **Confluent Cloud Account** 
-
-   [![Sign up for Confluent Cloud](https://img.shields.io/badge/Sign%20up%20for%20Confluent%20Cloud-007BFF?style=for-the-badge&logo=apachekafka&logoColor=white)](https://www.confluent.io/get-started/?utm_campaign=tm.pmm_cd.q4fy25-quickstart-streaming-agents&utm_source=github&utm_medium=demo)
-
-   * **Confluent Cloud API Keys** - [Cloud resource management API Keys](https://docs.confluent.io/cloud/current/security/authenticate/workload-identities/service-accounts/api-keys/overview.html#resource-scopes) with Organisation Admin permissions.
-
-* **AWS account**
-* **[Optional] Snowflake Account** -  Sign-up to Snowflake [here](https://signup.snowflake.com/).
-
-### Required Tools
-* **Terraform**
-* **Docker Desktop** 
-* **Confluent CLI** - Used by the generated destroy script to remove items created outside Terraform. Install with `brew install confluent` or the Windows installer.
-
-   <details>
-   <summary>Installing pre-reqs on MAC</summary>
-   Run the following to install local dependencies on your laptop.
-
-   ```
-   brew install git terraform confluent-cli docker
-   ```
-
-   Configure AWS credentials (any supported method works; environment variables or shared config/credentials files). If you prefer AWS CLI:
-
-   ```
-   aws configure
-   ```
-
-   Or export credentials as environment variables (alternative to aws configure):
-
-   ```
-   export AWS_ACCESS_KEY_ID="YOUR_KEY_ID"
-   export AWS_SECRET_ACCESS_KEY="YOUR_SECRET"
-   export AWS_SESSION_TOKEN="YOUR_SESSION_TOKEN"   # only if using temporary creds
-   ```
-
-
-
-   </details>
-
-   <details>
-   <summary>Installing pre-reqs on Windows</summary>
-   Run the following in Windows Terminal or PowerShell (winget required):
-
-   ```
-   winget install -e --id Git.Git
-   winget install -e --id HashiCorp.Terraform
-   winget install -e --id Docker.DockerDesktop
-   winget install -e --id Confluentinc.CLI
-   # Optional:
-   winget install -e --id Amazon.AWSCLI
-   ```
-
-   Configure AWS credentials via AWS CLI:
-
-   ```
-   aws configure
-   ```
-
-   Or set environment variables in PowerShell (alternative to aws configure):
-
-   ```
-   $env:AWS_ACCESS_KEY_ID="YOUR_KEY_ID"
-   $env:AWS_SECRET_ACCESS_KEY="YOUR_SECRET"
-   $env:AWS_SESSION_TOKEN="YOUR_SESSION_TOKEN"   # only if using temporary creds
-   ```
-
-   </details>
-
-## Setup
-
-> Estimated time: 15 mins
-
-1. Clone the repo: 
-   ```
-   git clone https://github.com/confluentinc/online-retailer-flink-demo.git
-   ```
-2. Change directory to demo repository and terraform directory.
-
-   ```
-   cd online-retailer-flink-demo/terraform
-   ```
-3. Decide whether to deploy the demo with Redshift or Snowflake, then follow the corresponding instructions below.
-   
+| Requirement | Check |
+|-------------|-------|
+| **Confluent Cloud account** with [API Keys](https://docs.confluent.io/cloud/current/security/authenticate/workload-identities/service-accounts/api-keys/overview.html#resource-scopes) (Org Admin permissions) | [Sign up here](https://www.confluent.io/get-started/) |
+| **AWS account** with credentials configured | `aws configure` or env variables |
+| **Docker Desktop** installed and running | Docker must be logged in |
+| **Terraform** installed | `brew install terraform` or [download](https://www.terraform.io/downloads) |
+| **Confluent CLI** installed | `brew install confluent-cli` |
 
 <details>
-<summary>Click to expand Amazon Redshift instructions</summary>
+<summary>📦 Quick Install Commands</summary>
 
-4. Update the ```terraform.tfvars``` file by setting the ```data_warehouse``` variable to ```"redshift"```. Remove any Snowflake-related variables from the file.
-   >Note: The ```data_warehouse``` variable only accepts one of two values: ```"redshift"``` or ```"snowflake"```.
-   
-5. Run Terraform to provision the demo infrastructure
+**macOS:**
+```bash
+brew install git terraform confluent-cli docker
+aws configure  # Set up AWS credentials
+```
 
-   ```
-   terraform init
-   terraform apply --auto-approve
-   ```
-
+**Windows (PowerShell):**
+```powershell
+winget install -e --id Git.Git
+winget install -e --id HashiCorp.Terraform
+winget install -e --id Docker.DockerDesktop
+winget install -e --id Confluentinc.CLI
+winget install -e --id Amazon.AWSCLI
+aws configure  # Set up AWS credentials
+```
 </details>
 
-<details>
-<summary>Click to expand Snowflake instructions</summary>
+---
 
-4. Update the ```terraform.tfvars``` file by setting:
-   1. The ```data_warehouse``` variable to ```"snowflake"```.
-      >Note: The ```data_warehouse``` variable only accepts one of two values: ```"redshift"``` or ```"snowflake"```.
-   2. And Snowflake Variables:
-      ```
-      snowflake_account="<SNOWFLAKE_ACCOUNT_NUMBER>" #GET THIS FROM SNOWFLAKE Home Page --> Admin --> Accounts --> Copy the first part of the URL before .snowflake, it should look like this <organization_id-account_name>
-      snowflake_username="<SNOWFLAKE_USENAME>"
-      snowflake_password="<SNOWFLAKE_PASSWORD>"
-      ```
-   
-5. Update the ```providers.tf``` file and Uncomment the following blocks at the end of the file:
-   ```
-   provider "snowflake" {
-   alias = "snowflake"
-   account  = var.data_warehouse == "snowflake" ? var.snowflake_account : "na"
-   user     = var.data_warehouse == "snowflake" ? var.snowflake_username : "na"
-   password = var.data_warehouse == "snowflake" ? var.snowflake_password : "na"
-   }
+> **💡 Pro Tip:** Use Chrome's split-screen view to have the instructions on one side and Confluent Cloud on the other!
+<video src="https://github.com/user-attachments/assets/68395ba4-c12c-4daa-b71b-168e7d14bf33" controls autoplay loop muted inline width="50%">
+</video>
 
-   module "snowflake" {
-   source = "./modules/snowflake"
-   count  = var.data_warehouse == "snowflake" ? 1 : 0  # Only deploy module if Snowflake is selected
-   providers = {
-      snowflake = snowflake.snowflake
-   }
-   # Pass the variables required for Snowflake resources
-   snowflake_account  = var.snowflake_account
-   snowflake_username = var.snowflake_username
-   snowflake_password = var.snowflake_password
-   public_key_no_headers = local.public_key_no_headers
-   }
-   ```
-6. Run Terraform to provision the demo infrastructure
+## Setup (Allow 30-45 minutes)
 
-   ```
-   terraform init
-   terraform apply --auto-approve
-   ```
+### Step 1: Clone and Navigate
 
-</details>
-
-
-
->Note: The terraform script will take around 15 minutes to deploy.
-
-## Demo
-> Estimated time: 20 minutes
-
-There are two options for demonstration. One is to walk through the different technical use case demonstrations and the other is to walk through an end-to-end demonstration of "shifting left" which takes a more integrated approach. For the shiftleft approach go [HERE](./Shiftleft/README.md). 
-
-Otherwise, we will now build **three discrete use case demonstrations spread across two labs**. Follow the individual labs listed below:
-
-   - [**LAB1 – Product Sales and Customer360 Aggregation**](./LAB1/LAB1-README.md):  
-   Use Confluent Cloud for Apache Flink to clean and aggregate product sales data, then sink the results to Snowflake or Redshift. Additionally, create a derived data product for a customer snapshot and send the result back to an operational database.
-
-   - [**LAB2 – Daily Sales Trends**](./LAB2/LAB2-README.md):  
-   Use Confluent Cloud for Apache Flink for payment validation and to compute daily sales trends. The results are stored in a topic with Tableflow enabled, which materializes the topic as Iceberg data. We then use Amazon Athena for further analysis.
-
-   - [**LAB3 - Integration with Snowflake**](./LAB3/LAB3-README.md):
-   Use Snowflake to integrate with Amazon S3 using AWS IAM Roles to pull in metadata and data in Snowflake. Perform analysis similar to what was done in Lab 2 with Amazon Athena, only this time via Snowflake and Glue Data Catalog for further analysis.
-
-
-## Topics
-
-**Next topic:** [LAB1: Product Sales and Customer360 Aggregation](./LAB1/LAB1-README.md)
-
-## Clean-up
-Once you are finished with this demo, remember to destroy the resources you created, to avoid incurring charges. You can always spin it up again anytime you want.
-
-Before tearing down the infrastructure, delete the Postgres Sink and Snowflake/Redshift connectors, as they were created outside of Terraform and won't be automatically removed:
-Run the below for all connectors created outside terraform:
-
-```
-confluent connect cluster delete <CONNECTOR_ID> --cluster <CLUSTER_ID> --environment <ENVIRONMENT_ID> --force
+```bash
+git clone https://github.com/confluentinc/online-retailer-flink-demo.git
+cd online-retailer-flink-demo/terraform
 ```
 
-To destroy all the resources created run the appropriate script from the ```terraform``` directory:
 
-macOS/Linux:
-```
-chmod +x ./demo-destroy.sh
-./demo-destroy.sh
+### Step 2: Deploy Infrastructure
+
+```bash
+terraform init
+terraform apply --auto-approve
 ```
 
-Windows (CMD):
+☕ **Grab a coffee!** This takes 15-20 minutes to provision:
+- Confluent Cloud environment with Kafka + Flink
+- AWS RDS PostgreSQL database
+- S3 buckets for data lake
+- Redshift warehouse
+- Schema Registry and Stream Governance
+
+---
+
+## Workshop Labs
+
+Once deployment completes, start the hands-on labs:
+
+### [**LAB 1: Customer360 & Product Sales Analytics**](./LAB1/LAB1-README.md)
+Learn to join streaming data with Flink SQL, mask PII data, and create enriched customer profiles.
+
+### [**LAB 2: Payment Processing & Tableflow**](./LAB2/LAB2-README.md)
+Validate payments in real-time, compute daily trends, and materialize Kafka topics as Iceberg tables.
+
+### [**LAB 3: Snowflake Integration** *(Snowflake users only)*](./LAB3/LAB3-README.md)
+Connect Snowflake to S3 using IAM roles and query Iceberg data via Glue Data Catalog.
+
+---
+
+## Clean Up (Important!)
+
+**Don't skip this!** Avoid unexpected charges by cleaning up when you're done.
+
+### Step 1: Delete Connectors
+
+Connectors created during the labs are not managed by Terraform and must be deleted manually.
+
+**Option A: Delete via UI (Easiest)**
+
+1. Go to [Confluent Cloud](https://confluent.cloud)
+2. Select your environment (starts with `shiftleft-environment-...`)
+3. Click **Connectors** in the left sidebar
+4. For each connector you created:
+   - Click on the connector name
+   - Click **Settings** > **Delete**
+   - Confirm deletion
+
+**Option B: Delete via CLI**
+
+First, find your IDs:
+```bash
+# List all environments to find your ENVIRONMENT_ID
+confluent environment list
+
+# Set your environment (use the ID from above)
+confluent environment use <ENVIRONMENT_ID>
+
+# List clusters to find your CLUSTER_ID
+confluent kafka cluster list
+
+# List all connectors to find CONNECTOR_IDs
+confluent connect cluster list --cluster <CLUSTER_ID>
 ```
-demo-destroy.bat
+
+Then delete each connector:
+```bash
+confluent connect cluster delete <CONNECTOR_ID> \
+  --cluster <CLUSTER_ID> \
+  --environment <ENVIRONMENT_ID> \
+  --force
 ```
+
+### Step 2: Destroy Infrastructure
+
+```bash
+# From the terraform/ directory
+./demo-destroy.sh        # macOS/Linux
+demo-destroy.bat         # Windows
+```
+
+---
+
+## Need Help?
+
+- **Running into issues?** Check the [**Troubleshooting Guide**](./TROUBLESHOOTING.md) for common problems and solutions
+- **During the workshop:** Raise your hand or ask in Slack
+- **After the workshop:** Check the [video walkthrough](https://www.confluent.io/resources/demo/shift-left-dsp-demo/)
+- **Issues or feedback:** [Open a GitHub issue](https://github.com/confluentinc/online-retailer-flink-demo/issues)
+
+---
+
+## Ready to Start?
+
+👉 **[Begin LAB 1: Customer360 & Product Sales Analytics](./LAB1/LAB1-README.md)**
+
+Let's build something awesome! 🚀

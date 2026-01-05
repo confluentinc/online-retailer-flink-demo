@@ -414,3 +414,9 @@ FROM thirty_day_customer_snapshot;
 **Next topic:** [Usecase 2 - Daily Sales Trends](../LAB2/LAB2-README.md)
 
 **Previous topic:** [Demo Introduction and Setup](../README.md)
+
+---
+
+## 🆘 Need Help?
+
+Running into issues? Check the [**Troubleshooting Guide**](../TROUBLESHOOTING.md) for common problems and solutions, or ask a workshop instructor!

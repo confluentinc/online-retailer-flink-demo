@@ -3,7 +3,7 @@ confluent_cloud_api_key    = "<API_KEY>"
 confluent_cloud_api_secret = "<API_SECRET>"
 
 
-data_warehouse = "<DATA_WAREHOUSE_TYPE>" #The value has to be snowflake or redshift
+data_warehouse = "redshift" #The value has to be snowflake or redshift
 
 
 # The follwoing three variables are only needed if data_warehouse is set to "snowflake"
