@@ -550,6 +550,8 @@ All of this happens automatically—Confluent manages the infrastructure, compac
 
 **🔙 Previous topic:** [Lab 1 - Product Sales and Customer360 Aggregation](../LAB1/LAB1-README.md)
 
+**🎯 Bonus (Optional):** [Data Contracts and Encryption](../BONUS/BONUS-README.md)
+
 **🏁 Finished?** [Cleanup](../README.md#clean-up)
 
 ---
