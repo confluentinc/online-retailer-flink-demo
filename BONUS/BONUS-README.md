@@ -175,6 +175,28 @@ All of this is managed through Schema Registry and Stream Governance—no applic
 
 ---
 
+## ⚠️ Important: Cleanup Instructions
+
+If you completed this bonus lab and want to clean up your infrastructure later, the schema changes you made will conflict with Terraform. You must **delete the payments schema from Schema Registry** before running destroy scripts.
+
+### Delete the Payments Schema
+
+1. In Confluent Cloud, navigate to your environment
+
+2. Click **Schema Registry** in the left sidebar
+
+3. Find the `payments-value` schema in the list
+
+4. Click on the schema to open it
+
+5. Click the **Delete** button (trash icon or delete option)
+
+6. Confirm the deletion
+
+7. Now you can proceed with the normal [cleanup instructions](../README.md#clean-up)
+
+---
+
 ## Topics
 
 **🔙 Previous topic:** [Lab 2 - Payment Validation and Tableflow Deep Dive](../LAB2/LAB2-README.md)
