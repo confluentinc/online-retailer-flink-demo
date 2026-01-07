@@ -455,7 +455,6 @@ LIMIT 10;
 ```
 
 This returns:
-* **#**: The actual partition values (e.g., a struct containing timestamp-based partitions)
 * **record_count**: Total number of rows in that partition
 * **file_count**: Total number of data files in that partition
 * **spec_id**: The partition spec ID (useful if partition schema evolves)
@@ -479,24 +478,26 @@ LIMIT 10;
 ```
 
 
-#### Testing Partition Pruning
+#### Testing File Pruning with Column Statistics
 
-Run a partition-pruned query to see performance benefits:
-
-```sql
-SELECT COUNT(*), SUM(amount)
-FROM "AwsDataCatalog"."<<cluster-id>>"."completed_orders"
-WHERE date_trunc('day', ts) = DATE '2026-01-05';
-```
-
-Compare with a full table scan:
+First, run a full table scan to establish a baseline:
 
 ```sql
 SELECT COUNT(*), SUM(amount)
 FROM "AwsDataCatalog"."<<cluster-id>>"."completed_orders";
 ```
 
-Check the **"Data scanned"** metric in Athena's query results—the partitioned query should scan significantly less data, demonstrating how Iceberg's hidden partitioning works behind the scenes.
+Now run a query with a narrow time window using range predicates:
+
+```sql
+SELECT COUNT(*), SUM(amount)
+FROM "AwsDataCatalog"."<<cluster-id>>"."completed_orders"
+WHERE ts >= CURRENT_TIMESTAMP - INTERVAL '1' HOUR;
+```
+
+Compare the **"Data scanned"** metrics in Athena—the time-windowed query should scan significantly less data. Athena uses min/max statistics on `ts` from each Iceberg file to skip files outside your time range.
+
+> **Tip:** Use range predicates (`ts >= ... AND ts < ...`) instead of functions like `date_trunc()`. Range predicates can be pushed down to Iceberg's column statistics for file pruning.
 
 ---
 
