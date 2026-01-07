@@ -398,13 +398,6 @@ ORDER BY committed_at DESC
 LIMIT 10;
 ```
 
-**Method 2: Direct inspection (if above doesn't work)**
-
-If the Glue metadata tables aren't syncing, check the Confluent Cloud UI:
-* Go to your `completed_orders` topic → **Tableflow** tab
-* View snapshot history and metadata directly in the UI
-* Use this information to verify time travel queries are working
-
 > **Note:** If you get "table not found" errors, the Glue catalog may not have synced the metadata tables yet. Wait 2-3 minutes and try again, or use the Confluent Cloud UI to verify the table location.
 
 #### Time Travel Queries
@@ -472,7 +465,7 @@ Iceberg manages its own state via metadata files. You can inspect other internal
 
 **Example - View file layout:**
 ```sql
- SELECT file_path, record_count, file_size_in_bytes
+SELECT file_path, record_count, file_size_in_bytes
 FROM "AwsDataCatalog"."lkc-6r9vn6"."completed_orders$files"
 LIMIT 10;
 ```
