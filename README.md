@@ -27,7 +27,7 @@ Before starting, make sure you have:
 | Requirement | Check |
 |-------------|-------|
 | **Confluent Cloud account** with [API Keys](https://docs.confluent.io/cloud/current/security/authenticate/workload-identities/service-accounts/api-keys/overview.html#resource-scopes) (Org Admin permissions) | [Sign up here](https://www.confluent.io/get-started/) |
-| **AWS account** with credentials configured | `aws configure` or env variables |
+| **AWS account** with credentials set | `aws configure` or set AWS env variables |
 | **Docker Desktop** installed and running | Docker must be logged in |
 | **Terraform** installed | `brew install terraform` or [download](https://www.terraform.io/downloads) |
 | **Confluent CLI** installed | `brew install confluent-cli` |
@@ -38,7 +38,7 @@ Before starting, make sure you have:
 **macOS:**
 ```bash
 brew install git terraform confluent-cli docker
-aws configure  # Set up AWS credentials
+aws configure  # Set up AWS credentials or alternatively set your environment variables for AWS Key and Secret
 ```
 
 **Windows (PowerShell):**
@@ -105,44 +105,22 @@ Validate payments in real-time, compute daily trends, and materialize Kafka topi
 
 **Don't skip this!** Avoid unexpected charges by cleaning up when you're done.
 
-### Step 1: Delete Connectors
+### Step 1: Disable Tableflow
 
-Connectors created during the labs are not managed by Terraform and must be deleted manually.
-
-**Option A: Delete via UI (Easiest)**
+Disable Tableflow for the `completed_orders` topic.
 
 1. Go to [Confluent Cloud](https://confluent.cloud)
 2. Select your environment (starts with `shiftleft-environment-...`)
-3. Click **Connectors** in the left sidebar
-4. For each connector you created:
-   - Click on the connector name
-   - Click **Settings** > **Delete**
-   - Confirm deletion
+3. Navigate to your Kafka cluster
+4. Click **Topics** in the left sidebar
+5. Click on the `completed_orders` topic
+6. Click the **Settings** tab
+7. Click **Disable Tableflow**
+8. Confirm the action
 
-**Option B: Delete via CLI**
-
-First, find your IDs:
-```bash
-# List all environments to find your ENVIRONMENT_ID
-confluent environment list
-
-# Set your environment (use the ID from above)
-confluent environment use <ENVIRONMENT_ID>
-
-# List clusters to find your CLUSTER_ID
-confluent kafka cluster list
-
-# List all connectors to find CONNECTOR_IDs
-confluent connect cluster list --cluster <CLUSTER_ID>
-```
-
-Then delete each connector:
-```bash
-confluent connect cluster delete <CONNECTOR_ID> \
-  --cluster <CLUSTER_ID> \
-  --environment <ENVIRONMENT_ID> \
-  --force
-```
+### Step 1.1: Delete Catalog Integration
+1. Navigate back to the Tableflow tab
+2. Find your Catalog Integration (`my-glue-integration`) and click the trash icon to delete it.
 
 ### Step 2: Destroy Infrastructure
 

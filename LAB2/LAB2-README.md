@@ -79,9 +79,9 @@ Before joining payment and order streams, we need to ensure there are no duplica
 
 ---
 
-### Using Interval Joins to Create Completed Orders
+### Creating Completed Orders with Joins
 
-Now we'll filter out orders without valid payment within 96 hours using Flink's interval join capability.
+Now we'll create a table that joins payments with orders to validate that each payment has a matching order.
 
 1. Create the `completed_orders` table:
    ```sql
@@ -99,11 +99,10 @@ Now we'll filter out orders without valid payment within 96 hours using Flink's 
       pymt.confirmation_code,
       pymt.ts
    FROM unique_payments pymt, `shiftleft.public.orders` ord
-   WHERE pymt.order_id = ord.orderid
-   AND orderdate BETWEEN pymt.ts - INTERVAL '96' HOUR AND pymt.ts;
+   WHERE pymt.order_id = ord.orderid;
    ```
 
-This join ensures we only capture orders with payments received within the valid time window, creating a high-quality data product for analytics.
+This join ensures we only capture payments that have a matching order in the system, creating a validated data product for analytics.
 
 ---
 
@@ -122,8 +121,6 @@ First, we'll configure the storage and catalog integrations that Tableflow will 
 1. Navigate to the Tableflow main page: **Environments > {Your Environment} > Clusters > {Your Cluster} > Tableflow**
 
    ![Navigate to tableflow](assets/navigate-to-tableflow.gif)
-
-2. You should see a **Storage Provider Integration** already configured by Terraform. This integration allows Confluent to write Iceberg data to your S3 bucket.
 
 #### Configure Glue Data Catalog Integration
 
@@ -149,38 +146,26 @@ Now we'll connect Tableflow to AWS Glue Data Catalog so our Iceberg tables are d
 
 ---
 
-### Enabling Tableflow on Multiple Tables
+### Enabling Tableflow on `completed_orders`
 
-Let's enable Tableflow on three different data products to demonstrate its versatility.
-
-#### 1. Enable Tableflow on `completed_orders`
+Now we'll enable Tableflow to automatically materialize the `completed_orders` topic as an Iceberg table.
 
 1. Navigate to the [`completed_orders`](https://confluent.cloud/go/topics) topic
 2. Click **Enable Tableflow** > **Configure Custom Storage**
 3. Select your provider integration and S3 bucket (format: `shiftleft-tableflow-bucket-...`)
+
+   You can find your S3 bucket name:
+   ```bash
+   terraform output resource-ids | grep tableflow-bucket
+   ```
+
 4. Click **Continue** and **Launch**
 
    ![Enable Tableflow on topic](./assets/LAB2_enable_tableflow_custom_storage.png)
 
-#### 2. Enable Tableflow on `product_sales`
+5. Wait for Tableflow status to show **Active**
 
-Repeat the same process for the `product_sales` topic created in Lab 1:
-
-1. Navigate to the [`product_sales`](https://confluent.cloud/go/topics) topic
-2. Click **Enable Tableflow** > **Configure Custom Storage**
-3. Use the same provider integration and S3 bucket
-4. Click **Continue** and **Launch**
-
-#### 3. Enable Tableflow on `thirty_day_customer_snapshot`
-
-Repeat once more for the customer snapshot:
-
-1. Navigate to the [`thirty_day_customer_snapshot`](https://confluent.cloud/go/topics) topic
-2. Click **Enable Tableflow** > **Configure Custom Storage**
-3. Use the same provider integration and S3 bucket
-4. Click **Continue** and **Launch**
-
-> **Key Point:** Notice how Tableflow automatically infers schema from Schema Registry for each topic. No manual schema mapping required!
+> **Key Point:** Tableflow automatically infers the schema from Schema Registry. No manual schema mapping required!
 
 ---
 
@@ -196,10 +181,7 @@ Let's see what Tableflow created in our data catalog.
    ```
    Look for the `Cluster ID` value under "Environment & Cluster Info"
 
-3. Click into the database and you should see three tables:
-   * `completed_orders`
-   * `product_sales`
-   * `thirty_day_customer_snapshot`
+3. Click into the database and you should see the `completed_orders` table
 
 4. Click on `completed_orders` to view its schema. Notice:
    * The schema exactly matches what's in Schema Registry
@@ -238,40 +220,36 @@ Now let's perform some real analytics on our streaming data.
 1. Calculate hourly sales trends:
    ```sql
    SELECT
-   date_trunc('hour', ts) AS window_start,
-   date_trunc('hour', ts) + INTERVAL '1' hour AS window_end,
-   COUNT(*) AS total_orders,
-   SUM(amount) AS total_revenue
+      date_trunc('hour', ts) AS window_start,
+      date_trunc('hour', ts) + INTERVAL '1' hour AS window_end,
+      COUNT(*) AS total_orders,
+      SUM(amount) AS total_revenue
    FROM "AwsDataCatalog"."<<cluster-id>>"."completed_orders"
    GROUP BY date_trunc('hour', ts)
    ORDER BY window_start;
    ```
 
-2. Query `product_sales` for product-level insights:
+2. Find the highest value orders:
    ```sql
    SELECT
-      brand,
-      productname,
-      COUNT(DISTINCT orderid) as order_count,
-      SUM(total_amount) as total_revenue,
-      AVG(quantity) as avg_quantity
-   FROM "AwsDataCatalog"."<<cluster-id>>"."product_sales"
-   GROUP BY brand, productname
-   ORDER BY total_revenue DESC
-   LIMIT 20;
+      order_id,
+      amount,
+      confirmation_code,
+      ts
+   FROM "AwsDataCatalog"."<<cluster-id>>"."completed_orders"
+   ORDER BY amount DESC
+   LIMIT 10;
    ```
 
-3. Query the customer snapshot:
+3. Calculate total revenue:
    ```sql
    SELECT
-      customername,
-      total_amount,
-      number_of_orders,
-      updated_at
-   FROM "AwsDataCatalog"."<<cluster-id>>"."thirty_day_customer_snapshot"
-   WHERE number_of_orders > 5
-   ORDER BY total_amount DESC
-   LIMIT 20;
+      COUNT(*) as total_orders,
+      SUM(amount) as total_revenue,
+      AVG(amount) as avg_order_value,
+      MIN(amount) as min_order,
+      MAX(amount) as max_order
+   FROM "AwsDataCatalog"."<<cluster-id>>"."completed_orders";
    ```
 
 ---
@@ -282,21 +260,69 @@ One of Tableflow's powerful features is automatic schema evolution. Let's see it
 
 #### Add a New Field to Completed Orders
 
-We'll add a `payment_method` field to track how customers pay.
+We'll add a `payment_method` field to track how customers pay. We'll evolve the schema in Schema Registry first, then update the Flink table to match.
 
-1. First, stop the original statement:
-   * Go to Flink Console > Statements
-   * Find `completed-orders-materializer`
-   * Click **Stop**
+##### Step 1: Stop the Flink Statement
 
-2. Add the new column to the existing table using ALTER TABLE:
-   ```sql
-   ALTER TABLE completed_orders ADD (payment_method STRING);
+1. Go to **Flink Console** > **Statements**
+2. Find `completed-orders-materializer`
+3. Click **Stop**
+
+##### Step 2: Evolve the Schema in Schema Registry
+
+1. Navigate to your `completed_orders` topic in Confluent Cloud
+2. Click the **Data Contracts** tab.
+3. Click **Evolve** to evolve the schema.
+4. You'll see the current schema. Add the new `payment_method` field to the fields array (insert it after `confirmation_code` and before `ts`):
+
+   ```json
+   {
+     "type": "record",
+     "name": "completed_orders_value",
+     "namespace": "org.apache.flink.avro.generated.record",
+     "fields": [
+       {
+         "name": "order_id",
+         "type": ["null", "int"],
+         "default": null
+       },
+       {
+         "name": "amount",
+         "type": ["null", "double"],
+         "default": null
+       },
+       {
+         "name": "confirmation_code",
+         "type": ["null", "string"],
+         "default": null
+       },
+       {
+         "name": "payment_method",
+         "type": ["null", "string"],
+         "default": null
+       },
+       {
+         "name": "ts",
+         "type": ["null", {"type": "long", "logicalType": "timestamp-millis"}],
+         "default": null
+       }
+     ]
+   }
    ```
 
-3. Start a new statement that populates the evolved schema:
+5. Click **Validate** to ensure the schema is backward compatible
+6. Click **Save**
+
+The new schema version is now registered. Schema Registry validates it's compatible with existing data.
+
+##### Step 3: Start Writing Data with the New Schema
+
+Now we'll start a new Flink statement that writes data including the `payment_method` field. The existing table will automatically pick up the evolved schema.
+
+1. In the Flink SQL workspace, start a new INSERT statement:
    ```sql
    SET 'client.statement-name' = 'completed-orders-v2-materializer';
+   SET 'sql.state-ttl' = '1 hour';
 
    INSERT INTO completed_orders
    SELECT
@@ -304,32 +330,47 @@ We'll add a `payment_method` field to track how customers pay.
       pymt.amount,
       pymt.confirmation_code,
       CASE
+         WHEN pymt.amount > 1000 THEN 'WIRE_TRANSFER'
+         WHEN pymt.amount > 500 THEN 'CREDIT_CARD'
+         WHEN MOD(pymt.order_id, 5) = 0 THEN 'PAYPAL'
+         WHEN MOD(pymt.order_id, 5) = 1 THEN 'APPLE_PAY'
+         WHEN MOD(pymt.order_id, 5) = 2 THEN 'GOOGLE_PAY'
+         WHEN MOD(pymt.order_id, 5) = 3 THEN 'VENMO'
          WHEN pymt.cc_number IS NOT NULL THEN 'CREDIT_CARD'
-         ELSE 'UNKNOWN'
-      END AS payment_method,  -- Derive payment method
+         ELSE 'DEBIT_CARD'
+      END AS payment_method,
       pymt.ts
    FROM unique_payments pymt, `shiftleft.public.orders` ord
-   WHERE pymt.order_id = ord.orderid
-   AND orderdate BETWEEN pymt.ts - INTERVAL '96' HOUR AND pymt.ts;
+   WHERE pymt.order_id = ord.orderid;
    ```
 
-> **Important:** Using `ALTER TABLE` instead of `DROP TABLE` keeps Tableflow enabled throughout the schema evolution. No need to reconfigure storage or re-enable Tableflow!
+> **Key Point:** We didn't need to drop and recreate the table! Since we evolved the schema in Schema Registry first, Flink automatically writes data with the new schema. Tableflow stays enabled and will automatically detect the schema change.
 
-4. Wait 2-3 minutes, then query in Athena:
+##### Step 4: Verify in AWS Glue and Athena
+
+Wait 2-3 minutes for the schema to propagate to Glue.
+
+1. Go to [AWS Glue Console](https://console.aws.amazon.com/glue) > **Data Catalog** > **Tables**
+2. Find the `completed_orders` table in your cluster database
+3. Verify the `payment_method` column appears in the schema
+
+4. Open [Amazon Athena](https://console.aws.amazon.com/athena) and query the updated table:
    ```sql
    SELECT
       payment_method,
       COUNT(*) as order_count,
       SUM(amount) as total_revenue
    FROM "AwsDataCatalog"."<<cluster-id>>"."completed_orders"
-   GROUP BY payment_method;
+   GROUP BY payment_method
+   ORDER BY total_revenue DESC;
    ```
 
-5. Notice what happened:
-   * Old records have `NULL` for `payment_method` (schema evolution preserves historical data)
-   * New records have the derived value
-   * No manual DDL changes needed in Glue or Athena
-   * Tableflow automatically updated the Iceberg table schema
+You'll see records with diverse payment methods: PAYPAL, APPLE_PAY, CREDIT_CARD, WIRE_TRANSFER, VENMO, GOOGLE_PAY, and DEBIT_CARD.
+
+**What happened:**
+* Schema Registry was the source of truth - we evolved the schema there first
+* Tableflow automatically detected the schema change and updated the Iceberg table
+* No manual DDL changes were needed in Glue or Athena
 
 ---
 
@@ -337,38 +378,59 @@ We'll add a `payment_method` field to track how customers pay.
 
 Iceberg tables support querying historical snapshots. Let's explore this capability.
 
-1. First, find the Iceberg table metadata in S3:
-   ```bash
-   # Get your S3 bucket name
-   terraform output resource-ids | grep tableflow-bucket
+#### Query Snapshot History
 
-   # List metadata files (replace bucket name)
-   aws s3 ls s3://shiftleft-tableflow-bucket-XXXXX/completed_orders/metadata/ --recursive
-   ```
+You can query the Iceberg metadata tables. There are two ways:
 
-2. In Athena, query table history using Iceberg's system tables:
+**Method 1: Using AWS Glue table name (recommended)**
+
+In AWS Glue, find your `completed_orders` table and note its exact name. Then query snapshots:
+
+```sql
+SELECT
+   committed_at,
+   snapshot_id,
+   parent_id,
+   operation,
+   summary
+FROM "AwsDataCatalog"."<<cluster-id>>"."completed_orders$snapshots"
+ORDER BY committed_at DESC
+LIMIT 10;
+```
+
+**Method 2: Direct inspection (if above doesn't work)**
+
+If the Glue metadata tables aren't syncing, check the Confluent Cloud UI:
+* Go to your `completed_orders` topic → **Tableflow** tab
+* View snapshot history and metadata directly in the UI
+* Use this information to verify time travel queries are working
+
+> **Note:** If you get "table not found" errors, the Glue catalog may not have synced the metadata tables yet. Wait 2-3 minutes and try again, or use the Confluent Cloud UI to verify the table location.
+
+#### Time Travel Queries
+
+Once you have snapshot IDs from the query above, you can query historical data:
+
+1. Query data as it existed at a specific snapshot (use a snapshot_id from the previous query):
    ```sql
-   SELECT
-      made_current_at,
-      snapshot_id,
-      parent_id
-   FROM "AwsDataCatalog"."<<cluster-id>>"."completed_orders$snapshots"
-   ORDER BY made_current_at DESC;
-   ```
-
-3. Query data as it existed at a specific snapshot (use a snapshot_id from above):
-   ```sql
-   SELECT COUNT(*) as record_count
+   SELECT COUNT(*) as record_count, SUM(amount) as total_revenue
    FROM "AwsDataCatalog"."<<cluster-id>>"."completed_orders"
-   FOR SYSTEM_VERSION AS OF <<snapshot-id>>;
+   FOR VERSION AS OF <<snapshot-id>>;
    ```
 
-4. Query data as it existed at a specific time:
+3. Compare current vs. historical state:
    ```sql
-   SELECT COUNT(*) as record_count
+   -- Current count
+   SELECT COUNT(*) as current_count
+   FROM "AwsDataCatalog"."<<cluster-id>>"."completed_orders";
+
+   -- Count from a specific snapshot
+   SELECT COUNT(*) as past_count
    FROM "AwsDataCatalog"."<<cluster-id>>"."completed_orders"
-   FOR SYSTEM_TIME AS OF TIMESTAMP '2026-01-05 10:00:00';
+   FOR VERSION AS OF <<snapshot-id>>;
    ```
+
+   > **Tip:** Use timestamps from the `committed_at` column in the `$snapshots` query above to see exactly when each snapshot was created.
 
 > **Key Insight:** Time travel enables:
 > * Auditing and compliance (see exactly what data looked like at any point)
@@ -380,78 +442,61 @@ Iceberg tables support querying historical snapshots. Let's explore this capabil
 
 ### Understanding Partitioning and File Layout
 
-Tableflow automatically partitions data for optimal query performance.
+Tableflow automatically partitions data for optimal query performance. Apache Iceberg uses **hidden partitioning**, which means you cannot use traditional Hive-style commands like `SHOW PARTITIONS`. Instead, you inspect partitions by querying the table's metadata tables using standard SQL.
 
-1. Explore the S3 file structure:
-   ```bash
-   # List partitions for completed_orders (replace bucket name)
-   aws s3 ls s3://shiftleft-tableflow-bucket-XXXXX/completed_orders/data/
-   ```
+#### Viewing Partition Information
 
-   You'll see directories organized by date partitions (e.g., `ts_day=2026-01-05/`)
+To see the list of partitions, their record counts, and file counts, append `$partitions` to your table name:
 
-2. In Athena, query the partitions metadata:
-   ```sql
-   SELECT
-      partition,
-      record_count,
-      file_count
-   FROM "AwsDataCatalog"."<<cluster-id>>"."completed_orders$partitions"
-   ORDER BY partition DESC;
-   ```
+```sql
+SELECT *
+FROM "AwsDataCatalog"."<<cluster-id>>"."completed_orders$partitions"
+LIMIT 10;
+```
 
-3. Run a partition-pruned query (much faster!):
-   ```sql
-   SELECT COUNT(*), SUM(amount)
-   FROM "AwsDataCatalog"."<<cluster-id>>"."completed_orders"
-   WHERE date_trunc('day', ts) = DATE '2026-01-05';
-   ```
+This returns:
+* **#**: The actual partition values (e.g., a struct containing timestamp-based partitions)
+* **record_count**: Total number of rows in that partition
+* **file_count**: Total number of data files in that partition
+* **spec_id**: The partition spec ID (useful if partition schema evolves)
 
-4. Compare performance with a full table scan:
-   ```sql
-   SELECT COUNT(*), SUM(amount)
-   FROM "AwsDataCatalog"."<<cluster-id>>"."completed_orders";
-   ```
+#### Other Useful Iceberg Metadata Tables
 
-   Check the "Data scanned" metric in Athena's query results—the partitioned query should scan significantly less data.
+Iceberg manages its own state via metadata files. You can inspect other internal details using similar syntax:
 
----
+| Metadata Table | Purpose |
+|----------------|---------|
+| `$files` | Lists all current data files, their paths, formats, and partition assignments |
+| `$history` | Shows the history of table changes and associated snapshot IDs |
+| `$snapshots` | Displays details about every snapshot, including creation time and manifest paths |
+| `$manifests` | Shows the manifest files that track data files for the current snapshot |
 
-### Comparing Query Performance Across Tables
+**Example - View file layout:**
+```sql
+ SELECT file_path, record_count, file_size_in_bytes
+FROM "AwsDataCatalog"."lkc-6r9vn6"."completed_orders$files"
+LIMIT 10;
+```
 
-Let's see how different Tableflow-enabled tables perform.
 
-1. Run comparable queries against all three tables:
+#### Testing Partition Pruning
 
-   **Completed Orders** (smallest table - payment facts only):
-   ```sql
-   SELECT COUNT(*), SUM(amount)
-   FROM "AwsDataCatalog"."<<cluster-id>>"."completed_orders"
-   WHERE date_trunc('day', ts) >= CURRENT_DATE - INTERVAL '7' DAY;
-   ```
+Run a partition-pruned query to see performance benefits:
 
-   **Product Sales** (medium table - denormalized order details):
-   ```sql
-   SELECT COUNT(*), SUM(total_amount)
-   FROM "AwsDataCatalog"."<<cluster-id>>"."product_sales"
-   WHERE date_trunc('day', orderdate) >= CURRENT_DATE - INTERVAL '7' DAY;
-   ```
+```sql
+SELECT COUNT(*), SUM(amount)
+FROM "AwsDataCatalog"."<<cluster-id>>"."completed_orders"
+WHERE date_trunc('day', ts) = DATE '2026-01-05';
+```
 
-   **Customer Snapshot** (smallest but widest - aggregated metrics):
-   ```sql
-   SELECT COUNT(*), SUM(total_amount)
-   FROM "AwsDataCatalog"."<<cluster-id>>"."thirty_day_customer_snapshot";
-   ```
+Compare with a full table scan:
 
-2. Compare the results in Athena's query history:
-   * Data scanned
-   * Query runtime
-   * Files read
+```sql
+SELECT COUNT(*), SUM(amount)
+FROM "AwsDataCatalog"."<<cluster-id>>"."completed_orders";
+```
 
-> **Observation:** Notice how Tableflow optimizes each table differently based on:
-> * Schema complexity (wide vs. narrow tables)
-> * Update patterns (append-only vs. upserts)
-> * Data volume
+Check the **"Data scanned"** metric in Athena's query results—the partitioned query should scan significantly less data, demonstrating how Iceberg's hidden partitioning works behind the scenes.
 
 ---
 
@@ -463,11 +508,10 @@ Tableflow performs background tasks like compaction and optimization. Let's see 
 
 2. Click on the `completed_orders` topic
 
-3. Observe the **Tableflow Metrics** panel:
-   * Total records materialized
-   * Iceberg data files created
-   * Latest compaction timestamp
-   * Storage used
+3. Observe the **Monitor** panel:
+   * Files Compacted
+   * Rows Rejected
+   * Rows written
 
 4. Check compaction history in Athena:
    ```sql
@@ -477,10 +521,13 @@ Tableflow performs background tasks like compaction and optimization. Let's see 
       operation,
       summary
    FROM "AwsDataCatalog"."<<cluster-id>>"."completed_orders$snapshots"
-   ORDER BY committed_at DESC;
+   ORDER BY committed_at DESC
+   LIMIT 20;
    ```
 
-   Look for operations like `append`, `replace`, and `overwrite` which indicate compaction activities.
+   Look for operations like `append`, `replace`, and `overwrite` which indicate compaction activities. Compaction may not run in the duration of the workshop, but can be monitored via Tableflow monitoring tab in addition to the operations within $snapshots.
+
+   > **Note:** If this query doesn't work, the Glue catalog may not have synced the snapshot metadata tables. Refer to the "Time Travel Queries" section above for alternative methods to access snapshot information, or simply monitor compaction metrics in the Confluent Cloud UI instead.
 
 ---
 
@@ -499,8 +546,6 @@ All of this happens automatically—Confluent manages the infrastructure, compac
 ---
 
 ## Topics
-
-**➡️ Next topic:** [Lab 3 - Multi-Engine Analytics with Snowflake](../LAB3/LAB3-README.md)
 
 **🔙 Previous topic:** [Lab 1 - Product Sales and Customer360 Aggregation](../LAB1/LAB1-README.md)
 
