@@ -56,8 +56,6 @@ This [video](https://www.confluent.io/resources/demo/shift-left-dsp-demo/) showc
    export AWS_SESSION_TOKEN="YOUR_SESSION_TOKEN"   # only if using temporary creds
    ```
 
-
-
    </details>
 
    <details>
@@ -66,10 +64,13 @@ This [video](https://www.confluent.io/resources/demo/shift-left-dsp-demo/) showc
 
    ```
    winget install -e --id Git.Git
-   winget install -e --id HashiCorp.Terraform
+   winget install -e --id Hashicorp.Terraform
    winget install -e --id Docker.DockerDesktop
-   winget install -e --id Confluentinc.CLI
-   # Optional:
+   winget install -e --id ConfluentInc.Confluent-CLI
+   ```
+
+   Optionally install AWS CLI:
+   ```
    winget install -e --id Amazon.AWSCLI
    ```
 
@@ -85,6 +86,12 @@ This [video](https://www.confluent.io/resources/demo/shift-left-dsp-demo/) showc
    $env:AWS_ACCESS_KEY_ID="YOUR_KEY_ID"
    $env:AWS_SECRET_ACCESS_KEY="YOUR_SECRET"
    $env:AWS_SESSION_TOKEN="YOUR_SESSION_TOKEN"   # only if using temporary creds
+   ```
+
+   When you start Docker Desktop, you may see an error message saying that virtualization is not enabled. To fix that you need to install WSL and restart your computer:
+
+   ```
+   wsl.exe --install
    ```
 
    </details>
