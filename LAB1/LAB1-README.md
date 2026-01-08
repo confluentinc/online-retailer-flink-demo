@@ -281,6 +281,7 @@ From `product_sales`, we'll create a customer-centric view showing 30-day rollin
 
 ```sql
 SET 'client.statement-name' = 'customer-snapshot-materializer';
+
 CREATE TABLE thirty_day_customer_snapshot (
   customerid INT,
   customername STRING,
@@ -288,6 +289,8 @@ CREATE TABLE thirty_day_customer_snapshot (
   number_of_orders BIGINT,
   updated_at TIMESTAMP,
   PRIMARY KEY (customerid) NOT ENFORCED
+) WITH (
+  'changelog.mode' = 'upsert'
 )
 AS
 WITH agg_per_customer_30d AS (
@@ -335,6 +338,96 @@ LIMIT 20;
 
 ---
 
+
+## Part 2: Setting up Tableflow 
+
+Now that we have clean, validated data products from Flink, we'll make them analytics-ready using Tableflow. Instead of writing complex connectors or ETL jobs, Tableflow automatically materializes topics as Iceberg tables.
+
+### Setting Up Tableflow Infrastructure
+
+First, we'll configure the storage and catalog integrations that Tableflow will use.
+
+#### Configure Custom Storage (S3)
+
+> **Important:** For Lab 3 compatibility, you must use your own S3 storage (not Confluent Managed Storage).
+
+1. Navigate to the Tableflow main page: **Environments > {Your Environment} > Clusters > {Your Cluster} > Tableflow**
+
+   ![Navigate to tableflow](assets/navigate-to-tableflow.gif)
+
+#### Configure Glue Data Catalog Integration
+
+Now we'll connect Tableflow to AWS Glue Data Catalog so our Iceberg tables are discoverable by Athena and other query engines.
+
+1. In the Tableflow page, scroll to **External Catalog Integrations** and click **+ Add integration**
+
+2. Configure the integration:
+   * **Integration type:** AWS Glue
+   * **Name:** `my-glue-integration`
+   * **Supported format:** Iceberg
+   * Click **Continue**
+
+   ![Set up Glue Integration](assets/set-up-glue-integration.png)
+
+3. Select the provider integration created by Terraform (you can find it in `terraform output resource-ids`)
+
+4. Click **Continue**
+
+5. Click **Launch**
+
+6. The status will show **Pending** at first but will update to **Connected**
+
+   ![Catalog Connected](assets/catalog-connected.png)
+
+---
+
+### Enabling Tableflow on `product_sales` and `thirty_day_customer_snapshot`
+
+Now we'll enable Tableflow to automatically materialize the `completed_orders` topic as an Iceberg table.
+
+1. Navigate to the [`completed_orders`](https://confluent.cloud/go/topics) topic
+2. Click **Enable Tableflow**
+3. Click **Configure Custom Storage**
+     ![Enable Tableflow on topic](./assets/LAB1_enable_tableflow_custom_storage.png)
+4. Select your provider integration and S3 bucket (format: `shiftleft-tableflow-bucket-...`)
+
+   You can find your S3 bucket name:
+
+   ```bash
+   terraform output resource-ids | grep tableflow-bucket
+   ```
+
+5. Click **Continue**
+
+6. Click **Launch**
+
+7. Wait for Tableflow status to show **Active**
+
+> **Key Point:** Tableflow automatically infers the schema from Schema Registry. No manual schema mapping required!
+
+---
+
+### Exploring Iceberg Tables in AWS Glue
+
+Let's see what Tableflow created in our data catalog.
+
+1. Open the AWS Glue Console and navigate to **Data Catalog > Databases**
+
+2. Find your database (it's named after your Confluent Cloud cluster ID). You can get the cluster ID from:
+
+   ```bash
+   terraform output resource-ids
+   ```
+
+   Look for the `Cluster ID` value under "Environment & Cluster Info"
+
+3. Click into the database and you should see the `product_sales` and `thirty_day_customer_snapshot` tables.
+
+4. Click on `thirty_day_customer_snapshot` to view its schema. Notice:
+   * The schema exactly matches what's in Schema Registry
+   * Metadata includes Iceberg table properties
+   * Storage location points to your S3 bucket
+
 ## What We've Built
 
 You now have three production-ready data products powered by Flink:
@@ -342,8 +435,9 @@ You now have three production-ready data products powered by Flink:
 1. **enriched_customers**: Unified customer profiles with denormalized addresses
 2. **product_sales**: Detailed order analytics enriched with customer and product data
 3. **thirty_day_customer_snapshot**: Rolling 30-day customer behavior metrics
+4. Enabled Tableflow on `Product_sales` and `thirty_day_customer_snapshot` tables
 
-All three are:
+All three tables are:
 * **Real-time**: Update continuously as source data changes
 * **Governed**: Schemas are tracked in Schema Registry
 * **Scalable**: Flink handles the stream processing infrastructure

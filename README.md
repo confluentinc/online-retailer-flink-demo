@@ -69,9 +69,8 @@ cd online-retailer-flink-demo/terraform
 
 #### Step 1.1: Update Your Terraform.tfvars file
 
-- Update `terraform.tfvars` located in `online-retailer-flink-demo/terraform` with your e-mail address, Confluent Cloud API Key and Secret Key.
-- Leave the rest of the file as default and continue.
-
+- Find the `terraform.tfvars.template` file located in `online-retailer-flink-demo/terraform` and renamte it to `terraform.tfvars`
+- Replace the placeholders with your e-mail address, Confluent Cloud API and Secret Keys, and input the AWS cloud region you wish to run this workshop in.
 
 ### Step 2: Deploy Infrastructure
 

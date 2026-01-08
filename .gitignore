@@ -1,5 +1,6 @@
 terraform/terraform.tfstate
 terraform/terraform.tfstate.backup
+terraform/terraform.tfvars
 terraform/.terraform/
 code/payments-app/target/
 code/postgresql-data-feeder/target/

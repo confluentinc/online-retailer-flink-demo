@@ -1,3 +1,0 @@
-email="<YOUR_EMAIL_ADDRESS>"
-confluent_cloud_api_key    = "<API_KEY>"
-confluent_cloud_api_secret = "<API_SECRET>"
