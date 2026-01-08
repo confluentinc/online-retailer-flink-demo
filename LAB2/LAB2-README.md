@@ -9,6 +9,7 @@ In this lab, we'll use Confluent Cloud and Apache Flink to validate payments, cr
 
 ---
 
+
 ## 🎯 [CHALLENGE] Part 1: Data Quality Rules
 
 While we wait for data to be made available in Athena. Let's create a Data Quality rule on payments.
@@ -40,7 +41,9 @@ We make sure of this with **[Data Quality Rules](https://docs.confluent.io/cloud
 
 3. Check the `error-payments` topic to check any non-compliant payments. What `confirmation_code` values do you see there?
 
-## Part 2: Payment Processing with Flink
+---
+
+## Part 1: Payment Processing with Flink
 
 ### Payment Deduplication
 
@@ -138,10 +141,10 @@ This join ensures we only capture payments that have a matching order in the sys
 
 ---
 
+
 ## Part 3: Tableflow Deepdive
 
 Now that we have clean, validated data products from Flink, we'll make them analytics-ready using Tableflow. Instead of writing complex connectors or ETL jobs, Tableflow automatically materializes topics as Iceberg tables.
-
 
 ### Enabling Tableflow on `completed_orders`
 
@@ -172,9 +175,10 @@ Now we'll enable Tableflow to automatically materialize the `completed_orders` t
 
 ### Querying with Amazon Athena
 
+
 1. Navigate to the [AWS Glue Data Catalog Tables page](https://console.aws.amazon.com/glue/home#/v2/data-catalog/tables)
 
-2. Search for your cluster ID database, then find the `completed_orders` table
+2. Search for your cluster ID database, then find the `product_sales` table from lab 1.
 
 3. Click **View Data** under the Actions column. This opens Amazon Athena.
 
@@ -186,8 +190,6 @@ Now we'll enable Tableflow to automatically materialize the `completed_orders` t
    FROM "AwsDataCatalog"."<<cluster-id>>"."product_sales"
    LIMIT 10;
    ```
-
-5. Run the same query for `thirty_day_customer_snapshot`
 
 > **Note:** You may need to supply an output location for your Athena query if you haven't configured this before. Instructions can be found [here](https://docs.aws.amazon.com/athena/latest/ug/creating-databases-prerequisites.html). Feel free to use the same S3 bucket we are using for Tableflow data.
 
@@ -537,7 +539,7 @@ All of this happens automatically—Confluent manages the infrastructure, compac
 
 **🔙 Previous topic:** [Lab 1 - Product Sales and Customer360 Aggregation](../LAB1/LAB1-README.md)
 
-**🎯 Bonus (Optional):** [Client-side Field Level Encryption](../BONUS/BONUS-README.md)
+**🎯 Bonus (Optional):** [Data Contracts and Encryption](../BONUS/BONUS-README.md)
 
 **🏁 Finished?** [Cleanup](../README.md#clean-up)
 
