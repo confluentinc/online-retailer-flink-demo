@@ -350,20 +350,6 @@ resource "confluent_schema" "avro-payments" {
     key    = confluent_api_key.app-manager-schema-registry-api-key.id
     secret = confluent_api_key.app-manager-schema-registry-api-key.secret
   }
-  ruleset {
-    domain_rules {
-      name = "validateConfirmationCode"
-      kind = "CONDITION"
-      mode = "WRITEREAD"
-      type = "CEL"
-      expr = "message.confirmation_code.matches('^[A-Z0-9]{8}$')"
-      on_failure = "DLQ"
-      params = {
-        "dlq.topic" = "error-payments"
-        "dlq.auto.flush" = "true"
-        }
-    }
-  }
   depends_on = [
     confluent_role_binding.app-manager-kafka-cluster-admin,
     confluent_schema_registry_kek.aws_key

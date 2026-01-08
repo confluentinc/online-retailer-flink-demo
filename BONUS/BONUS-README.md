@@ -1,10 +1,9 @@
 
 ## 🎯 Bonus: Data Contracts and Encryption (Extra Credit)
 
-> **⚠️ This lab is completely optional.** Only proceed if you've completed LAB2 and want to explore advanced Stream Governance features including Data Quality Rules and Client-Side Field Level Encryption.
+> **⚠️ This lab is completely optional.** Only proceed if you've completed LAB2 and want to explore advanced Stream Governance features like Client-Side Field Level Encryption.
 
 In this bonus lab, you'll learn how to:
-- Validate data quality at the source using Schema Registry rules
 - Encrypt sensitive fields automatically using Client-Side Field Level Encryption (CSFLE)
 - Implement governance policies without changing application code
 
@@ -12,40 +11,7 @@ Analytics teams are focused on general sales trends, so they don't need access t
 
 ---
 
-## Part 1: Data Quality Rules
-
-We want to ensure that any payment event has a valid `confirmation_code`. This is enforced using [Data Quality Rules](https://docs.confluent.io/cloud/current/sr/fundamentals/data-contracts.html#data-quality-rules), which are defined in Schema Registry and pushed to clients automatically.
-
-### Validating Data Quality Rules
-
-The data quality rules were already created by Terraform during infrastructure setup. Let's validate they're working:
-
-1. Navigate to the [`payments`](https://confluent.cloud/go/topics) topic in Confluent Cloud
-
-2. Click the **Data Contracts** tab
-
-3. Under **Rules**, you'll see a rule that validates `confirmation_code` must match the regex pattern `^[A-Z0-9]{8}$`
-
-   Any event that doesn't match this pattern is automatically rejected and sent to the dead letter queue topic `error-payments`.
-
-   ![Data Quality Rule](../LAB2/assets/LAB2_dqr.png)
-
-4. To verify the rule is working:
-   - Navigate to the `error-payments` topic
-   - Click **Messages**
-   - Inspect the message headers to see details about why events were rejected
-
-   ![DLQ Messages](../LAB2/assets/LAB2_msgdlq.png)
-
-**What happened:**
-* Schema Registry defined validation rules in the schema
-* Producer clients automatically validate data before sending to Kafka
-* Invalid records are routed to the DLQ without disrupting the main data flow
-* No application code changes were needed—the serializer handles everything
-
----
-
-## Part 2: Client-Side Field Level Encryption (CSFLE)
+## Part 1: Client-Side Field Level Encryption (CSFLE)
 
 [Client-Side Field Level Encryption (CSFLE)](https://docs.confluent.io/cloud/current/security/encrypt/csfle/client-side.html) protects sensitive data like credit card numbers by encrypting fields at the client before they reach Kafka. The encryption rules are defined in Schema Registry and enforced automatically using AWS KMS keys.
 
