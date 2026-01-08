@@ -9,40 +9,6 @@ In this lab, we'll use Confluent Cloud and Apache Flink to validate payments, cr
 
 ---
 
-
-## 🎯 [CHALLENGE] Part 1: Data Quality Rules
-
-While we wait for data to be made available in Athena. Let's create a Data Quality rule on payments.
-
-Every payment event needs a **valid `confirmation_code`**—no exceptions! 🚀  
-We make sure of this with **[Data Quality Rules](https://docs.confluent.io/cloud/current/sr/fundamentals/data-contracts.html#data-quality-rules)**, defined in **Schema Registry** and automatically enforced for all clients. 
-
-
-1. Add a new Data Quality Rule on the `payments-value` schema:
-   * Regex pattern: `message.<field_name>.matches('^[A-Z0-9]{8}$')`
-   * On failure: `DLQ`
-   * Parameters:
-      * "dlq.topic" = `error-payments`
-      * "dlq.auto.flush" = `true`
-
-2. For the changes to take effect, we need to restart the payment producer application so it picks up the new schema and encryption rules.
-
-   1. Get the ECS restart command from Terraform:
-      ```bash
-      terraform output ecs-service-restart-command
-      ```
-
-      Copy the output value within the double quotes
-
-   2. Run the command (it will look similar to this):
-      ```bash
-      aws ecs update-service --cluster <ECS_CLUSTER_NAME> --service payment-app-service --force-new-deployment
-      ```
-
-3. Check the `error-payments` topic to check any non-compliant payments. What `confirmation_code` values do you see there?
-
----
-
 ## Part 1: Payment Processing with Flink
 
 ### Payment Deduplication
@@ -142,9 +108,47 @@ This join ensures we only capture payments that have a matching order in the sys
 ---
 
 
-## Part 3: Tableflow Deepdive
+## Part 2: Setting up Tableflow 
 
 Now that we have clean, validated data products from Flink, we'll make them analytics-ready using Tableflow. Instead of writing complex connectors or ETL jobs, Tableflow automatically materializes topics as Iceberg tables.
+
+### Setting Up Tableflow Infrastructure
+
+First, we'll configure the storage and catalog integrations that Tableflow will use.
+
+#### Configure Custom Storage (S3)
+
+> **Important:** For Lab 3 compatibility, you must use your own S3 storage (not Confluent Managed Storage).
+
+1. Navigate to the Tableflow main page: **Environments > {Your Environment} > Clusters > {Your Cluster} > Tableflow**
+
+   ![Navigate to tableflow](assets/navigate-to-tableflow.gif)
+
+#### Configure Glue Data Catalog Integration
+
+Now we'll connect Tableflow to AWS Glue Data Catalog so our Iceberg tables are discoverable by Athena and other query engines.
+
+1. In the Tableflow page, scroll to **External Catalog Integrations** and click **+ Add integration**
+
+2. Configure the integration:
+   * **Integration type:** AWS Glue
+   * **Name:** `my-glue-integration`
+   * **Supported format:** Iceberg
+   * Click **Continue**
+
+   ![Set up Glue Integration](assets/set-up-glue-integration.png)
+
+3. Select the provider integration created by Terraform (you can find it in `terraform output resource-ids`)
+
+4. Click **Continue**
+
+5. Click **Launch**
+
+6. The status will show **Pending** at first but will update to **Connected**
+
+   ![Catalog Connected](assets/catalog-connected.png)
+
+---
 
 ### Enabling Tableflow on `completed_orders`
 
@@ -173,12 +177,70 @@ Now we'll enable Tableflow to automatically materialize the `completed_orders` t
 
 ---
 
+### Exploring Iceberg Tables in AWS Glue
+
+Let's see what Tableflow created in our data catalog.
+
+1. Open the AWS Glue Console and navigate to **Data Catalog > Databases**
+
+2. Find your database (it's named after your Confluent Cloud cluster ID). You can get the cluster ID from:
+
+   ```bash
+   terraform output resource-ids
+   ```
+
+   Look for the `Cluster ID` value under "Environment & Cluster Info"
+
+3. Click into the database and you should see the `completed_orders` table
+
+4. Click on `completed_orders` to view its schema. Notice:
+   * The schema exactly matches what's in Schema Registry
+   * Metadata includes Iceberg table properties
+   * Storage location points to your S3 bucket
+
+---
+
+## 🎯 [CHALLENGE] Part 3: Data Quality Rules
+
+While we wait for data to be made available in Athena. Let's create a Data Quality rule on payments.
+
+Every payment event needs a **valid `confirmation_code`**—no exceptions! 🚀  
+We make sure of this with **[Data Quality Rules](https://docs.confluent.io/cloud/current/sr/fundamentals/data-contracts.html#data-quality-rules)**, defined in **Schema Registry** and automatically enforced for all clients. 
+
+
+1. Add a new Data Quality Rule on the `payments-value` schema:
+   * Regex pattern: `message.<field_name>.matches('^[A-Z0-9]{8}$')`
+   * On failure: `DLQ`
+   * Parameters:
+      * "dlq.topic" = `error-payments`
+      * "dlq.auto.flush" = `true`
+
+2. For the changes to take effect, we need to restart the payment producer application so it picks up the new schema and encryption rules.
+
+   1. Get the ECS restart command from Terraform:
+      ```bash
+      terraform output ecs-service-restart-command
+      ```
+
+      Copy the output value within the double quotes
+
+   2. Run the command (it will look similar to this):
+      ```bash
+      aws ecs update-service --cluster <ECS_CLUSTER_NAME> --service payment-app-service --force-new-deployment
+      ```
+
+3. Check the `error-payments` topic to check any non-compliant payments. What `confirmation_code` values do you see there?
+---
+
+## Part 4: Tableflow Deepdive
+
 ### Querying with Amazon Athena
 
+> **Note:** After enabling Tableflow, it may take 5-10 minutes for data to become available in Athena.
 
 1. Navigate to the [AWS Glue Data Catalog Tables page](https://console.aws.amazon.com/glue/home#/v2/data-catalog/tables)
 
-2. Search for your cluster ID database, then find the `product_sales` table from lab 1.
+2. Search for your cluster ID database, then find the `completed_orders` table
 
 3. Click **View Data** under the Actions column. This opens Amazon Athena.
 
@@ -187,7 +249,7 @@ Now we'll enable Tableflow to automatically materialize the `completed_orders` t
 4. Run a basic query to verify data is flowing:
    ```sql
    SELECT *
-   FROM "AwsDataCatalog"."<<cluster-id>>"."product_sales"
+   FROM "AwsDataCatalog"."<<cluster-id>>"."completed_orders"
    LIMIT 10;
    ```
 
@@ -196,8 +258,6 @@ Now we'll enable Tableflow to automatically materialize the `completed_orders` t
 ---
 
 ### Analyzing Sales Trends
-
-> **Note:** After enabling Tableflow on `completed_orders`, it may take 5-10 minutes for data to become available in Athena.
 
 Now let's perform some real analytics on our streaming data.
 
