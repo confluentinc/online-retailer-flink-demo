@@ -18,7 +18,7 @@ output "resource-ids" {
 ------------------------------
    PROVIDER INTEGRATION
 ------------------------------
-  
+
   Role ARN:     ${module.provider_integration.provider_integration_role_arn}
   External ID:  ${module.provider_integration.provider_integration_external_id}
 
@@ -63,10 +63,6 @@ output "ecs-service-restart-command" {
   value = "aws ecs update-service --cluster ${aws_ecs_cluster.ecs_cluster.name} --service payment-app-service --force-new-deployment --region ${var.cloud_region}"
 }
 
-output "redshift-output" {
-  value = var.data_warehouse == "redshift" ? module.redshift[0].dwh-output : null
-}
-
 # Create destroy.sh file based on variables used in this script
 resource "local_file" "destroy_sh" {
   count    = local.is_windows ? 0 : 1
@@ -76,10 +72,10 @@ resource "local_file" "destroy_sh" {
     confluent schema-registry dek delete --kek-name CSFLE_Key --subject payments-value --force --permanent --environment ${confluent_environment.staging.id}
     terraform destroy --auto-approve
   EOT
-  depends_on = [ 
-    random_id.env_display_id 
-  ] 
-  }
+  depends_on = [
+    random_id.env_display_id
+  ]
+}
 
 resource "local_file" "destroy_bat" {
   count    = local.is_windows ? 1 : 0
@@ -89,8 +85,7 @@ resource "local_file" "destroy_bat" {
     confluent schema-registry dek delete --kek-name CSFLE_Key --subject payments-value --force --permanent --environment ${confluent_environment.staging.id}
     terraform destroy --auto-approve
   EOT
-  depends_on = [ 
-    random_id.env_display_id 
-  ] 
-  }
-
+  depends_on = [
+    random_id.env_display_id
+  ]
+}

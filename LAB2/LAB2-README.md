@@ -15,15 +15,15 @@ In this lab, we'll use Confluent Cloud and Apache Flink to validate payments, cr
 
 Before joining payment and order streams, we need to ensure there are no duplicate payments.
 
-1. Check for duplicates in the `payments` table:
+1. Check for the number of duplicates in the `payments` table:
    ```sql
-   SELECT * FROM
+   SELECT COUNT(*) FROM
    ( SELECT order_id, amount, count(*) total
     FROM `payments`
     GROUP BY order_id, amount )
    WHERE total > 1;
    ```
-   If this query returns results, duplicates exist.
+
 
 2. Create a deduplicated payments table:
    ```sql
@@ -138,9 +138,11 @@ Now we'll connect Tableflow to AWS Glue Data Catalog so our Iceberg tables are d
 
 3. Select the provider integration created by Terraform (you can find it in `terraform output resource-ids`)
 
-4. Click **Continue and Launch**
+4. Click **Continue**
 
-5. Wait for the status to change from **Pending** to **Connected**
+5. Click **Launch**
+
+6. The status will show **Pending** at first but will update to **Connected**
 
    ![Catalog Connected](assets/catalog-connected.png)
 
@@ -151,19 +153,23 @@ Now we'll connect Tableflow to AWS Glue Data Catalog so our Iceberg tables are d
 Now we'll enable Tableflow to automatically materialize the `completed_orders` topic as an Iceberg table.
 
 1. Navigate to the [`completed_orders`](https://confluent.cloud/go/topics) topic
-2. Click **Enable Tableflow** > **Configure Custom Storage**
-3. Select your provider integration and S3 bucket (format: `shiftleft-tableflow-bucket-...`)
+2. Click **Enable Tableflow**
+3. Click **Configure Custom Storage**
+4. Select your provider integration and S3 bucket (format: `shiftleft-tableflow-bucket-...`)
 
    You can find your S3 bucket name:
+
    ```bash
    terraform output resource-ids | grep tableflow-bucket
    ```
 
-4. Click **Continue** and **Launch**
+5. Click **Continue**
+
+6. Click **Launch**
 
    ![Enable Tableflow on topic](./assets/LAB2_enable_tableflow_custom_storage.png)
 
-5. Wait for Tableflow status to show **Active**
+7. Wait for Tableflow status to show **Active**
 
 > **Key Point:** Tableflow automatically infers the schema from Schema Registry. No manual schema mapping required!
 
@@ -173,12 +179,14 @@ Now we'll enable Tableflow to automatically materialize the `completed_orders` t
 
 Let's see what Tableflow created in our data catalog.
 
-1. Open the [AWS Glue Console](https://console.aws.amazon.com/glue) and navigate to **Data Catalog > Databases**
+1. Open the AWS Glue Console and navigate to **Data Catalog > Databases**
 
 2. Find your database (it's named after your Confluent Cloud cluster ID). You can get the cluster ID from:
+
    ```bash
    terraform output resource-ids
    ```
+
    Look for the `Cluster ID` value under "Environment & Cluster Info"
 
 3. Click into the database and you should see the `completed_orders` table
@@ -350,7 +358,7 @@ Now we'll start a new Flink statement that writes data including the `payment_me
 
 Wait 2-3 minutes for the schema to propagate to Glue.
 
-1. Go to [AWS Glue Console](https://console.aws.amazon.com/glue) > **Data Catalog** > **Tables**
+1. Go to AWS Glue Console > **Data Catalog** > **Tables**
 2. Find the `completed_orders` table in your cluster database
 3. Verify the `payment_method` column appears in the schema
 
@@ -466,7 +474,7 @@ Iceberg manages its own state via metadata files. You can inspect other internal
 **Example - View file layout:**
 ```sql
 SELECT file_path, record_count, file_size_in_bytes
-FROM "AwsDataCatalog"."lkc-6r9vn6"."completed_orders$files"
+FROM "AwsDataCatalog"."<<cluster-id>>"."completed_orders$files"
 LIMIT 10;
 ```
 
@@ -498,16 +506,18 @@ Compare the **"Data scanned"** metrics in Athena—the time-windowed query shoul
 
 Tableflow performs background tasks like compaction and optimization. Let's see what's happening.
 
-1. In the Confluent Cloud UI, navigate to **Tableflow** for your cluster
+1. In the Confluent Cloud UI, navigate to the **Topics** for your cluster
 
 2. Click on the `completed_orders` topic
 
-3. Observe the **Monitor** panel:
+3. Click on the **Monitor** panel
+
+4. Observe
    * Files Compacted
    * Rows Rejected
    * Rows written
 
-4. Check compaction history in Athena:
+5. Check compaction history in Athena:
    ```sql
    SELECT
       committed_at,
@@ -519,9 +529,19 @@ Tableflow performs background tasks like compaction and optimization. Let's see 
    LIMIT 20;
    ```
 
-   Look for operations like `append`, `replace`, and `overwrite` which indicate compaction activities. Compaction may not run in the duration of the workshop, but can be monitored via Tableflow monitoring tab in addition to the operations within $snapshots.
+   > [!NOTE]
+   > **Query Not Working**
+   >
+   > If this query doesn't work, the Glue catalog may not have synced the snapshot metadata tables.
+   >
+   > Refer to the "Time Travel Queries" section above for alternative methods to access snapshot information, or simply monitor compaction metrics in the Confluent Cloud UI instead.
 
-   > **Note:** If this query doesn't work, the Glue catalog may not have synced the snapshot metadata tables. Refer to the "Time Travel Queries" section above for alternative methods to access snapshot information, or simply monitor compaction metrics in the Confluent Cloud UI instead.
+   Look for operations like `append`, `replace`, and `overwrite` which indicate compaction activities.
+
+   > [!IMPORTANT]
+   > **Compaction May Not Occur Yet**
+   >
+   > Compaction may not run in the duration of the workshop, but can be monitored via Tableflow monitoring tab in addition to the operations within $snapshots.
 
 ---
 

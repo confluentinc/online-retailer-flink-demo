@@ -2,7 +2,7 @@
 # Real-Time Stream Processing Workshop
 ### Build a Data Streaming Platform with Confluent Cloud & Apache Flink
 
-### 🎉👋 Welcome to GKO 2026! 
+### 🎉👋 Welcome to GKO 2026!
 
 In this hands-on workshop, you'll build a real-time analytics platform for an online retailer using Confluent Cloud and Apache Flink.
 
@@ -16,7 +16,7 @@ By the end of this workshop, you'll have:
 - ✅ **Live product analytics** using Flink SQL joins and aggregations
 - ✅ **Apache Iceberg tables** with Tableflow for instant data lake integration
 - ✅ **Data governance** with schema validation and field-level encryption
-- ✅ **Analytics-ready datasets** in your data warehouse (Redshift)
+- ✅ **Analytics-ready datasets** in your data analysis engine
 
 **Time commitment:** 90 minutes total (45 min setup + 45 min labs)
 
@@ -69,7 +69,7 @@ cd online-retailer-flink-demo/terraform
 
 #### Step 1.1: Update Your Terraform.tfvars file
 
-- Update `terraform.tfvars` located in `online-retailer-flink-demo/terraform` with your e-mail address, Confluent Cloud API Key and Secret Key. 
+- Update `terraform.tfvars` located in `online-retailer-flink-demo/terraform` with your e-mail address, Confluent Cloud API Key and Secret Key.
 - Leave the rest of the file as default and continue.
 
 
@@ -80,11 +80,10 @@ terraform init
 terraform apply --auto-approve
 ```
 
-☕ **Grab a coffee!** This takes 15-20 minutes to provision:
+☕ **Grab a coffee!** This should take 10-12 minutes to provision:
 - Confluent Cloud environment with Kafka + Flink
 - AWS RDS PostgreSQL database
 - S3 buckets for data lake
-- Redshift warehouse
 - Schema Registry and Stream Governance
 
 ---
@@ -101,9 +100,12 @@ Validate payments in real-time, compute daily trends, and materialize Kafka topi
 
 ---
 
-## Clean Up (Important!)
+## Clean Up
 
-**Don't skip this!** Avoid unexpected charges by cleaning up when you're done.
+> [!WARNING]
+> **Don't skip this!**
+>
+> Avoid unexpected charges by cleaning up when you're done.
 
 ### Step 1: Disable Tableflow
 
