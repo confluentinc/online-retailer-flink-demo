@@ -99,14 +99,16 @@ Now we'll create a table that joins payments with orders to validate that each p
       pymt.confirmation_code,
       pymt.ts
    FROM unique_payments pymt, `shiftleft.public.orders` ord
-   WHERE pymt.order_id = ord.orderid;
+   WHERE pymt.order_id = ord.orderid
+   AND orderdate BETWEEN pymt.ts - INTERVAL '96' HOUR AND pymt.ts;
    ```
 
 This join ensures we only capture payments that have a matching order in the system, creating a validated data product for analytics.
 
 ---
 
-## Part 2: Tableflow Deep Dive
+
+## Part 2: Setting up Tableflow 
 
 Now that we have clean, validated data products from Flink, we'll make them analytics-ready using Tableflow. Instead of writing complex connectors or ETL jobs, Tableflow automatically materializes topics as Iceberg tables.
 
@@ -197,6 +199,40 @@ Let's see what Tableflow created in our data catalog.
    * Storage location points to your S3 bucket
 
 ---
+
+## 🎯 [CHALLENGE] Part 3: Data Quality Rules
+
+While we wait for data to be made available in Athena. Let's create a Data Quality rule on payments.
+
+Every payment event needs a **valid `confirmation_code`**—no exceptions! 🚀  
+We make sure of this with **[Data Quality Rules](https://docs.confluent.io/cloud/current/sr/fundamentals/data-contracts.html#data-quality-rules)**, defined in **Schema Registry** and automatically enforced for all clients. 
+
+
+1. Add a new Data Quality Rule on the `payments-value` schema:
+   * Regex pattern: `message.<field_name>.matches('^[A-Z0-9]{8}$')`
+   * On failure: `DLQ`
+   * Parameters:
+      * "dlq.topic" = `error-payments`
+      * "dlq.auto.flush" = `true`
+
+2. For the changes to take effect, we need to restart the payment producer application so it picks up the new schema and encryption rules.
+
+   1. Get the ECS restart command from Terraform:
+      ```bash
+      terraform output ecs-service-restart-command
+      ```
+
+      Copy the output value within the double quotes
+
+   2. Run the command (it will look similar to this):
+      ```bash
+      aws ecs update-service --cluster <ECS_CLUSTER_NAME> --service payment-app-service --force-new-deployment
+      ```
+
+3. Check the `error-payments` topic to check any non-compliant payments. What `confirmation_code` values do you see there?
+---
+
+## Part 4: Tableflow Deepdive
 
 ### Querying with Amazon Athena
 
