@@ -77,7 +77,7 @@ To enable encryption, we first need to tag the `cc_number` field so our encrypti
 
 5. Click the **+ (plus sign)** next to the `cc_number` field
 
-6. Select **Add Tag**
+6. Select **Create Tag**
 
 7. In the tag dialog:
    * **Tag name:** `PII`
@@ -85,7 +85,7 @@ To enable encryption, we first need to tag the `cc_number` field so our encrypti
 
 8. Click **Add** or **Save** to apply the tag
 
-9. Click **Validate** to ensure the schema change is backward compatible
+9. Click **Validate schema** to ensure the schema change is backward compatible
 
 10. Click **Save** to register the new schema version
 
@@ -99,15 +99,23 @@ Now we'll create a rule that encrypts any field tagged with `PII`.
 
 1. Still in the **Data Contracts** tab for the `payments` topic, click the **Rules** section
 
-2. Click **+ Add rules**. Note--you may need to click **Evolve** to see the **Add rules** button.
+2. Click **+ Add rules**
+
+   > [!NOTE]
+   > **No "Add rules" Button**
+   >
+   > You may need to click **Evolve** to see the **Add rules** button.
 
 3. Configure the encryption rule:
    * **Category:** Data Encryption Rule
    * **Rule name:** `Encrypt_PII`
-   * **Encrypt fields with:** `PII` (this targets fields with the PII tag)
+   * **Description:** `Encrypt all fields with the PII tag`
+   * **Encrypt fields with:** `PII`
    * **using:** Select the AWS KMS key created by Terraform (likely named `CSFLE_Key`)
 
-4. Click **Add** and then **Save**
+4. Keep default selections for the remaining sections
+
+5. Click **Add** and then **Save**
 
    ![CSFLE Rule](../LAB2/assets/LAB2_rule.png)
 
@@ -124,10 +132,10 @@ For the changes to take effect, we need to restart the payment producer applicat
 
 1. Get the ECS restart command from Terraform:
    ```bash
-   terraform output
+   terraform output ecs-service-restart-command
    ```
 
-   Look for output that provides the ECS service restart command.
+   Copy the output value within the double quotes
 
 2. Run the command (it will look similar to this):
    ```bash
@@ -177,7 +185,7 @@ All of this is managed through Schema Registry and Stream Governance—no applic
 
 ## ⚠️ Important: Cleanup Instructions
 
-If you completed this bonus lab and want to clean up your infrastructure later, the schema changes you made will conflict with Terraform. You must **delete the payments schema from Schema Registry** before running destroy scripts.
+If you completed this bonus lab and want to clean up your infrastructure later, the schema changes you made will conflict with Terraform. You must manually **delete the payments schema from Schema Registry** before running destroy scripts.
 
 ### Delete the Payments Schema
 
@@ -185,15 +193,17 @@ If you completed this bonus lab and want to clean up your infrastructure later, 
 
 2. Click **Schema Registry** in the left sidebar
 
-3. Find the `payments-value` schema in the list
+3. Click on the **Data contracts** tab
 
-4. Click on the schema to open it
+4. Find the `payments-value` schema in the list
 
-5. Click the **Delete** button (trash icon or delete option)
+5. Click on the schema to open it
 
-6. Confirm the deletion
+6. Click the **Delete** button (trash icon or delete option)
 
-7. Now you can proceed with the normal [cleanup instructions](../README.md#clean-up)
+7. Confirm the deletion
+
+8. Now you can proceed with the normal [cleanup instructions](../README.md#clean-up)
 
 ---
 

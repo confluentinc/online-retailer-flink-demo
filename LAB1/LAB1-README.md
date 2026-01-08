@@ -122,6 +122,17 @@ WHERE c.__deleted IS NULL OR c.__deleted <> 'true';
 * Creates a changelog stream keyed by `customerid`
 * Defines a watermark for time-based operations
 
+
+> [!IMPORTANT]
+> **Understanding Streaming Results**
+>
+> When querying streaming tables, you're viewing the **changelog stream**, not a static snapshot. You may see:
+> - **Duplicate keys**: Updates appear as retraction (`-U`) + insert (`+U`) pairs
+> - **More rows than LIMIT**: Each changelog event counts toward the limit
+> - **NULL values**: LEFT JOINs may not match if timing differs
+>
+> This is expected behavior! The underlying Kafka topic maintains the correct final state.
+
 ### Verify the Data Product
 
 Query the new enriched customer table:
