@@ -47,10 +47,10 @@ resource "aws_iam_user_policy" "payments_app_iam_policy" {
 resource "local_file" "db_feeder_properties" {
   filename = "../code/postgresql-data-feeder/src/main/resources/db.properties"
   content  = <<-EOT
-    db.url=jdbc:postgresql://${aws_db_instance.postgres_db.address}/onlinestoredb
+    db.url=jdbc:postgresql://${module.postgres.public_ip}/onlinestoredb
     db.user=${var.db_username}
     db.password=${var.db_password}
-  EOT 
+  EOT
   }
 
 # Create and write the Payments app application.properties file to the appropriate path
@@ -73,11 +73,11 @@ schema.registry.url=${data.confluent_schema_registry_cluster.sr-cluster.rest_end
 schema.registry.basic.auth.user.info= ${confluent_api_key.app-manager-schema-registry-api-key.id}:${confluent_api_key.app-manager-schema-registry-api-key.secret}
 basic.auth.credentials.source=USER_INFO
 
-## Data quality rules 
+## Data quality rules
 #KMS Props
 rule.executors._default_.param.access.key.id=${aws_iam_access_key.payments_app_aws_key.id}
 rule.executors._default_.param.secret.access.key=${aws_iam_access_key.payments_app_aws_key.secret}
-  EOT 
+  EOT
   }
 
 # Create and write the Payments App Data Quality Rules file to the appropriate path
@@ -121,7 +121,7 @@ resource "local_file" "payment_app_dqr" {
         ]
     }
 }
-  EOT 
+  EOT
   }
 
 # -------------------------------
@@ -134,7 +134,9 @@ resource "local_file" "payment_app_dqr" {
 
 # VPC
 resource "aws_vpc" "ecs_vpc" {
-  cidr_block = "10.0.0.0/16"
+  cidr_block           = "10.0.0.0/16"
+  enable_dns_hostnames = true
+  enable_dns_support   = true
 }
 
 # Public Subnet
@@ -253,7 +255,7 @@ resource "docker_image" "dbfeeder_app" {
   }
   depends_on = [
     local_file.db_feeder_properties,
-    docker_container.psql_init
+    module.postgres
   ]
 }
 
@@ -460,6 +462,6 @@ resource "aws_ecs_service" "dbfeeder_app_service" {
 
   depends_on = [
     docker_registry_image.dbfeeder_app,
-    docker_container.psql_init
+    module.postgres
     ]
 }

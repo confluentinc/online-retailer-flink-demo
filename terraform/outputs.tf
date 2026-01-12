@@ -46,13 +46,10 @@ output "resource-ids" {
 ------------------------------
    DATABASE & KMS
 ------------------------------
-  RDS Endpoint: ${aws_db_instance.postgres_db.endpoint}
+  PostgreSQL Endpoint: ${module.postgres.public_ip}:${module.postgres.port}
+  PostgreSQL Instance ID: ${module.postgres.instance_id}
+  SSH Key Path: ${module.keypair.private_key_path}
   KMS Key ARN:  ${aws_kms_key.kms_key.arn}
-
-------------------------------
-   SENSITIVE / PRIVATE KEYS
-------------------------------
-  PrivateKey: ${local.private_key_no_headers}
 
   EOT
 

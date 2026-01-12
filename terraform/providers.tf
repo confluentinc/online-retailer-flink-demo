@@ -39,7 +39,7 @@ provider "confluent" {
 # This is useful for tasks like rendering templates, reading local files, etc.
 provider "local" {}
 
-# TLS provider for generating RSA key-pairs used by Snowflake Connector and certificates.
+# TLS provider for generating SSH key pairs.
 provider "tls" {}
 
 data "aws_ecr_authorization_token" "ecr" {}
@@ -50,17 +50,4 @@ provider "docker" {
     username = data.aws_ecr_authorization_token.ecr.user_name
     password = data.aws_ecr_authorization_token.ecr.password
   }
-}
-
-resource "tls_private_key" "rsa_key" {
-  algorithm = "RSA"
-}
-
-# Define local variables to strip PEM headers and footers
-locals {
-  # Remove the PEM headers and footers for the private key
-  private_key_no_headers = replace(replace(tls_private_key.rsa_key.private_key_pem, "-----BEGIN RSA PRIVATE KEY-----", ""), "-----END RSA PRIVATE KEY-----", "")
-
-  # Remove the PEM headers and footers for the public key
-  public_key_no_headers = replace(replace(tls_private_key.rsa_key.public_key_pem, "-----BEGIN PUBLIC KEY-----", ""), "-----END PUBLIC KEY-----", "")
 }

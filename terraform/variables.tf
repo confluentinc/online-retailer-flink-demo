@@ -27,6 +27,11 @@ variable "db_password" {
   default     = "Admin123456!!"
 }
 
+variable "postgres_instance_type" {
+  description = "EC2 instance type for PostgreSQL"
+  type        = string
+  default     = "t3.medium"
+}
 
 variable "confluent_cloud_api_key" {
   description = "Confluent Cloud API Key"
