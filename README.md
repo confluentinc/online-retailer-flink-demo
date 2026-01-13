@@ -70,20 +70,25 @@ cd online-retailer-flink-demo/terraform
 #### Step 1.1: Update Your Terraform.tfvars file
 
 - Find the `terraform.tfvars.template` file located in `online-retailer-flink-demo/terraform` and rename it to `terraform.tfvars`
-- Replace the placeholders with your e-mail address, Confluent Cloud API and Secret Keys, and input the AWS cloud region you wish to run this workshop in.
+- Replace the placeholders with your e-mail address, Confluent Cloud API Key and Secret, and input the AWS cloud region you wish to run this workshop in.
 
 ### Step 2: Deploy Infrastructure
 
 ```bash
 terraform init
+terraform validate
 terraform apply --auto-approve
 ```
 
-☕ **Grab a coffee!** This should take 10-12 minutes to provision:
-- Confluent Cloud environment with Kafka + Flink
-- AWS RDS PostgreSQL database
-- S3 buckets for data lake
-- Schema Registry and Stream Governance
+>[!NOTE]
+> ☕ **Grab a coffee!**
+>
+> This should take 7-10 minutes to provision:
+>
+> - Confluent Cloud environment with Kafka + Flink
+> - AWS RDS PostgreSQL database
+> - S3 buckets for data lake
+> - Schema Registry and Stream Governance
 
 ---
 

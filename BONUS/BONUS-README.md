@@ -1,5 +1,5 @@
 
-## 🎯 Bonus: Data Contracts and Encryption (Extra Credit)
+# 🎯 Bonus: Data Contracts and Encryption (Extra Credit)
 
 > **⚠️ This lab is completely optional.** Only proceed if you've completed LAB2 and want to explore advanced Stream Governance features like Client-Side Field Level Encryption.
 

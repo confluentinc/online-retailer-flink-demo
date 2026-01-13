@@ -1,5 +1,4 @@
-
-## Product Sales and Customer360 Aggregation
+# Product Sales and Customer360 Aggregation
 
 In this lab, we'll build core data products using Confluent Cloud for Apache Flink by joining multiple data streams from our operational database. These data products will form the foundation for analytics use cases in later labs.
 
@@ -13,18 +12,20 @@ We'll create `enriched_customers` by joining customer and address data, then use
 
 1. Navigate to the [Flink UI](https://confluent.cloud/go/flink) in Confluent Cloud and select your demo environment (prefixed with `shiftleft` by default)
 
-2. Click **Open SQL Workspace**
+2. Click on the **Compute Pools** tab
 
-3. On the top right corner, select your cluster as the database
+3. Click **Open SQL Workspace**
 
-4. The code editor allows you to query existing Flink tables (which represent Kafka topics) and create new data products
+4. On the top right corner, select your cluster as the database
 
-5. Each Kafka topic is automatically represented as a table in the Flink catalog. List all available tables:
+5. The code editor allows you to query existing Flink tables (which represent Kafka topics) and create new data products
+
+6. Each Kafka topic is automatically represented as a table in the Flink catalog. List all available tables:
    ```sql
    SHOW TABLES;
    ```
 
-6. You should see tables corresponding to your PostgreSQL CDC topics:
+7. You should see tables corresponding to your PostgreSQL CDC topics:
    * `shiftleft.public.customers`
    * `shiftleft.public.addresses`
    * `shiftleft.public.products`
@@ -117,7 +118,7 @@ WHERE c.__deleted IS NULL OR c.__deleted <> 'true';
 ```
 
 **Key Points:**
-* Uses `ROW` type to nest address fields
+* Uses `ROW` type to include address fields
 * Filters out deleted records using CDC metadata (`__deleted` field)
 * Creates a changelog stream keyed by `customerid`
 * Defines a watermark for time-based operations
@@ -127,6 +128,7 @@ WHERE c.__deleted IS NULL OR c.__deleted <> 'true';
 > **Understanding Streaming Results**
 >
 > When querying streaming tables, you're viewing the **changelog stream**, not a static snapshot. You may see:
+>
 > - **Duplicate keys**: Updates appear as retraction (`-U`) + insert (`+U`) pairs
 > - **More rows than LIMIT**: Each changelog event counts toward the limit
 > - **NULL values**: LEFT JOINs may not match if timing differs
@@ -146,7 +148,7 @@ FROM enriched_customers
 LIMIT 10;
 ```
 
-Notice how addresses are now nested within each customer record—perfect for analytics!
+Notice how addresses are now included within each customer record—perfect for analytics!
 
 ---
 
@@ -339,17 +341,17 @@ LIMIT 20;
 ---
 
 
-## Part 2: Setting up Tableflow 
+## Part 2: Setting up Tableflow
 
-Now that we have clean, validated data products from Flink, we'll make them analytics-ready using Tableflow. Instead of writing complex connectors or ETL jobs, Tableflow automatically materializes topics as Iceberg tables.
+Now that we have clean, validated data products from Flink, we'll make them analytics-ready using Tableflow.
+
+Instead of writing complex connectors or ETL jobs, Tableflow automatically materializes topics as Iceberg tables.
 
 ### Setting Up Tableflow Infrastructure
 
 First, we'll configure the storage and catalog integrations that Tableflow will use.
 
 #### Configure Custom Storage (S3)
-
-> **Important:** For Lab 3 compatibility, you must use your own S3 storage (not Confluent Managed Storage).
 
 1. Navigate to the Tableflow main page: **Environments > {Your Environment} > Clusters > {Your Cluster} > Tableflow**
 
@@ -385,7 +387,7 @@ Now we'll connect Tableflow to AWS Glue Data Catalog so our Iceberg tables are d
 
 Now we'll enable Tableflow to automatically materialize the `completed_orders` topic as an Iceberg table.
 
-1. Navigate to the [`completed_orders`](https://confluent.cloud/go/topics) topic
+1. Navigate to the [`thirty_day_customer_snapshot`](https://confluent.cloud/go/topics) topic
 2. Click **Enable Tableflow**
 3. Click **Configure Custom Storage**
      ![Enable Tableflow on topic](./assets/LAB1_enable_tableflow_custom_storage.png)
@@ -401,7 +403,9 @@ Now we'll enable Tableflow to automatically materialize the `completed_orders` t
 
 6. Click **Launch**
 
-7. Wait for Tableflow status to show **Active**
+7. Repeat steps 1-6 for the `product_sales` topic
+
+8. Verify that the Tableflow status changes to **Syncing**
 
 > **Key Point:** Tableflow automatically infers the schema from Schema Registry. No manual schema mapping required!
 
@@ -433,17 +437,17 @@ Let's see what Tableflow created in our data catalog.
 You now have three production-ready data products powered by Flink:
 
 1. **enriched_customers**: Unified customer profiles with denormalized addresses
-2. **product_sales**: Detailed order analytics enriched with customer and product data
-3. **thirty_day_customer_snapshot**: Rolling 30-day customer behavior metrics
-4. Enabled Tableflow on `Product_sales` and `thirty_day_customer_snapshot` tables
+2. **product_sales**: Detailed order analytics enriched with customer and product data, with Tableflow enabled
+3. **thirty_day_customer_snapshot**: Rolling 30-day customer behavior metrics, with Tableflow enabled
 
 All three tables are:
+
 * **Real-time**: Update continuously as source data changes
 * **Governed**: Schemas are tracked in Schema Registry
 * **Scalable**: Flink handles the stream processing infrastructure
 * **Materialized**: Backed by Kafka topics for downstream consumption
 
-In the next lab, we'll make these data products analytics-ready using Tableflow!
+In the next lab, we'll create another data product, enable Tableflow on it, and then query it along with `product_sales` and `thirty_day_customer_snapshot` in Athena.
 
 ---
 

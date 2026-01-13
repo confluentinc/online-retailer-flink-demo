@@ -1,126 +1,44 @@
-# default security group in the desired VPC
-data "aws_vpc" "default" {
-  default = true
-}
+# ===============================
+# SSH Key Pair for EC2 Access
+# ===============================
 
-resource "aws_security_group" "db_security_group" {
-  name   = "db_sg_${random_id.env_display_id.hex}"
-  vpc_id = data.aws_vpc.default.id
-}
+module "keypair" {
+  source = "./modules/aws-keypair"
 
-#  rule to the default security group
-resource "aws_security_group_rule" "allow_inbound_postgres" {
-  type              = "ingress"
-  from_port         = 5432              
-  to_port           = 5432              
-  protocol          = "tcp"
-  security_group_id = aws_security_group.db_security_group.id
-  cidr_blocks       = ["0.0.0.0/0"]
-}
-
-resource "aws_security_group_rule" "allow_outbound_postgres" {
-  type              = "egress"
-  from_port         = 5432              
-  to_port           = 5432              
-  protocol          = "tcp"
-  security_group_id = aws_security_group.db_security_group.id
-  cidr_blocks       = ["0.0.0.0/0"]
-}
-
-
-resource "aws_db_instance" "postgres_db" {
-  allocated_storage    = 30
-  engine             = "postgres"
-  engine_version     = "16.11"
-  instance_class     = "db.t3.medium"
-  identifier         = "${var.prefix}-onlinestoredb-${random_id.env_display_id.hex}"
-  db_name = "onlinestoredb"
-  username           = var.db_username
-  password           = var.db_password
-  publicly_accessible = true
-  parameter_group_name = aws_db_parameter_group.pg_parameter_group.name
-  vpc_security_group_ids = [aws_security_group.db_security_group.id]
-  apply_immediately    = true
-  skip_final_snapshot = true
-}
-
-
-resource "aws_db_parameter_group" "pg_parameter_group" {
-  name   = "${var.prefix}-rds-pg-debezium-${random_id.env_display_id.hex}"
-  family = "postgres16"
-
-  parameter {
-    apply_method = "pending-reboot"
-    name  = "rds.logical_replication"
-    value = 1
+  prefix          = var.prefix
+  resource_suffix = random_id.env_display_id.hex
+  output_path     = path.module
+  common_tags = {
+    Created_by  = "Shift-left Terraform script"
+    Project     = "Online Retailer Demo"
+    owner_email = var.email
   }
 }
 
-resource "docker_image" "postgres_client" {
-  name = "public.ecr.aws/docker/library/postgres:16"
-}
+# ===============================
+# PostgreSQL EC2 Instance
+# ===============================
 
-# Initialize the database tables using a short-lived Docker container (no local psql needed)
-resource "docker_container" "psql_init" {
-  name      = "psql-init-${random_id.env_display_id.hex}"
-  image     = docker_image.postgres_client.name
-  must_run  = false
-  env       = [
-    "PGPASSWORD=${var.db_password}"
-  ]
-  command   = [
-    "sh","-c",
-    <<-EOC
-    psql -h ${aws_db_instance.postgres_db.address} -p ${aws_db_instance.postgres_db.port} -U ${aws_db_instance.postgres_db.username} -d ${aws_db_instance.postgres_db.db_name} -c "
-    CREATE TABLE IF NOT EXISTS products (
-        ProductID INT PRIMARY KEY,
-        Brand VARCHAR(255) NOT NULL,
-        ProductName VARCHAR(255) NOT NULL,
-        Category VARCHAR(100) NOT NULL,
-        Description TEXT,
-        Color VARCHAR(50),
-        Size VARCHAR(50),
-        Price DECIMAL(10, 2) NOT NULL,
-        Stock INT NOT NULL
-    );";
-    psql -h ${aws_db_instance.postgres_db.address} -p ${aws_db_instance.postgres_db.port} -U ${aws_db_instance.postgres_db.username} -d ${aws_db_instance.postgres_db.db_name} -c "
-    CREATE TABLE IF NOT EXISTS customers (
-        CustomerID INT PRIMARY KEY,
-        CustomerName VARCHAR(255) NOT NULL,
-        Email VARCHAR(255) NOT NULL UNIQUE,
-        Segment VARCHAR(50) NOT NULL,
-        shipping_address_id VARCHAR(255) NOT NULL,
-        billing_address_id VARCHAR(255) NOT NULL
-    );";
-    psql -h ${aws_db_instance.postgres_db.address} -p ${aws_db_instance.postgres_db.port} -U ${aws_db_instance.postgres_db.username} -d ${aws_db_instance.postgres_db.db_name} -c "
-    CREATE TABLE IF NOT EXISTS addresses (
-        AddressID VARCHAR(255) PRIMARY KEY,
-        Street VARCHAR(255) NOT NULL,
-        City VARCHAR(255) NOT NULL UNIQUE,
-        State VARCHAR(50) NOT NULL,
-        PostalCode VARCHAR(255) NOT NULL,
-        Country VARCHAR(255) NOT NULL
-    );";
-    psql -h ${aws_db_instance.postgres_db.address} -p ${aws_db_instance.postgres_db.port} -U ${aws_db_instance.postgres_db.username} -d ${aws_db_instance.postgres_db.db_name} -c "
-    CREATE TABLE IF NOT EXISTS orders (
-        OrderID INT PRIMARY KEY,
-        CustomerID INT NOT NULL,
-        OrderDate TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        Status VARCHAR(50) NOT NULL,
-        FOREIGN KEY (CustomerID) REFERENCES customers(CustomerID)
-    );";
-    psql "postgresql://${aws_db_instance.postgres_db.username}:${var.db_password}@${aws_db_instance.postgres_db.address}:${aws_db_instance.postgres_db.port}/${aws_db_instance.postgres_db.db_name}" -c "
-    CREATE TABLE IF NOT EXISTS order_items (
-        OrderItemID INT PRIMARY KEY,
-        OrderID INT NOT NULL,
-        ProductID INT NOT NULL,
-        Quantity INT NOT NULL,
-        FOREIGN KEY (OrderID) REFERENCES orders(OrderID),
-        FOREIGN KEY (ProductID) REFERENCES products(ProductID)
-    );"
-    EOC
-  ]
-  depends_on = [aws_db_instance.postgres_db]
+module "postgres" {
+  source = "./modules/aws-postgres"
+
+  prefix              = var.prefix
+  random_suffix       = random_id.env_display_id.hex
+  vpc_id              = aws_vpc.ecs_vpc.id
+  subnet_id           = aws_subnet.public_subnet.id
+  key_name            = module.keypair.key_name
+  instance_type       = var.postgres_instance_type
+  allowed_cidr_blocks = ["0.0.0.0/0"]
+  db_name             = "onlinestoredb"
+  db_username         = var.db_username
+  db_password         = var.db_password
+  common_tags = {
+    Created_by  = "Shift-left Terraform script"
+    Project     = "Online Retailer Demo"
+    owner_email = var.email
+  }
+
+  depends_on = [module.keypair, aws_vpc.ecs_vpc, aws_subnet.public_subnet]
 }
 
 
