@@ -117,6 +117,51 @@ This join ensures we only capture payments that have a matching order in the sys
 
 ## Part 2: Setting up Tableflow
 
+If you skipped [configuring Tableflow in LAB 1](../LAB1/LAB1-README.md#part-2-setting-up-tableflow), then expand the *Configure Tableflow* section below and follow the steps.
+
+<details>
+<summary>Configure Tableflow</summary>
+
+### Setting Up Tableflow Infrastructure
+
+Now that we have clean, validated data products from Flink, we'll make them analytics-ready using Tableflow.
+
+Instead of writing complex connectors or ETL jobs, Tableflow automatically materializes topics as Iceberg tables.
+
+First, we'll configure the storage and catalog integrations that Tableflow will use.
+
+#### Configure Custom Storage (S3)
+
+1. Navigate to the Tableflow main page: **Environments > {Your Environment} > Clusters > {Your Cluster} > Tableflow**
+
+   ![Navigate to tableflow](../LAB1/assets/navigate-to-tableflow.gif)
+
+#### Configure Glue Data Catalog Integration
+
+Now we'll connect Tableflow to AWS Glue Data Catalog so our Iceberg tables are discoverable by Athena and other query engines.
+
+1. In the Tableflow page, scroll to **External Catalog Integrations** and click **+ Add integration**
+
+2. Configure the integration:
+   * **Integration type:** AWS Glue
+   * **Name:** `my-glue-integration`
+   * **Supported format:** Iceberg
+   * Click **Continue**
+
+   ![Set up Glue Integration](../LAB1/assets/set-up-glue-integration.png)
+
+3. Select the provider integration created by Terraform (you can find it in `terraform output resource-ids`)
+
+4. Click **Continue**
+
+5. Click **Launch**
+
+6. The status will show **Pending** at first but will update to **Connected**
+
+   ![Catalog Connected](../LAB1/assets/catalog-connected.png)
+
+</details>
+
 ### Enabling Tableflow on `completed_orders`
 
 Now we'll enable Tableflow to automatically materialize the `completed_orders` topic as an Iceberg table.
@@ -409,7 +454,7 @@ Wait 2-3 minutes for the schema to propagate to Glue.
 You'll see records with diverse payment methods: PAYPAL, APPLE_PAY, CREDIT_CARD, WIRE_TRANSFER, VENMO, GOOGLE_PAY, and DEBIT_CARD.
 
 **What happened:**
-* Schema Registry is the source of truth - we evolved the schema there first
+* Schema Registry was the source of truth - we evolved the schema there first
 * Tableflow automatically detected the schema change and updated the Iceberg table
 * No manual DDL changes were needed in Glue or Athena
 

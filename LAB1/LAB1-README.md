@@ -340,7 +340,6 @@ LIMIT 20;
 
 ---
 
-
 ## Part 2: Setting up Tableflow
 
 Now that we have clean, validated data products from Flink, we'll make them analytics-ready using Tableflow.
