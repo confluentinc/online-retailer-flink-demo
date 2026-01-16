@@ -63,7 +63,7 @@ aws configure  # Set up AWS credentials
 ### Step 1: Clone and Navigate
 
 ```bash
-git clone https://github.com/confluentinc/online-retailer-flink-demo.git
+git clone -b gko-2026 https://github.com/confluentinc/online-retailer-flink-demo.git
 cd online-retailer-flink-demo/terraform
 ```
 
