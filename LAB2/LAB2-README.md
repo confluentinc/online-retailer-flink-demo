@@ -104,12 +104,12 @@ Now we'll create a table that joins payments with orders to validate that each p
    AND orderdate BETWEEN pymt.ts - INTERVAL '96' HOUR AND pymt.ts;
    ```
 
-   > [!NOTE]
-   > **Upsert Support**
-   >
-   > The `PRIMARY KEY (order_id) NOT ENFORCED` enables upsert semantics.
-   >
-   > Subsequent INSERT statements, which we'll explore further into this lab, will update existing records instead of creating duplicates.
+> [!NOTE]
+> **Upsert Support**
+>
+> The `PRIMARY KEY (order_id) NOT ENFORCED` enables upsert semantics.
+>
+> Subsequent INSERT statements, which we'll explore further into this lab, will update existing records instead of creating duplicates.
 
 This join ensures we only capture payments that have a matching order in the system, creating a validated data product for analytics.
 
@@ -266,7 +266,7 @@ We make sure of this with **[Data Quality Rules](https://docs.confluent.io/cloud
    LIMIT 10;
    ```
 
-> [!NOTE]
+> [!IMPORTANT]
 > **Athena Query Output Location**
 >
 > You may need to supply an output location for your Athena query if you haven't configured this before. Instructions can be found [here](https://docs.aws.amazon.com/athena/latest/ug/creating-databases-prerequisites.html). Feel free to use the same S3 bucket we are using for Tableflow data.
@@ -356,7 +356,7 @@ We'll add a `payment_method` field to track how customers pay. We'll evolve the 
 ##### Step 2: Evolve the Schema in Schema Registry
 
 1. Navigate to your `completed_orders` topic in Confluent Cloud
-2. Click the **Data Contracts** tab.
+2. Click the **Data contract** tab.
 3. Click **Evolve** to evolve the schema.
 4. You'll see the current schema. Add the new `payment_method` field to the fields array (insert it after `confirmation_code` and before `ts`):
 
@@ -395,7 +395,7 @@ We'll add a `payment_method` field to track how customers pay. We'll evolve the 
    }
    ```
 
-5. Click **Validate** to ensure the schema is backward compatible
+5. Click **Validate schema** to ensure the schema is backward compatible
 6. Click **Save**
 
 The new schema version is now registered. Schema Registry validates it's compatible with existing data.
@@ -509,7 +509,10 @@ Once you have snapshot IDs from the query above, you can query historical data:
    FOR VERSION AS OF <<snapshot-id>>;
    ```
 
-   > **Tip:** Use timestamps from the `committed_at` column in the `$snapshots` query above to see exactly when each snapshot was created.
+> [!TIP]
+> **Snapshot Timestamp**
+>
+> Use timestamps from the `committed_at` column in the `$snapshots` query above to see exactly when each snapshot was created.
 
 > **Key Insight:** Time travel enables:
 > * Auditing and compliance (see exactly what data looked like at any point)
@@ -576,7 +579,12 @@ WHERE ts >= CURRENT_TIMESTAMP - INTERVAL '1' HOUR;
 
 Compare the **"Data scanned"** metrics in Athena—the time-windowed query should scan significantly less data. Athena uses min/max statistics on `ts` from each Iceberg file to skip files outside your time range.
 
-> **Tip:** Use range predicates (`ts >= ... AND ts < ...`) instead of functions like `date_trunc()`. Range predicates can be pushed down to Iceberg's column statistics for file pruning.
+> [!TIP]
+> **Range Predicates**
+>
+> Use range predicates (`ts >= ... AND ts < ...`) instead of functions like `date_trunc()`.
+>
+> Range predicates can be pushed down to Iceberg's column statistics for file pruning.
 
 ---
 
@@ -607,19 +615,19 @@ Tableflow performs background tasks like compaction and optimization. Let's see 
    LIMIT 20;
    ```
 
-   > [!NOTE]
-   > **Query Not Working**
-   >
-   > If this query doesn't work, the Glue catalog may not have synced the snapshot metadata tables.
-   >
-   > Refer to the "Time Travel Queries" section above for alternative methods to access snapshot information, or simply monitor compaction metrics in the Confluent Cloud UI instead.
+> [!TIP]
+> **Query Not Working**
+>
+> If this query doesn't work, the Glue catalog may not have synced the snapshot metadata tables.
+>
+> Refer to the "Time Travel Queries" section above for alternative methods to access snapshot information, or simply monitor compaction metrics in the Confluent Cloud UI instead.
 
-   Look for operations like `append`, `replace`, and `overwrite` which indicate compaction activities.
+Look for operations like `append`, `replace`, and `overwrite` which indicate compaction activities.
 
-   > [!IMPORTANT]
-   > **Compaction May Not Occur Yet**
-   >
-   > Compaction may not run in the duration of the workshop, but can be monitored via Tableflow monitoring tab in addition to the operations within $snapshots.
+> [!IMPORTANT]
+> **Compaction May Not Occur Yet**
+>
+> Compaction may not run in the duration of the workshop, but can be monitored via Tableflow monitoring tab in addition to the operations within $snapshots.
 
 ---
 

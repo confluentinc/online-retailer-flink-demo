@@ -77,7 +77,7 @@ cd online-retailer-flink-demo/terraform
 ```bash
 terraform init
 terraform validate
-terraform apply --auto-approve
+terraform apply -auto-approve
 ```
 
 >[!NOTE]
@@ -86,7 +86,7 @@ terraform apply --auto-approve
 > This should take 7-10 minutes to provision:
 >
 > - Confluent Cloud environment with Kafka + Flink
-> - AWS RDS PostgreSQL database
+> - AWS PostgreSQL database
 > - S3 buckets for data lake
 > - Schema Registry and Stream Governance
 
