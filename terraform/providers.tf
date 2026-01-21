@@ -65,14 +65,20 @@ data "external" "detect_socket" {
     elif [ -S "/run/podman/podman.sock" ]; then
       printf '{"host":"unix:///run/podman/podman.sock"}'
     else
-      # Try to find Podman macOS socket
-      sock=$(find /var/folders -name "podman-machine-default-api.sock" -type s 2>/dev/null | head -1)
-      if [ -n "$sock" ]; then
-        printf '{"host":"unix://%s"}' "$sock"
-      elif [ -S "/var/run/docker.sock" ]; then
+      # Docker Desktop first for Docker logic
+      if [ -S "/var/run/docker.sock" ]; then
         printf '{"host":"unix:///var/run/docker.sock"}'
+      # Docker Desktop alternate per-user path
+      elif [ -S "$HOME/.docker/run/docker.sock" ]; then
+        printf '{"host":"unix://%s/.docker/run/docker.sock"}' "$HOME"
       else
-        printf '{"host":"unix:///var/run/docker.sock"}'
+        # Try to find Podman macOS socket (does not change existing Podman logic priority)
+        sock=$(find /var/folders -name "podman-machine-default-api.sock" -type s 2>/dev/null | head -1)
+        if [ -n "$sock" ]; then
+          printf '{"host":"unix://%s"}' "$sock"
+        else
+          printf '{"host":"unix:///var/run/docker.sock"}'
+        fi
       fi
     fi
   EOF
