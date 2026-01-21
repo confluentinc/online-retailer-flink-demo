@@ -49,6 +49,43 @@ data "external" "uid_unix" {
   program = ["/bin/sh", "-c", "printf '{\"uid\":\"%s\"}' \"$(id -u)\""]
 }
 
+data "external" "detect_socket_windows" {
+  count   = local.is_windows ? 1 : 0
+  program = ["powershell.exe", "-NoProfile", "-Command", <<-EOF
+    $ErrorActionPreference = 'SilentlyContinue'
+    
+    # Check sockets in priority order
+    # Docker Desktop named pipe
+    if (Test-Path "//./pipe/docker_engine") {
+      Write-Output '{"host":"npipe:////./pipe/docker_engine"}'
+      exit 0
+    }
+    
+    # Podman named pipe (default machine)
+    if (Test-Path "//./pipe/podman-machine-default") {
+      Write-Output '{"host":"npipe:////./pipe/podman-machine-default"}'
+      exit 0
+    }
+    
+    # Podman named pipe (generic)
+    if (Test-Path "//./pipe/podman") {
+      Write-Output '{"host":"npipe:////./pipe/podman"}'
+      exit 0
+    }
+    
+    # Rancher Desktop named pipe
+    if (Test-Path "//./pipe/rancher-desktop-docker") {
+      Write-Output '{"host":"npipe:////./pipe/rancher-desktop-docker"}'
+      exit 0
+    }
+    
+    # Default to Docker Desktop pipe
+    Write-Output '{"host":"npipe:////./pipe/docker_engine"}'
+  EOF
+  ]
+}
+
+
 
 # Simplified: Check common socket locations without find
 data "external" "detect_socket" {
@@ -86,8 +123,8 @@ data "external" "detect_socket" {
 }
 
 locals {
-  # Get the detected socket from the external script
-  docker_host = local.is_windows ? "npipe:////./pipe/docker_engine" : data.external.detect_socket[0].result.host
+  # Get the detected socket from the external script(s)
+docker_host = local.is_windows ? data.external.detect_socket_windows[0].result.host : data.external.detect_socket[0].result.host
 }
 
 provider "docker" {
