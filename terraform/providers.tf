@@ -44,10 +44,56 @@ provider "tls" {}
 
 data "aws_ecr_authorization_token" "ecr" {}
 
+data "external" "uid_unix" {
+  count   = local.is_windows ? 0 : 1
+  program = ["/bin/sh", "-c", "printf '{\"uid\":\"%s\"}' \"$(id -u)\""]
+}
+
+
+# Simplified: Check common socket locations without find
+data "external" "detect_socket" {
+  count   = local.is_windows ? 0 : 1
+  program = ["/bin/sh", "-c", <<-EOF
+    set -e
+    uid="$(id -u)"
+    
+    # Check sockets in priority order
+    if [ -S "$HOME/.colima/default/docker.sock" ]; then
+      printf '{"host":"unix://%s/.colima/default/docker.sock"}' "$HOME"
+    elif [ -S "/run/user/$uid/podman/podman.sock" ]; then
+      printf '{"host":"unix:///run/user/%s/podman/podman.sock"}' "$uid"
+    elif [ -S "/run/podman/podman.sock" ]; then
+      printf '{"host":"unix:///run/podman/podman.sock"}'
+    else
+      # Try to find Podman macOS socket
+      sock=$(find /var/folders -name "podman-machine-default-api.sock" -type s 2>/dev/null | head -1)
+      if [ -n "$sock" ]; then
+        printf '{"host":"unix://%s"}' "$sock"
+      elif [ -S "/var/run/docker.sock" ]; then
+        printf '{"host":"unix:///var/run/docker.sock"}'
+      else
+        printf '{"host":"unix:///var/run/docker.sock"}'
+      fi
+    fi
+  EOF
+  ]
+}
+
+locals {
+  # Get the detected socket from the external script
+  docker_host = local.is_windows ? "npipe:////./pipe/docker_engine" : data.external.detect_socket[0].result.host
+}
+
 provider "docker" {
+  host = local.docker_host
+  
   registry_auth {
     address  = replace(data.aws_ecr_authorization_token.ecr.proxy_endpoint, "https://", "")
     username = data.aws_ecr_authorization_token.ecr.user_name
     password = data.aws_ecr_authorization_token.ecr.password
   }
+}
+
+output "docker_host" {
+  value = local.docker_host
 }
