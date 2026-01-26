@@ -175,14 +175,14 @@ This data can be made available seamlessly to your Data lake query engines using
 </details>
 <details>
    <summary>If you would like to use your own storage (Amazon S3), click here to expand those instructions.</summary>
-   
+
    1. As an alternative to using Confluent Managed Storage, you can leverage Amazon S3 storage in your own Amazon S3 Bucket.
 
    1. First enable Tableflow on the topic. In the topic UI, click on **Enable Tableflow** then **Configure Custom Storage**
 
    ![configure custom storage](./assets/LAB2_enable_tableflow_custom_storage.png)
 
-   2. In the next menu, you will be able to choose the Provider Integration we created in the previous section. You can identify it by either the name of the provider integration or the IAM Role you created. 
+   2. In the next menu, you will be able to choose the Provider Integration we created in the previous section. You can identify it by either the name of the provider integration or the IAM Role you created.
 
    3. There should be only one provider integration created, so select that one. It can also be found in the outputs by running `terraform output resource-ids` and looking for the provider integration name.
 
@@ -191,7 +191,7 @@ This data can be made available seamlessly to your Data lake query engines using
    ![alt text](assets/byos-instructions.png)
 
    5. Click Continue and Launch. The tableflow topic will now be materialized in the Amazon S3 Bucket you specified.
-   
+
 </details>
 
 ### Important: If you would like to complete Lab 3, you must choose your own storage (not Confluent Managed Storage)
@@ -206,7 +206,7 @@ We will now share our topic metadata with Amazon Glue Data Catalog for the purpo
    ![Navigate to tableflow](assets/navigate-to-tableflow.gif)
 
 
-- You will see we already have the Storage Provider Integration enabled. Scroll down to External Catalog Integrations and click **+ Add integration** on the right hand side. 
+- You will see we already have the Storage Provider Integration enabled. Scroll down to External Catalog Integrations and click **+ Add integration** on the right hand side.
 - Select **AWS Glue** as the integration type and give the integration a name, `my-glue-integration`.
 - Select **Iceberg** as the supported format and click **Continue**.
 
