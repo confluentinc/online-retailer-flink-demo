@@ -25,6 +25,8 @@ Before joining payment and order streams, we need to ensure there are no duplica
    WHERE total > 1;
    ```
 
+Notice that there are duplicate payment entries, which throws off our analytics.  Let's remove them with this next step:
+
 3. Create a deduplicated payments table:
    ```sql
    SET 'client.statement-name' = 'unique-payments-maintenance';
@@ -58,17 +60,7 @@ Before joining payment and order streams, we need to ensure there are no duplica
    WHERE rownum = 1;
    ```
 
-3. Update watermarks for both payment tables:
-   ```sql
-   ALTER TABLE payments
-   MODIFY WATERMARK FOR ts AS ts;
-   ```
-   ```sql
-   ALTER TABLE unique_payments
-   MODIFY WATERMARK FOR ts AS ts;
-   ```
-
-4. Validate deduplication worked:
+3. Validate deduplication worked:
    ```sql
    SELECT order_id, COUNT(*) AS count_total
    FROM `unique_payments`
@@ -304,32 +296,6 @@ Now let's perform some real analytics on our streaming data.
       MAX(amount) as max_order
    FROM "completed_orders";
    ```
-
-4. Geographic sales distribution (from `product_sales`):
-   ```sql
-   SELECT
-      shipping_address_state AS state,
-      COUNT(DISTINCT orderid) AS orders,
-      COUNT(DISTINCT customerid) AS unique_customers,
-      SUM(total_amount) AS revenue
-   FROM "product_sales"
-   GROUP BY shipping_address_state
-   ORDER BY revenue DESC
-   LIMIT 10;
-   ```
-
-5. Customer spending maximum, minimum, and average (from `thirty_day_customer_snapshot`):
-
-   ```sql
-   SELECT
-      COUNT(*) AS total_customers,
-      ROUND(AVG(total_amount), 2) AS avg_spend,
-      ROUND(MIN(total_amount), 2) AS min_spend,
-      ROUND(MAX(total_amount), 2) AS max_spend,
-      ROUND(AVG(number_of_orders), 1) AS avg_orders
-   FROM thirty_day_customer_snapshot;
-   ```
-
 ---
 
 ### Schema Evolution with Tableflow
