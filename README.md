@@ -18,7 +18,7 @@ By the end of this workshop, you'll have:
 - ✅ **Data governance** with schema validation and field-level encryption
 - ✅ **Analytics-ready datasets** in your data analysis engine
 
-**Time commitment:** 90 minutes total (45 min setup + 45 min labs)
+**Time commitment:** 90 minutes total (30 min setup + 60 min labs)
 
 ## Prerequisites
 
@@ -83,7 +83,7 @@ If you are using an AWS Workshop Studio account:
 > [!IMPORTANT]
 > **Same Shell Window Required**
 >
-> The AWS credential environment variables must be exported in the same terminal window where you will run `terraform` commands
+> The AWS credential environment variables must be exported in the same shell window where you will run `terraform` commands
 
 ### Step 3: Update Your Terraform.tfvars file
 

@@ -10,13 +10,53 @@ In this lab, we'll use Confluent Cloud and Apache Flink to validate payments, cr
 
 ## Part 1: Payment Processing with Flink
 
+### Get Started with Flink SQL
+
+1. Navigate to the [Flink UI](https://confluent.cloud/go/flink) in Confluent Cloud and select your demo environment (prefixed with `shiftleft` by default)
+
+2. Click on the **Compute Pools** tab
+
+3. Click **Open SQL Workspace**
+
+4. On the top right corner, select your cluster as the database
+
+5. The code editor allows you to query existing Flink tables (which represent Kafka topics) and create new data products
+
+6. Each Kafka topic is automatically represented as a table in the Flink catalog. List all available tables:
+
+   ```sql
+   SHOW TABLES;
+   ```
+
+7. You should see these tables:
+   * `error-payments`
+   * `payments`
+   * `shiftleft.public.customers`
+   * `shiftleft.public.addresses`
+   * `shiftleft.public.products`
+   * `shiftleft.public.orders`
+   * `shiftleft.public.order_items`
+
+> [!NOTE]
+> **Change Data Capture (CDC) Tables**
+>
+> Notice the tables prefixed with `shiftleft` correspond to your PostgreSQL CDC topics.
+
+---
+
 ### Payment Deduplication
 
 Before joining payment and order streams, we need to ensure there are no duplicate payments.
 
-1. Navigate to the *SQL workspace* of your workshop Flink compute pool
+> [!TIP]
+> **Add a new Flink cell for each SQL statement**
+>
+> Each time you need to run a SQL statement in Flink, you can create a new cell editor to use.
+>
+> ![Add new flink cell](./assets/flink_add_new_cell.png)
 
-2. Check for the number of duplicates in the `payments` table:
+1. Check for the number of duplicates in the `payments` table:
+
    ```sql
    SELECT COUNT(*) FROM
    ( SELECT order_id, amount, count(*) total
@@ -25,9 +65,15 @@ Before joining payment and order streams, we need to ensure there are no duplica
    WHERE total > 1;
    ```
 
-Notice that there are duplicate payment entries, which throws off our analytics.  Let's remove them with this next step:
+> [!IMPORTANT]
+> **Duplicate payments**
+>
+> Notice that there are duplicate payment entries, which throws off our analytics.
+>
+> Let's remove them in the next step.
 
-3. Create a deduplicated payments table:
+2. Create a deduplicated payments table:
+
    ```sql
    SET 'client.statement-name' = 'unique-payments-maintenance';
    SET 'sql.state-ttl' = '1 hour';
@@ -60,14 +106,16 @@ Notice that there are duplicate payment entries, which throws off our analytics.
    WHERE rownum = 1;
    ```
 
-3. Validate deduplication worked:
+3. Add a new cell and validate deduplication worked:
+
    ```sql
    SELECT order_id, COUNT(*) AS count_total
    FROM `unique_payments`
    GROUP BY order_id
    HAVING COUNT(*) > 1;
    ```
-   This should return zero results.
+
+   **Success = No rows returned.** If deduplication worked correctly, this query won't produce any output because no `order_id` appears more than once.
 
 ---
 
@@ -104,6 +152,23 @@ Now we'll create a table that joins payments with orders to validate that each p
 > Subsequent INSERT statements, which we'll explore further into this lab, will update existing records instead of creating duplicates.
 
 This join ensures we only capture payments that have a matching order in the system, creating a validated data product for analytics.
+
+2. Verify the results
+
+```sql
+SELECT *
+  FROM `completed_orders`
+  LIMIT 20;
+```
+
+You should see 20 rows with values for `order_id`, `amount`, `confirmation_code`, and `ts` (for timestamp).
+
+> [!NOTE]
+> **Invalid Confirmation Codes**
+>
+> You may notice that some of the records contain a `0` for their confirmation code.
+>
+> These are invalid, and later in this lab you will implement a Data Quality rule to redirect messages with invalid confirmation codes to a Dead Letter Queue (DLQ)!
 
 ---
 
@@ -143,7 +208,7 @@ Now we'll connect Tableflow to AWS Glue Data Catalog so our Iceberg tables are d
 
 5. Click **Launch**
 
-6. The status will show **Pending** at first but will update to **Connected**
+6. The status will show **Pending** at first but will eventually update to **Connected**
 
    ![Catalog Connected](../LAB2/assets/catalog-connected.png)
 
@@ -154,6 +219,9 @@ Now we'll enable Tableflow to automatically materialize the `completed_orders` t
 1. Navigate to the [`completed_orders`](https://confluent.cloud/go/topics) topic
 2. Click **Enable Tableflow**
 3. Click **Configure Custom Storage**
+
+   ![Enable Tableflow on topic](./assets/LAB1_enable_tableflow_custom_storage.png)
+
 4. Select your provider integration and S3 bucket (format: `shiftleft-tableflow-bucket-...`)
 
    You can find your S3 bucket name:
@@ -165,8 +233,6 @@ Now we'll enable Tableflow to automatically materialize the `completed_orders` t
 5. Click **Continue**
 
 6. Click **Launch**
-
-   ![Enable Tableflow on topic](./assets/LAB1_enable_tableflow_custom_storage.png)
 
 7. Wait for Tableflow status to show **Syncing**
 
@@ -182,15 +248,17 @@ We make sure of this with **[Data Quality Rules](https://docs.confluent.io/cloud
 
 1. Navigate to the *Schema Registry* in your workshop *Environment*
 
-2. Search for `payments-value` Data Contract and click on it
+2. Click on the **Data contracts** tab
 
-3. Click the **Evolve** button
+3. Search for `payments-value` Data Contract and click on it
 
-4. Click on the **Rules** tab
+4. Click the **Evolve** button
 
-5. Click **Add rules**
+5. Click on the **Rules** tab
 
-6. Input these values into the *Add rules* form:
+6. Click **Add rules**
+
+7. Input these values into the *Add rules* form:
    * **Category**: `Data quality rule`
    * **Rule name**: `validateConfirmationCode`
    * **Description**: Validate that the confirmation code is uppercase alphanumeric and only 8 characters
@@ -200,13 +268,13 @@ We make sure of this with **[Data Quality Rules](https://docs.confluent.io/cloud
       * `dlq.topic` = `error-payments`
       * `dlq.auto.flush` = `true`
 
-7. Click **Add**
+8. Click **Add**
 
-8. Click **Save**
+9.  Click **Save**
 
    > **What this rule does:** Validates that `confirmation_code` is exactly 8 uppercase alphanumeric characters (e.g., `ABC12345`). Invalid payments are routed to the `error-payments` dead letter queue.
 
-9. For the changes to take effect, we need to restart the payment producer application so it picks up the new schema and encryption rules.
+10. For the changes to take effect, we need to restart the payment producer application so it picks up the new schema and encryption rules.
 
    1. Get the ECS restart command from Terraform:
       ```bash
@@ -215,12 +283,12 @@ We make sure of this with **[Data Quality Rules](https://docs.confluent.io/cloud
 
    2. Copy the output value within the double quotes
 
-   2. Run the command (it will look similar to this):
+   3. Run the command (it will look similar to this):
       ```bash
       aws ecs update-service --cluster <ECS_CLUSTER_NAME> --service payment-app-service --force-new-deployment
       ```
 
-10. Navigate back to your workshop cluster and check the `error-payments` topic for any non-compliant payments. What `confirmation_code` values do you see there?
+11. Navigate back to your workshop cluster and check the `error-payments` topic for any non-compliant payments. What `confirmation_code` values do you see there?
 ---
 
 ## Part 4: Tableflow Deepdive
@@ -236,7 +304,7 @@ We make sure of this with **[Data Quality Rules](https://docs.confluent.io/cloud
 
 2. Search for your cluster ID database, then find the `completed_orders` table
 
-3. Click **View Data** under the Actions column. This opens Amazon Athena.
+3. Click **Table data** under the *View data* column. This opens Amazon Athena.
 
    ![Search for Cluster ID](assets/search-for-cluster-id.png)
 
@@ -245,6 +313,7 @@ We make sure of this with **[Data Quality Rules](https://docs.confluent.io/cloud
    ![Set database in](assets/athena_select_database.png)
 
 5. Run a basic query to verify data is flowing:
+
    ```sql
    SELECT *
    FROM "completed_orders"
@@ -256,6 +325,10 @@ We make sure of this with **[Data Quality Rules](https://docs.confluent.io/cloud
 >
 > You may need to supply an output location for your Athena query if you haven't configured this before. Instructions can be found [here](https://docs.aws.amazon.com/athena/latest/ug/creating-databases-prerequisites.html). Feel free to use the same S3 bucket we are using for Tableflow data.
 
+> [!NOTE]
+> **0 Results Returned**
+>
+> If 0 results are returned from the query above, you may need to wait a few more minutes for Tableflow to materialize the `completed_orders` data into S3.
 ---
 
 ### Analyzing Sales Trends
@@ -308,9 +381,11 @@ We'll add a `payment_method` field to track how customers pay. We'll evolve the 
 
 ##### Step 1: Stop the Flink Statement
 
-1. Go to **Flink Console** > **Statements**
-2. Find `completed-orders-materializer`
-3. Click **Stop**
+1. Navigate back to the **[Flink UI](https://confluent.cloud/go/flink)**
+2. Click on the **Flink Statements** tab
+3. Click on `completed-orders-materializer`
+4. Click the **Stop** button
+5. Click **Confirm**
 
 ##### Step 2: Evolve the Schema in Schema Registry
 
@@ -318,6 +393,16 @@ We'll add a `payment_method` field to track how customers pay. We'll evolve the 
 2. Click the **Data contract** tab.
 3. Click **Evolve** to evolve the schema.
 4. You'll see the current schema. Add the new `payment_method` field to the fields array (insert it after `confirmation_code` and before `ts`):
+
+   ```json
+   {
+      "name": "payment_method",
+      "type": ["null", "string"],
+      "default": null
+   },
+   ```
+
+   Or you can replace the existing schema with this entire json:
 
    ```json
    {
@@ -370,6 +455,7 @@ Now we'll start a new Flink statement that writes data including the `payment_me
 
    INSERT INTO completed_orders
    SELECT
+      pymt.order_id AS key_order_id,
       pymt.order_id,
       pymt.amount,
       pymt.confirmation_code,
@@ -535,7 +621,7 @@ Now run a query with a narrow time window using range predicates:
 ```sql
 SELECT COUNT(*), SUM(amount)
 FROM "completed_orders"
-WHERE ts >= CURRENT_TIMESTAMP - INTERVAL '1' HOUR;
+WHERE ts >= CURRENT_TIMESTAMP - INTERVAL '45' MINUTE;
 ```
 
 Compare the **"Data scanned"** metrics in Athena—the time-windowed query should scan significantly less data. Athena uses min/max statistics on `ts` from each Iceberg file to skip files outside your time range.

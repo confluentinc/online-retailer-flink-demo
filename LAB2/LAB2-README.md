@@ -13,33 +13,9 @@ We'll create `enriched_customers` by joining customer and address data, then use
 
 ---
 
-## Getting Started with Flink SQL
+## Building the Enriched Customer Data Product
 
 1. Navigate to the [Flink UI](https://confluent.cloud/go/flink) in Confluent Cloud and select your demo environment (prefixed with `shiftleft` by default)
-
-2. Click on the **Compute Pools** tab
-
-3. Click **Open SQL Workspace**
-
-4. On the top right corner, select your cluster as the database
-
-5. The code editor allows you to query existing Flink tables (which represent Kafka topics) and create new data products
-
-6. Each Kafka topic is automatically represented as a table in the Flink catalog. List all available tables:
-   ```sql
-   SHOW TABLES;
-   ```
-
-7. You should see tables corresponding to your PostgreSQL CDC topics:
-   * `shiftleft.public.customers`
-   * `shiftleft.public.addresses`
-   * `shiftleft.public.products`
-   * `shiftleft.public.orders`
-   * `shiftleft.public.order_items`
-
----
-
-## Building the Enriched Customer Data Product
 
 Customer data in the operational database is normalized—addresses are stored in a separate table. For analytics, we want a denormalized view that includes all customer information in one place.
 
