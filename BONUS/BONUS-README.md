@@ -1,9 +1,9 @@
-
 # 🎯 Bonus: Data Contracts and Encryption (Extra Credit)
 
-> **⚠️ This lab is completely optional.** Only proceed if you've completed LAB2 and want to explore advanced Stream Governance features like Client-Side Field Level Encryption.
+> **⚠️ This lab is completely optional.** Only proceed if you've completed [LAB2](../LAB2/LAB2-README.md) and want to explore advanced Stream Governance features like Client-Side Field Level Encryption.
 
 In this bonus lab, you'll learn how to:
+
 - Encrypt sensitive fields automatically using Client-Side Field Level Encryption (CSFLE)
 - Implement governance policies without changing application code
 
@@ -23,7 +23,7 @@ Analytics teams are focused on general sales trends, so they don't need access t
 
 3. Inspect a few recent records—you'll see the `cc_number` field is in plain text
 
-   ![Unencrypted Messages](../LAB2/assets/LAB2_msg.png)
+   ![Unencrypted Messages](./assets/plain_text_cc_number.png)
 
 This is a security risk! Let's fix it by adding encryption.
 
@@ -49,7 +49,7 @@ To enable encryption, we first need to tag the `cc_number` field so our encrypti
    * **Tag name:** `PII`
    * **Description:** `Personally Identifiable Information`
 
-8. Click **Add** or **Save** to apply the tag
+8. Click **Create** to apply the tag
 
 9. Click **Validate schema** to ensure the schema change is backward compatible
 
@@ -63,27 +63,35 @@ The `cc_number` field is now tagged as PII. Next, we'll create an encryption rul
 
 Now we'll create a rule that encrypts any field tagged with `PII`.
 
-1. Still in the **Data Contracts** tab for the `payments` topic, click the **Rules** section
+1. Still in the **Data Contracts** tab for the `payments` topic, click **Evolve**
 
-2. Click **+ Add rules**
+2. Click the **Rules** section
+
+3. Click **+ Add rules**
 
    > [!NOTE]
-   > **No "Add rules" Button**
+   > **No "Add rules" Button?**
    >
    > You may need to click **Evolve** to see the **Add rules** button.
 
-3. Configure the encryption rule:
-   * **Category:** Data Encryption Rule
+4. Configure the encryption rule:
+   * **Category:** `Field level encryption rule`
    * **Rule name:** `Encrypt_PII`
    * **Description:** `Encrypt all fields with the PII tag`
    * **Encrypt fields with:** `PII`
    * **using:** Select the AWS KMS key created by Terraform (likely named `CSFLE_Key`)
 
-4. Keep default selections for the remaining sections
+   ![CSFLE Rule](./assets/csfle_rule.png)
 
-5. Click **Add** and then **Save**
+5. Keep default selections for the remaining sections
 
-   ![CSFLE Rule](../LAB2/assets/LAB2_rule.png)
+6. Click **Add**
+
+7. Click **Save**
+
+Your *Domain Rules* section should look like this:
+
+![data contracts with two rules](./assets/data_contracts_rules.png)
 
 **What this rule does:**
 * Instructs the Avro serializer to encrypt any field tagged as `PII`
@@ -122,7 +130,7 @@ For the changes to take effect, we need to restart the payment producer applicat
 
 4. The `cc_number` field should now display encrypted data instead of plain text
 
-   ![Encrypted Field](../LAB2/assets/LAB2_msgenc.png)
+   ![Encrypted Field](./assets/encrypted_cc_number.png)
 
 5. Compare this with older messages (before the restart) which still show unencrypted credit card numbers
 
@@ -140,10 +148,9 @@ For the changes to take effect, we need to restart the payment producer applicat
 In this bonus lab, you learned:
 
 1. **Data Quality Rules:** Validate data at the source without custom code or interceptors
-2. **Dead Letter Queues:** Automatically route invalid data for debugging and compliance
-3. **Client-Side Encryption:** Protect sensitive fields before they reach Kafka
-4. **Tag-Based Policies:** Use schema tags to apply governance rules declaratively
-5. **Zero Code Changes:** Stream Governance pushes rules to clients automatically
+2. **Client-Side Encryption:** Protect sensitive fields before they reach Kafka
+3. **Tag-Based Policies:** Use schema tags to apply governance rules declaratively
+4. **Zero Code Changes:** Stream Governance pushes rules to clients automatically
 
 All of this is managed through Schema Registry and Stream Governance—no application code modifications required!
 
@@ -176,8 +183,6 @@ If you completed this bonus lab and want to clean up your infrastructure later, 
 ## Topics
 
 **🔙 Previous topic:** [Lab 2 - Payment Validation and Tableflow Deep Dive](../LAB2/LAB2-README.md)
-
-**➡️ Next topic:** [Lab 3 - Analyze Data in Snowflake](../LAB3/LAB3-README.md)
 
 **🏁 Finished?** [Cleanup](../README.md#clean-up)
 

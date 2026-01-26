@@ -154,7 +154,7 @@ Learn to join streaming data with Flink SQL, mask PII data, and create enriched 
 
 ### Step 1: Disable Tableflow
 
-Disable Tableflow for the `completed_orders` topic.
+Disable Tableflow on the `completed_orders` topic:
 
 1. Go to [Confluent Cloud](https://confluent.cloud)
 2. Select your environment (starts with `shiftleft-environment-...`)
@@ -164,6 +164,11 @@ Disable Tableflow for the `completed_orders` topic.
 6. Click the **Settings** tab
 7. Click **Disable Tableflow**
 8. Confirm the action
+
+> [!IMPORTANT]
+> **LAB 2 Topics**
+>
+> If you completed [LAB 2](./LAB2/LAB2-README.md), then repeat above steps 1-8 with the `product_sales` and `thirty_day_customer_snapshot` topics.
 
 ### Step 1.1: Delete Catalog Integration
 1. Navigate back to the Tableflow tab

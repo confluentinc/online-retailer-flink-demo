@@ -106,7 +106,7 @@ Before joining payment and order streams, we need to ensure there are no duplica
    WHERE rownum = 1;
    ```
 
-3. Add a new cell and validate deduplication worked:
+3. Validate deduplication worked:
 
    ```sql
    SELECT order_id, COUNT(*) AS count_total
@@ -235,6 +235,8 @@ Now we'll enable Tableflow to automatically materialize the `completed_orders` t
 6. Click **Launch**
 
 7. Wait for Tableflow status to show **Syncing**
+
+> **Key Point:** Tableflow automatically infers the schema from Schema Registry. No manual schema mapping required!
 
 ---
 
@@ -697,7 +699,7 @@ All of this happens automatically—Confluent manages the infrastructure, compac
 
 **🔙 Previous topic:** [Demo Introduction and Setup](../README.md)
 
-**⏱️ Time Permitting:** [Lab 2 - Product Sales and Customer360 Aggregation (Optional)](../LAB2/LAB2-README.md)
+**⏱️ Next topic:** [Lab 2 - Product Sales and Customer360 Aggregation (Optional)](../LAB2/LAB2-README.md)
 
 **🏁 Finished?** [Cleanup](../README.md#clean-up)
 

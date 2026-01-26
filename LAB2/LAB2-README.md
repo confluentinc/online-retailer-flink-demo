@@ -15,20 +15,22 @@ We'll create `enriched_customers` by joining customer and address data, then use
 
 ## Building the Enriched Customer Data Product
 
-1. Navigate to the [Flink UI](https://confluent.cloud/go/flink) in Confluent Cloud and select your demo environment (prefixed with `shiftleft` by default)
-
 Customer data in the operational database is normalized—addresses are stored in a separate table. For analytics, we want a denormalized view that includes all customer information in one place.
 
 ### Preview the Source Data
 
-1. View customer data:
+1. Navigate to the [Flink UI](https://confluent.cloud/go/flink) in Confluent Cloud and select your demo environment (prefixed with `shiftleft` by default)
+
+2. View customer data:
+
    ```sql
    SELECT * FROM `shiftleft.public.customers` LIMIT 10;
    ```
 
-2. Notice the `shipping_address_id` and `billing_address_id` fields—these reference the `addresses` table
+3. Notice the `shipping_address_id` and `billing_address_id` fields—these reference the `addresses` table
 
-3. View address data:
+4. View address data:
+
    ```sql
    SELECT * FROM `shiftleft.public.addresses` LIMIT 10;
    ```
@@ -323,7 +325,7 @@ LIMIT 20;
 
 ## Part 2: Setting up Tableflow
 
-If you skipped [configuring Tableflow in LAB 2](../LAB2/LAB2-README.md#part-2-setting-up-tableflow), then expand the *Configure Tableflow* section below and follow the steps.
+If you skipped [configuring Tableflow in LAB 1](../LAB1/LAB1-README.md#setting-up-tableflow-infrastructure), then expand the *Configure Tableflow* section below and follow the steps.
 
 <details>
 <summary>Configure Tableflow</summary>
@@ -370,7 +372,7 @@ Now we'll connect Tableflow to AWS Glue Data Catalog so our Iceberg tables are d
 
 ---
 
-### Enabling Tableflow on `product_sales` and `thirty_day_customer_snapshot`
+### Enabling Tableflow on `thirty_day_customer_snapshot` and `product_sales`
 
 Now we'll enable Tableflow to automatically materialize the `completed_orders` topic as an Iceberg table.
 
@@ -394,8 +396,6 @@ Now we'll enable Tableflow to automatically materialize the `completed_orders` t
 
 8. Verify that the Tableflow status changes to **Syncing**
 
-> **Key Point:** Tableflow automatically infers the schema from Schema Registry. No manual schema mapping required!
-
 ---
 
 ### Exploring Iceberg Tables in AWS Glue
@@ -418,21 +418,6 @@ Let's see what Tableflow created in our data catalog.
    * The schema exactly matches what's in Schema Registry
    * Metadata includes Iceberg table properties
    * Storage location points to your S3 bucket
-
-## What We've Built
-
-You now have three production-ready data products powered by Flink:
-
-1. **enriched_customers**: Unified customer profiles with denormalized addresses
-2. **product_sales**: Detailed order analytics enriched with customer and product data, with Tableflow enabled
-3. **thirty_day_customer_snapshot**: Rolling 30-day customer behavior metrics, with Tableflow enabled
-
-All three tables are:
-
-* **Real-time**: Update continuously as source data changes
-* **Governed**: Schemas are tracked in Schema Registry
-* **Scalable**: Flink handles the stream processing infrastructure
-* **Materialized**: Backed by Kafka topics for downstream consumption
 
 ## Querying with Amazon Athena
 
@@ -470,6 +455,23 @@ Navigate back to Amazon Athena and run these queries:
       ROUND(AVG(number_of_orders), 1) AS avg_orders
    FROM thirty_day_customer_snapshot;
    ```
+
+---
+
+## What We've Built
+
+You now have three production-ready data products powered by Flink:
+
+1. **enriched_customers**: Unified customer profiles with denormalized addresses
+2. **product_sales**: Detailed order analytics enriched with customer and product data, with Tableflow enabled
+3. **thirty_day_customer_snapshot**: Rolling 30-day customer behavior metrics, with Tableflow enabled
+
+All three tables are:
+
+* **Real-time**: Update continuously as source data changes
+* **Governed**: Schemas are tracked in Schema Registry
+* **Scalable**: Flink handles the stream processing infrastructure
+* **Materialized**: Backed by Kafka topics for downstream consumption
 
 ---
 
