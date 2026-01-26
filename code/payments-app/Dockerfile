@@ -1,5 +1,5 @@
-# Use Maven and JDK base image
-FROM maven:3.9.9-eclipse-temurin-21-alpine
+# Use Maven and JDK base image from AWS ECR Public (avoids Docker Hub rate limits)
+FROM public.ecr.aws/docker/library/maven:3.9.9-eclipse-temurin-21-alpine
 
 # Set the working directory inside the container
 WORKDIR /opt/payments_app
@@ -17,4 +17,3 @@ RUN mvn -q -T 1C compile
 
 # 4) Run the Java application via Maven exec plugin
 CMD ["mvn", "exec:java"]
-

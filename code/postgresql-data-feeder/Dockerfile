@@ -1,5 +1,5 @@
-# Use Maven and JDK base image
-FROM maven:3.9.9-eclipse-temurin-21
+# Use Maven and JDK base image from AWS ECR Public (avoids Docker Hub rate limits)
+FROM public.ecr.aws/docker/library/maven:3.9.9-eclipse-temurin-21
 
 # Set the working directory inside the container
 WORKDIR /opt/db_feeder_app
@@ -15,4 +15,3 @@ RUN mvn compile
 
 # Specify the command to run the Java application
 CMD ["mvn", "exec:java"]
-

@@ -6,23 +6,9 @@ resource "aws_iam_access_key" "payments_app_aws_key" {
   user = aws_iam_user.payments_app_user.name
 }
 
+# Detect Windows for platform-specific scripts (used in outputs.tf)
 locals {
   is_windows = fileexists("C:\\Windows\\System32\\cmd.exe")
-}
-
-data "external" "arch_windows" {
-  count   = local.is_windows ? 1 : 0
-  program = ["powershell", "-NoProfile", "-Command", "$arch=$env:PROCESSOR_ARCHITECTURE; Write-Output ('{\"arch\":\"' + $arch + '\"}')"]
-}
-
-data "external" "arch_unix" {
-  count   = local.is_windows ? 0 : 1
-  program = ["/bin/sh", "-c", "printf '{\"arch\":\"%s\"}' \"$(uname -m)\""]
-}
-
-locals {
-  detected_arch     = local.is_windows ? lower(trimspace(data.external.arch_windows[0].result.arch)) : lower(trimspace(data.external.arch_unix[0].result.arch))
-  cpu_architecture  = contains(["arm64", "aarch64"], local.detected_arch) ? "ARM64" : "X86_64"
 }
 
 
@@ -47,11 +33,11 @@ resource "aws_iam_user_policy" "payments_app_iam_policy" {
 resource "local_file" "db_feeder_properties" {
   filename = "../code/postgresql-data-feeder/src/main/resources/db.properties"
   content  = <<-EOT
-    db.url=jdbc:postgresql://${module.postgres.public_ip}/onlinestoredb
-    db.user=${var.db_username}
-    db.password=${var.db_password}
-  EOT
-  }
+db.url=jdbc:postgresql://${module.postgres.public_ip}/onlinestoredb
+db.user=${var.db_username}
+db.password=${var.db_password}
+EOT
+}
 
 # Create and write the Payments app application.properties file to the appropriate path
 resource "local_file" "payment_app_properties" {
@@ -223,44 +209,13 @@ resource "aws_ecr_repository" "dbfeeder_app_repo" {
 
 
 # -------------------------------
-#  Build and Push Docker Images for Both Apps
+#  Container Image URIs
 # -------------------------------
+# Images are built via AWS CodeBuild (see codebuild.tf)
 
 locals {
   payment_app_image_tag  = "${aws_ecr_repository.payment_app_repo.repository_url}:latest"
   dbfeeder_app_image_tag = "${aws_ecr_repository.dbfeeder_app_repo.repository_url}:latest"
-}
-
-# Build and Push Payment App using Docker provider
-resource "docker_image" "payment_app" {
-  name = "${aws_ecr_repository.payment_app_repo.repository_url}:latest"
-  build {
-    context = "../code/payments-app"
-  }
-  depends_on = [
-    local_file.payment_app_properties,
-    local_file.payment_app_dqr
-  ]
-}
-
-resource "docker_registry_image" "payment_app" {
-  name = docker_image.payment_app.name
-}
-
-# Build and Push DB Feeder App using Docker provider
-resource "docker_image" "dbfeeder_app" {
-  name = "${aws_ecr_repository.dbfeeder_app_repo.repository_url}:latest"
-  build {
-    context = "../code/postgresql-data-feeder"
-  }
-  depends_on = [
-    local_file.db_feeder_properties,
-    module.postgres
-  ]
-}
-
-resource "docker_registry_image" "dbfeeder_app" {
-  name = docker_image.dbfeeder_app.name
 }
 
 
@@ -357,13 +312,13 @@ resource "aws_ecs_task_definition" "payment_app_task" {
   cpu                      = "256"
   runtime_platform {
     operating_system_family = "LINUX"
-    cpu_architecture        = local.cpu_architecture
+    cpu_architecture        = "X86_64"  # CodeBuild uses X86_64
   }
 
   container_definitions = jsonencode([
     {
       name      = "payment-app"
-      image     = "${aws_ecr_repository.payment_app_repo.repository_url}@${docker_registry_image.payment_app.sha256_digest}"
+      image     = local.payment_app_image_tag
       essential = true
       logConfiguration = {
         logDriver = "awslogs"
@@ -381,6 +336,8 @@ resource "aws_ecs_task_definition" "payment_app_task" {
       ]
     }
   ])
+
+  depends_on = [null_resource.build_payment_app]
 }
 
 
@@ -395,13 +352,13 @@ resource "aws_ecs_task_definition" "dbfeeder_app_task" {
   cpu                      = "256"
   runtime_platform {
     operating_system_family = "LINUX"
-    cpu_architecture        = local.cpu_architecture
+    cpu_architecture        = "X86_64"  # CodeBuild uses X86_64
   }
 
   container_definitions = jsonencode([
     {
       name      = "dbfeeder-app"
-      image     = "${aws_ecr_repository.dbfeeder_app_repo.repository_url}@${docker_registry_image.dbfeeder_app.sha256_digest}"
+      image     = local.dbfeeder_app_image_tag
       essential = true
       logConfiguration = {
         logDriver = "awslogs"
@@ -419,6 +376,8 @@ resource "aws_ecs_task_definition" "dbfeeder_app_task" {
       ]
     }
   ])
+
+  depends_on = [null_resource.build_dbfeeder_app]
 }
 
 
@@ -437,10 +396,10 @@ resource "aws_ecs_service" "payment_app_service" {
   }
 
   depends_on = [
-  docker_registry_image.payment_app,
-  confluent_kafka_topic.error-payments-topic,
-  confluent_kafka_topic.payments-topic,
-  confluent_schema.avro-payments
+    null_resource.build_payment_app,
+    confluent_kafka_topic.error-payments-topic,
+    confluent_kafka_topic.payments-topic,
+    confluent_schema.avro-payments
   ]
 }
 
@@ -461,7 +420,7 @@ resource "aws_ecs_service" "dbfeeder_app_service" {
   }
 
   depends_on = [
-    docker_registry_image.dbfeeder_app,
+    null_resource.build_dbfeeder_app,
     module.postgres
-    ]
+  ]
 }

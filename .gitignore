@@ -2,6 +2,7 @@ terraform/terraform.tfstate
 terraform/terraform.tfstate.backup
 terraform/terraform.tfvars
 terraform/.terraform/
+terraform/.build/
 code/payments-app/target/
 code/postgresql-data-feeder/target/
 terraform/demo-destroy.sh

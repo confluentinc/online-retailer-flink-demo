@@ -19,13 +19,13 @@ terraform {
       source  = "confluentinc/confluent"
       version = "2.32.0"
     }
-    docker = {
-      source  = "kreuzwerker/docker"
-      version = "~> 3.0"
+    archive = {
+      source  = "hashicorp/archive"
+      version = "~> 2.4"
     }
-    external = {
-      source  = "hashicorp/external"
-      version = "~> 2.3"
+    null = {
+      source  = "hashicorp/null"
+      version = "~> 3.2"
     }
   }
 }
@@ -41,13 +41,3 @@ provider "local" {}
 
 # TLS provider for generating SSH key pairs.
 provider "tls" {}
-
-data "aws_ecr_authorization_token" "ecr" {}
-
-provider "docker" {
-  registry_auth {
-    address  = replace(data.aws_ecr_authorization_token.ecr.proxy_endpoint, "https://", "")
-    username = data.aws_ecr_authorization_token.ecr.user_name
-    password = data.aws_ecr_authorization_token.ecr.password
-  }
-}
