@@ -89,7 +89,6 @@ If you are using an AWS Workshop Studio account:
 
 1. Find the `terraform.tfvars.template` file located in `online-retailer-flink-demo/terraform` and rename it to `terraform.tfvars`
 2. Replace the placeholders with your e-mail address, Confluent Cloud API Key and Secret
-3. Input the AWS cloud region you wish to run this workshop in based on the list of available regions listed in your AWS Workshop Studio event home page
 
 ### Step 4: Deploy Infrastructure
 
