@@ -58,10 +58,10 @@ Before joining payment and order streams, we need to ensure there are no duplica
 1. Check for the number of duplicates in the `payments` table:
 
    ```sql
-   SELECT COUNT(*) FROM
-   ( SELECT order_id, amount, count(*) total
-    FROM `payments`
-    GROUP BY order_id, amount )
+   SELECT COUNT(*) num_duplicate_payments FROM
+   ( SELECT order_id, count(*) total
+   FROM `payments`
+   GROUP BY order_id)
    WHERE total > 1;
    ```
 
@@ -119,9 +119,9 @@ Before joining payment and order streams, we need to ensure there are no duplica
 
 ---
 
-### Creating Completed Orders with Joins
+### Creating Completed Orders with Interval Joins
 
-Now we'll create a table that joins payments with orders to validate that each payment has a matching order.
+Now let's validate order completions by joining payments with orders. Our business rule is straightforward: an order is complete if we receive valid payment within 96 hours of the order timestamp. This scenario is perfect for Flink's interval joins, powerful feature designed specifically for correlating time-bounded events in streaming data.
 
 1. Create the `completed_orders` table:
    ```sql
