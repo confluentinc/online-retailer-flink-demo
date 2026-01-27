@@ -1,8 +1,8 @@
-
 # Real-Time Stream Processing Workshop
-### Build a Data Streaming Platform with Confluent Cloud & Apache Flink
 
-### 🎉👋 Welcome to GKO 2026!
+**Build a Data Streaming Platform with Confluent Cloud & Apache Flink**
+
+## 🎉👋 Welcome to GKO 2026!
 
 In this hands-on workshop, you'll build a real-time analytics platform for an online retailer using Confluent Cloud and Apache Flink.
 
@@ -18,7 +18,7 @@ By the end of this workshop, you'll have:
 - ✅ **Data governance** with schema validation and field-level encryption
 - ✅ **Analytics-ready datasets** in your data analysis engine
 
-**Time commitment:** 90 minutes total (45 min setup + 45 min labs)
+**Time commitment:** 90 minutes total (30 min setup + 60 min labs)
 
 ## Prerequisites
 
@@ -28,7 +28,7 @@ Before starting, make sure you have:
 |-------------|-------|
 | **Confluent Cloud account** with [API Keys](https://docs.confluent.io/cloud/current/security/authenticate/workload-identities/service-accounts/api-keys/overview.html#resource-scopes) (Org Admin permissions) | [Sign up here](https://www.confluent.io/get-started/) |
 | **AWS account** with credentials set | `aws configure` or set AWS env variables |
-| **Docker Desktop** installed and running | Docker must be logged in |
+| **Container Runtime** *installed and running* | Options include: <br/> - [Docker Desktop](https://docs.docker.com/desktop/) (Windows, Mac, Linux) </br> - [Podman](https://podman.io/docs) (Windows and Mac) <br/> - [Colima](https://github.com/abiosoft/colima) (Mac, Linux) |
 | **Terraform** installed | `brew install terraform` or [download](https://www.terraform.io/downloads) |
 | **Confluent CLI** installed | `brew install confluent-cli` |
 
@@ -58,7 +58,7 @@ aws configure  # Set up AWS credentials
 <video src="https://github.com/user-attachments/assets/68395ba4-c12c-4daa-b71b-168e7d14bf33" controls autoplay loop muted inline width="50%">
 </video>
 
-## Setup (Allow 30-45 minutes)
+## Setup (Allow 30 minutes)
 
 ### Step 1: Clone and Navigate
 
@@ -67,12 +67,48 @@ git clone -b gko-2026 https://github.com/confluentinc/online-retailer-flink-demo
 cd online-retailer-flink-demo/terraform
 ```
 
-#### Step 1.1: Update Your Terraform.tfvars file
+### Step 2: Configure AWS Account
 
-- Find the `terraform.tfvars.template` file located in `online-retailer-flink-demo/terraform` and rename it to `terraform.tfvars`
-- Replace the placeholders with your e-mail address, Confluent Cloud API Key and Secret, and input the AWS cloud region you wish to run this workshop in.
+If you are using an AWS Workshop Studio account:
 
-### Step 2: Deploy Infrastructure
+1. Click on the provided link to claim your AWS Workshop Studio account
+2. Once claimed, navigate to your AWS event home screen
+3. Click on the **Get AWS CLI credentials**
+
+   ![Menu for AWS CLI](assets/aws_cli_credentials.png)
+
+4. Copy the environment variable export commands for your operating system
+5. **Paste and execute the export commands in the same shell** where you will run your terraform commands
+
+> [!IMPORTANT]
+> **Same Shell Window Required**
+>
+> The AWS credential environment variables must be exported in the same shell window where you will run `terraform` commands
+
+### Step 3: Update Your Terraform.tfvars file
+
+1. Find the `terraform.tfvars.template` file located in `online-retailer-flink-demo/terraform` and rename it to `terraform.tfvars`
+2. Replace the placeholders with your e-mail address, Confluent Cloud API Key and Secret
+
+### Step 4: Deploy Infrastructure
+
+> [!IMPORTANT]
+> **Container Runtime Must Be Running**
+>
+> Before running Terraform, verify your container runtime is active. Run the appropriate command for your setup:
+>
+> | Runtime | Verify Command | Expected Output |
+> |---------|----------------|-----------------|
+> | **Docker Desktop** | `docker info` | Shows server version and status |
+> | **Podman** | `podman info` | Shows host and store info |
+> | **Colima** | `colima status` | Shows "colima is running" |
+>
+> If your container runtime isn't running, start it before proceeding:
+> - **Docker Desktop**: Open the Docker Desktop application
+> - **Podman**: Run `podman machine start`
+> - **Colima**: Run `colima start`
+
+Run these commands to initialize, validate and build-out your cloud infrastructure:
 
 ```bash
 terraform init
@@ -96,11 +132,16 @@ terraform apply -auto-approve
 
 Once deployment completes, start the hands-on labs:
 
-### [**LAB 1: Customer360 & Product Sales Analytics**](./LAB1/LAB1-README.md)
+### [**LAB 1: Payment Processing & Tableflow**](./LAB1/LAB1-README.md)
+Validate payments in real-time, compute daily trends, and materialize Kafka topics as Iceberg tables.
+
+### [**LAB 2: Customer360 & Product Sales Analytics**](./LAB2/LAB2-README.md) ⏱️ *Optional - Time Permitting*
 Learn to join streaming data with Flink SQL, mask PII data, and create enriched customer profiles.
 
-### [**LAB 2: Payment Processing & Tableflow**](./LAB2/LAB2-README.md)
-Validate payments in real-time, compute daily trends, and materialize Kafka topics as Iceberg tables.
+> [!TIP]
+> **Focus on LAB 1 first!**
+>
+> LAB 2 is optional and can be completed after the workshop if you run short on time.
 
 ---
 
@@ -113,7 +154,7 @@ Validate payments in real-time, compute daily trends, and materialize Kafka topi
 
 ### Step 1: Disable Tableflow
 
-Disable Tableflow for the `completed_orders` topic.
+Disable Tableflow on the `completed_orders` topic:
 
 1. Go to [Confluent Cloud](https://confluent.cloud)
 2. Select your environment (starts with `shiftleft-environment-...`)
@@ -123,6 +164,11 @@ Disable Tableflow for the `completed_orders` topic.
 6. Click the **Settings** tab
 7. Click **Disable Tableflow**
 8. Confirm the action
+
+> [!IMPORTANT]
+> **LAB 2 Topics**
+>
+> If you completed [LAB 2](./LAB2/LAB2-README.md), then repeat above steps 1-8 with the `product_sales` and `thirty_day_customer_snapshot` topics.
 
 ### Step 1.1: Delete Catalog Integration
 1. Navigate back to the Tableflow tab
@@ -149,6 +195,6 @@ demo-destroy.bat         # Windows
 
 ## Ready to Start?
 
-👉 **[Begin LAB 1: Customer360 & Product Sales Analytics](./LAB1/LAB1-README.md)**
+👉 **[Begin LAB 1: Payment Processing & Tableflow](./LAB1/LAB1-README.md)**
 
 Let's build something awesome! 🚀
