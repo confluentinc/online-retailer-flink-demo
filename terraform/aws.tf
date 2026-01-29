@@ -11,7 +11,6 @@ module "keypair" {
   common_tags = {
     Created_by  = "Shift-left Terraform script"
     Project     = "Online Retailer Demo"
-    owner_email = var.email
   }
 }
 
@@ -35,7 +34,6 @@ module "postgres" {
   common_tags = {
     Created_by  = "Shift-left Terraform script"
     Project     = "Online Retailer Demo"
-    owner_email = var.email
   }
 
   depends_on = [module.keypair, aws_vpc.ecs_vpc, aws_subnet.public_subnet]

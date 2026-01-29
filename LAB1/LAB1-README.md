@@ -121,7 +121,7 @@ Before joining payment and order streams, we need to ensure there are no duplica
 
 ### Creating Completed Orders with Interval Joins
 
-Now let's validate order completions by joining payments with orders. Our business rule is straightforward: an order is complete if we receive valid payment within 96 hours of the order timestamp. This scenario is perfect for Flink's interval joins, powerful feature designed specifically for correlating time-bounded events in streaming data.
+Now let's validate order completions by joining payments with orders. Our business rule is straightforward: an order is complete if we receive valid payment within **96** hours of the order timestamp. This scenario is perfect for Flink's interval joins, powerful feature designed specifically for correlating time-bounded events in streaming data.
 
 1. Create the `completed_orders` table:
    ```sql
@@ -140,8 +140,8 @@ Now let's validate order completions by joining payments with orders. Our busine
       pymt.confirmation_code,
       pymt.ts
    FROM unique_payments pymt, `shiftleft.public.orders` ord
-   WHERE pymt.order_id = ord.orderid
-   AND orderdate BETWEEN pymt.ts - INTERVAL '96' HOUR AND pymt.ts;
+   WHERE pymt.order_id = ord.<ENTER_FIELD>
+   AND orderdate BETWEEN pymt.ts - INTERVAL '<NUMBER_OF_HOURS>' HOUR AND pymt.ts;
    ```
 
 > [!NOTE]

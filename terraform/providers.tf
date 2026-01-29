@@ -7,7 +7,6 @@ provider "aws" {
     tags = {
       Created_by  = "Shift-left Terraform script"
       Project     = "Shift-left Demo"
-      owner_email = var.email
     }
   }
 }
