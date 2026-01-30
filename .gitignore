@@ -13,3 +13,5 @@ code/payments-app/src/main/datacontracts/avro/payments-value-dqr.json
 .DS_STORE
 *my-personal-terraform.tfvars*
 CLAUDE.md
+tfplan
+*.pem
