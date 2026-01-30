@@ -414,11 +414,6 @@ We'll add a `payment_method` field to track how customers pay. We'll evolve the 
      "namespace": "org.apache.flink.avro.generated.record",
      "fields": [
        {
-         "name": "order_id",
-         "type": ["null", "int"],
-         "default": null
-       },
-       {
          "name": "amount",
          "type": ["null", "double"],
          "default": null
@@ -458,7 +453,6 @@ Now we'll start a new Flink statement that writes data including the `payment_me
 
    INSERT INTO completed_orders
    SELECT
-      pymt.order_id AS key_order_id,
       pymt.order_id,
       pymt.amount,
       pymt.confirmation_code,
