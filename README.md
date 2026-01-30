@@ -27,18 +27,17 @@ Before starting, make sure you have:
 | Requirement | Check |
 |-------------|-------|
 | **Confluent Cloud account** with [API Keys](https://docs.confluent.io/cloud/current/security/authenticate/workload-identities/service-accounts/api-keys/overview.html#resource-scopes) (Org Admin permissions) | [Sign up here](https://www.confluent.io/get-started/) |
-| **AWS account** with credentials set | `aws configure` or set AWS env variables |
+| **AWS account** with credentials set | Set AWS env variables |
 | **Container Runtime** *installed and running* | Options include: <br/> - [Docker Desktop](https://docs.docker.com/desktop/) (Windows, Mac, Linux) </br> - [Podman](https://podman.io/docs) (Windows and Mac) <br/> - [Colima](https://github.com/abiosoft/colima) (Mac, Linux) |
 | **Terraform** installed | `brew install terraform` or [download](https://www.terraform.io/downloads) |
-| **Confluent CLI** installed | `brew install confluent-cli` |
+
 
 <details>
 <summary>📦 Quick Install Commands</summary>
 
 **macOS:**
 ```bash
-brew install git terraform confluent-cli docker
-aws configure  # Set up AWS credentials or alternatively set your environment variables for AWS Key and Secret
+brew install git terraform docker
 ```
 
 **Windows (PowerShell):**
@@ -46,9 +45,6 @@ aws configure  # Set up AWS credentials or alternatively set your environment va
 winget install -e --id Git.Git
 winget install -e --id HashiCorp.Terraform
 winget install -e --id Docker.DockerDesktop
-winget install -e --id Confluentinc.CLI
-winget install -e --id Amazon.AWSCLI
-aws configure  # Set up AWS credentials
 ```
 </details>
 
@@ -88,7 +84,7 @@ If you are using an AWS Workshop Studio account:
 ### Step 3: Update Your Terraform.tfvars file
 
 1. Find the `terraform.tfvars.template` file located in `online-retailer-flink-demo/terraform` and rename it to `terraform.tfvars`
-2. Replace the placeholders with your e-mail address, Confluent Cloud API Key and Secret
+2. Replace the placeholders with your Confluent Cloud API Key and Secret
 
 ### Step 4: Deploy Infrastructure
 
