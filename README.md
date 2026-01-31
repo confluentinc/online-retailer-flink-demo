@@ -30,6 +30,8 @@ Before starting, make sure you have:
 | **AWS account** with credentials set | Set AWS env variables |
 | **Container Runtime** *installed and running* | Options include: <br/> - [Docker Desktop](https://docs.docker.com/desktop/) (Windows, Mac, Linux) </br> - [Podman](https://podman.io/docs) (Windows and Mac) <br/> - [Colima](https://github.com/abiosoft/colima) (Mac, Linux) |
 | **Terraform** installed | `brew install terraform` or [download](https://www.terraform.io/downloads) |
+| **GIT CLI** installed | `brew install git`  |
+| **AWS CLI** installed | `brew install awscli`  |
 
 
 <details>
@@ -37,7 +39,7 @@ Before starting, make sure you have:
 
 **macOS:**
 ```bash
-brew install git terraform docker
+brew install git terraform docker awscli
 ```
 
 **Windows (PowerShell):**
@@ -45,6 +47,7 @@ brew install git terraform docker
 winget install -e --id Git.Git
 winget install -e --id HashiCorp.Terraform
 winget install -e --id Docker.DockerDesktop
+winget install -e --id Amazon.AWSCLI
 ```
 </details>
 
@@ -74,7 +77,19 @@ If you are using an AWS Workshop Studio account:
    ![Menu for AWS CLI](assets/aws_cli_credentials.png)
 
 4. Copy the environment variable export commands for your operating system
-5. **Paste and execute the export commands in the same shell** where you will run your terraform commands
+5. **Paste and execute the export commands in the same shell** where you will run your terraform commands.
+6. Verify you are using the correct AWS account by running:
+   ```
+   aws sts get-caller-identity
+   ```
+   If you are using AWS Workshop Studio, you should have an output that looks like this:
+   ```
+   {
+   "UserId": "AROA4AFJ7PWFSQYLGZ3YL:Participant",
+   "Account": "xxxxxxxxxx",
+   "Arn": "arn:aws:sts::xxxxxxxxxx:assumed-role/WSParticipantRole/Participant"
+   }
+   ```
 
 > [!IMPORTANT]
 > **Same Shell Window Required**
@@ -85,6 +100,13 @@ If you are using an AWS Workshop Studio account:
 
 1. Find the `terraform.tfvars.template` file located in `online-retailer-flink-demo/terraform` and rename it to `terraform.tfvars`
 2. Replace the placeholders with your Confluent Cloud API Key and Secret
+
+> [!IMPORTANT]
+> **Use the new Confluent Cloud account you created for GKO**
+>
+> Confluent Cloud accounts have a soft limit of 20 environments. Using a shared account may cause us to hit this limit.  
+> Make sure you use the Cloud Resource Management API keys created in the new GKO account.
+
 
 ### Step 4: Deploy Infrastructure
 
