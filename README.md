@@ -105,7 +105,7 @@ If you are using an AWS Workshop Studio account:
 > **Use the new Confluent Cloud account you created for GKO**
 >
 > Confluent Cloud accounts have a soft limit of 20 environments. Using a shared account may cause us to hit this limit.  
-> Make sure you use the Cloud Resource Management API keys created in the new Confluent Cloud account created for GKO.
+> Make sure you use the Cloud Resource Management API keys for the new Confluent Cloud account created for GKO.
 
 
 
