@@ -6,29 +6,15 @@ resource "aws_iam_access_key" "payments_app_aws_key" {
   user = aws_iam_user.payments_app_user.name
 }
 
-locals {
-  is_windows = fileexists("C:\\Windows\\System32\\cmd.exe")
-}
-
-data "external" "arch_windows" {
-  count   = local.is_windows ? 1 : 0
-  program = ["powershell", "-NoProfile", "-Command", "$arch=$env:PROCESSOR_ARCHITECTURE; Write-Output ('{\"arch\":\"' + $arch + '\"}')"]
-}
-
-data "external" "arch_unix" {
-  count   = local.is_windows ? 0 : 1
-  program = ["/bin/sh", "-c", "printf '{\"arch\":\"%s\"}' \"$(uname -m)\""]
-}
-
-locals {
-  detected_arch     = local.is_windows ? lower(trimspace(data.external.arch_windows[0].result.arch)) : lower(trimspace(data.external.arch_unix[0].result.arch))
-  cpu_architecture  = contains(["arm64", "aarch64"], local.detected_arch) ? "ARM64" : "X86_64"
-}
+# NOTE: CPU architecture is now configured via the cpu_architecture variable.
+# This should match the architecture of your pre-built Docker images.
+# If building on CI (e.g., GitHub Actions), this is typically X86_64.
+# If building on Apple Silicon, use ARM64.
 
 
 resource "aws_iam_user_policy" "payments_app_iam_policy" {
-  name   = "payments_app_iam_policy__${random_id.env_display_id.hex}"
-  user   = aws_iam_user.payments_app_user.name
+  name = "payments_app_iam_policy__${random_id.env_display_id.hex}"
+  user = aws_iam_user.payments_app_user.name
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
@@ -43,86 +29,12 @@ resource "aws_iam_user_policy" "payments_app_iam_policy" {
   })
 }
 
-# Create and write the DB Feeder application.properties file to the appropriate path
-resource "local_file" "db_feeder_properties" {
-  filename = "../code/postgresql-data-feeder/src/main/resources/db.properties"
-  content  = <<-EOT
-    db.url=jdbc:postgresql://${module.postgres.public_ip}/onlinestoredb
-    db.user=${var.db_username}
-    db.password=${var.db_password}
-  EOT
-  }
+# NOTE: Properties files are no longer generated here.
+# Java apps now read configuration from environment variables injected via ECS task definitions.
+# See the ECS task definitions below for environment variable configuration.
 
-# Create and write the Payments app application.properties file to the appropriate path
-resource "local_file" "payment_app_properties" {
-  filename = "../code/payments-app/src/main/resources/cc-orders.properties"
-  content  = <<-EOT
-#Environment: inventory_mgmt
-#Cluster: inventory analytics
-bootstrap.servers=${confluent_kafka_cluster.standard.bootstrap_endpoint}
-security.protocol=SASL_SSL
-ssl.endpoint.identification.algorithm=https
-sasl.mechanism=PLAIN
-num.partitions=6
-replication.factor=3
-sasl.jaas.config=org.apache.kafka.common.security.plain.PlainLoginModule required username="${confluent_api_key.app-manager-kafka-api-key.id}" password="${confluent_api_key.app-manager-kafka-api-key.secret}";
-
-
-# Confluent Cloud Schema Registry
-schema.registry.url=${data.confluent_schema_registry_cluster.sr-cluster.rest_endpoint}
-schema.registry.basic.auth.user.info= ${confluent_api_key.app-manager-schema-registry-api-key.id}:${confluent_api_key.app-manager-schema-registry-api-key.secret}
-basic.auth.credentials.source=USER_INFO
-
-## Data quality rules
-#KMS Props
-rule.executors._default_.param.access.key.id=${aws_iam_access_key.payments_app_aws_key.id}
-rule.executors._default_.param.secret.access.key=${aws_iam_access_key.payments_app_aws_key.secret}
-  EOT
-  }
-
-# Create and write the Payments App Data Quality Rules file to the appropriate path
-resource "local_file" "payment_app_dqr" {
-  filename = "../code/payments-app/src/main/datacontracts/avro/payments-value-dqr.json"
-  content  = <<-EOT
-  {
-    "metadata": {
-        "tags": {
-            "Sale.cc_number": [ "pci" ]
-        }
-    },
-    "ruleSet": {
-        "domainRules": [
-            {
-                "name": "pci_encrypt",
-                "kind": "TRANSFORM",
-                "mode": "WRITEREAD",
-                "type": "ENCRYPT",
-                "tags": ["pci"],
-                "params": {
-                    "encrypt.kek.name": "pci_encrypt_key",
-                    "encrypt.kms.key.id": "${aws_kms_key.kms_key.arn}",
-                    "encrypt.kms.type": "aws-kms"
-                },
-                "onFailure": "ERROR,NONE",
-                "disabled": false
-            },
-            {
-                "name": "validateConfirmationCode",
-                "kind": "CONDITION",
-                "mode": "WRITE",
-                "type": "CEL",
-                "expr": "message.confirmation_code.matches('^[A-Z0-9]{8}$')",
-                "onFailure": "DLQ",
-                "params": {
-                    "dlq.topic": "error-payments",
-                    "dlq.auto.flush": "true"
-                }
-            }
-        ]
-    }
-}
-  EOT
-  }
+# NOTE: Data Quality Rules (DQR) are registered via confluent_schema_registry_kek resource in confluent.tf
+# The DQR file is not needed in the source code as it's not used by the producer.
 
 # -------------------------------
 # Containers Networking
@@ -141,8 +53,8 @@ resource "aws_vpc" "ecs_vpc" {
 
 # Public Subnet
 resource "aws_subnet" "public_subnet" {
-  vpc_id            = aws_vpc.ecs_vpc.id
-  cidr_block        = "10.0.1.0/24"
+  vpc_id                  = aws_vpc.ecs_vpc.id
+  cidr_block              = "10.0.1.0/24"
   map_public_ip_on_launch = true
 }
 
@@ -163,8 +75,8 @@ resource "aws_route_table" "public_route_table" {
   vpc_id = aws_vpc.ecs_vpc.id
 
   route {
-    cidr_block = "0.0.0.0/0"  # This route allows all outbound traffic
-    gateway_id = aws_internet_gateway.igw.id  # Route to the Internet Gateway
+    cidr_block = "0.0.0.0/0"                 # This route allows all outbound traffic
+    gateway_id = aws_internet_gateway.igw.id # Route to the Internet Gateway
   }
 }
 
@@ -202,65 +114,15 @@ resource "aws_security_group" "ecs_sg" {
 
 
 # -------------------------------
-# Create ECR Repositories
+#  ECR Public Image References
 # -------------------------------
-
-resource "aws_ecr_repository" "payment_app_repo" {
-  name = "${var.prefix}-payment-app-repo-${random_id.env_display_id.hex}"
-  force_delete = true
-  lifecycle {
-    prevent_destroy = false
-  }
-}
-
-resource "aws_ecr_repository" "dbfeeder_app_repo" {
-  name = "${var.prefix}-dbfeeder-app-repo-${random_id.env_display_id.hex}"
-  force_delete = true
-  lifecycle {
-    prevent_destroy = false
-  }
-}
-
-
-# -------------------------------
-#  Build and Push Docker Images for Both Apps
-# -------------------------------
+# NOTE: Docker images are pre-built by the workshop maintainer and hosted on ECR Public.
+# Workshop participants do not need to build or push images.
+# See REMOVE_DOCKER_BUILD.md for details.
 
 locals {
-  payment_app_image_tag  = "${aws_ecr_repository.payment_app_repo.repository_url}:latest"
-  dbfeeder_app_image_tag = "${aws_ecr_repository.dbfeeder_app_repo.repository_url}:latest"
-}
-
-# Build and Push Payment App using Docker provider
-resource "docker_image" "payment_app" {
-  name = "${aws_ecr_repository.payment_app_repo.repository_url}:latest"
-  build {
-    context = "../code/payments-app"
-  }
-  depends_on = [
-    local_file.payment_app_properties,
-    local_file.payment_app_dqr
-  ]
-}
-
-resource "docker_registry_image" "payment_app" {
-  name = docker_image.payment_app.name
-}
-
-# Build and Push DB Feeder App using Docker provider
-resource "docker_image" "dbfeeder_app" {
-  name = "${aws_ecr_repository.dbfeeder_app_repo.repository_url}:latest"
-  build {
-    context = "../code/postgresql-data-feeder"
-  }
-  depends_on = [
-    local_file.db_feeder_properties,
-    module.postgres
-  ]
-}
-
-resource "docker_registry_image" "dbfeeder_app" {
-  name = docker_image.dbfeeder_app.name
+  payment_app_image  = "public.ecr.aws/${var.ecr_public_alias}/${var.payments_app_image_name}:${var.image_tag}"
+  dbfeeder_app_image = "public.ecr.aws/${var.ecr_public_alias}/${var.data_feeder_image_name}:${var.image_tag}"
 }
 
 
@@ -298,11 +160,11 @@ resource "aws_iam_role" "ecs_task_execution_role" {
     Version = "2012-10-17"
     Statement = [
       {
-        Effect    = "Allow"
+        Effect = "Allow"
         Principal = {
           Service = "ecs-tasks.amazonaws.com"
         }
-        Action    = "sts:AssumeRole"
+        Action = "sts:AssumeRole"
       }
     ]
   })
@@ -321,11 +183,11 @@ resource "aws_iam_role" "ecs_container_role" {
     Version = "2012-10-17"
     Statement = [
       {
-        Effect    = "Allow"
+        Effect = "Allow"
         Principal = {
           Service = "ecs-tasks.amazonaws.com"
         }
-        Action    = "sts:AssumeRole"
+        Action = "sts:AssumeRole"
       }
     ]
   })
@@ -357,19 +219,55 @@ resource "aws_ecs_task_definition" "payment_app_task" {
   cpu                      = "256"
   runtime_platform {
     operating_system_family = "LINUX"
-    cpu_architecture        = local.cpu_architecture
+    cpu_architecture        = var.cpu_architecture
   }
 
   container_definitions = jsonencode([
     {
       name      = "payment-app"
-      image     = "${aws_ecr_repository.payment_app_repo.repository_url}@${docker_registry_image.payment_app.sha256_digest}"
+      image     = local.payment_app_image
       essential = true
+
+      environment = [
+        {
+          name  = "BOOTSTRAP_SERVERS"
+          value = confluent_kafka_cluster.standard.bootstrap_endpoint
+        },
+        {
+          name  = "SASL_USERNAME"
+          value = confluent_api_key.app-manager-kafka-api-key.id
+        },
+        {
+          name  = "SASL_PASSWORD"
+          value = confluent_api_key.app-manager-kafka-api-key.secret
+        },
+        {
+          name  = "SCHEMA_REGISTRY_URL"
+          value = data.confluent_schema_registry_cluster.sr-cluster.rest_endpoint
+        },
+        {
+          name  = "SR_API_KEY"
+          value = confluent_api_key.app-manager-schema-registry-api-key.id
+        },
+        {
+          name  = "SR_API_SECRET"
+          value = confluent_api_key.app-manager-schema-registry-api-key.secret
+        },
+        {
+          name  = "AWS_ACCESS_KEY_ID"
+          value = aws_iam_access_key.payments_app_aws_key.id
+        },
+        {
+          name  = "AWS_SECRET_ACCESS_KEY"
+          value = aws_iam_access_key.payments_app_aws_key.secret
+        }
+      ]
+
       logConfiguration = {
         logDriver = "awslogs"
         options = {
           awslogs-group         = aws_cloudwatch_log_group.payments-task-log-group.name
-          awslogs-region        = "${var.cloud_region}"
+          awslogs-region        = var.cloud_region
           awslogs-stream-prefix = "ecs"
         }
       }
@@ -395,19 +293,35 @@ resource "aws_ecs_task_definition" "dbfeeder_app_task" {
   cpu                      = "256"
   runtime_platform {
     operating_system_family = "LINUX"
-    cpu_architecture        = local.cpu_architecture
+    cpu_architecture        = var.cpu_architecture
   }
 
   container_definitions = jsonencode([
     {
       name      = "dbfeeder-app"
-      image     = "${aws_ecr_repository.dbfeeder_app_repo.repository_url}@${docker_registry_image.dbfeeder_app.sha256_digest}"
+      image     = local.dbfeeder_app_image
       essential = true
+
+      environment = [
+        {
+          name  = "DB_URL"
+          value = "jdbc:postgresql://${module.postgres.public_ip}:5432/onlinestoredb"
+        },
+        {
+          name  = "DB_USER"
+          value = var.db_username
+        },
+        {
+          name  = "DB_PASSWORD"
+          value = var.db_password
+        }
+      ]
+
       logConfiguration = {
         logDriver = "awslogs"
         options = {
           awslogs-group         = aws_cloudwatch_log_group.dbfeeder-log-group.name
-          awslogs-region        = "${var.cloud_region}"
+          awslogs-region        = var.cloud_region
           awslogs-stream-prefix = "ecs"
         }
       }
@@ -437,10 +351,9 @@ resource "aws_ecs_service" "payment_app_service" {
   }
 
   depends_on = [
-  docker_registry_image.payment_app,
-  confluent_kafka_topic.error-payments-topic,
-  confluent_kafka_topic.payments-topic,
-  confluent_schema.avro-payments
+    confluent_kafka_topic.error-payments-topic,
+    confluent_kafka_topic.payments-topic,
+    confluent_schema.avro-payments
   ]
 }
 
@@ -461,7 +374,6 @@ resource "aws_ecs_service" "dbfeeder_app_service" {
   }
 
   depends_on = [
-    docker_registry_image.dbfeeder_app,
     module.postgres
-    ]
+  ]
 }
