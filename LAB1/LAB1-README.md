@@ -209,7 +209,7 @@ Now we'll connect Tableflow to AWS Glue Data Catalog so our Iceberg tables are d
 
 5. Click **Launch**
 
-6. The status will show **Pending** at first but will eventually update to **Connected**
+6. The status will show **Pending** at first, but will eventually update to **Connected**. Do not wait for it to change, proceed to the next step.
 
    ![Catalog Connected](../LAB2/assets/catalog-connected.png)
 

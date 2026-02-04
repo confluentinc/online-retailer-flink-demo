@@ -1,3 +1,8 @@
+# Helper local for OS detection (used by destroy script generation)
+locals {
+  is_windows = fileexists("C:\\Windows\\System32\\cmd.exe")
+}
+
 output "resource-ids" {
 
   value = <<-EOT
@@ -58,6 +63,14 @@ output "resource-ids" {
 
 output "ecs-service-restart-command" {
   value = "aws ecs update-service --cluster ${aws_ecs_cluster.ecs_cluster.name} --service payment-app-service --force-new-deployment --region ${var.cloud_region}"
+}
+
+output "ecr-public-images" {
+  description = "ECR Public image URLs being used"
+  value = {
+    payments_app = local.payment_app_image
+    data_feeder  = local.dbfeeder_app_image
+  }
 }
 
 # Create destroy.sh file based on variables used in this script

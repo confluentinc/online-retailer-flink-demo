@@ -26,27 +26,24 @@ Before starting, make sure you have:
 
 | Requirement | Check |
 |-------------|-------|
-| **Confluent Cloud account** with [API Keys](https://docs.confluent.io/cloud/current/security/authenticate/workload-identities/service-accounts/api-keys/overview.html#resource-scopes) (Org Admin permissions) | [Sign up here](https://www.confluent.io/get-started/) |
+| **Confluent Cloud account** with [API Keys](https://docs.confluent.io/cloud/current/security/authenticate/workload-identities/service-accounts/api-keys/overview.html#resource-scopes) (`Cloud resource management` permissions) | [Sign up here](https://www.confluent.io/get-started/) |
 | **AWS account** with credentials set | Set AWS env variables |
-| **Container Runtime** *installed and running* | Options include: <br/> - [Docker Desktop](https://docs.docker.com/desktop/) (Windows, Mac, Linux) </br> - [Podman](https://podman.io/docs) (Windows and Mac) <br/> - [Colima](https://github.com/abiosoft/colima) (Mac, Linux) |
 | **Terraform** installed | `brew install terraform` or [download](https://www.terraform.io/downloads) |
 | **GIT CLI** installed | `brew install git`  |
 | **AWS CLI** installed | `brew install awscli`  |
-
 
 <details>
 <summary>📦 Quick Install Commands</summary>
 
 **macOS:**
 ```bash
-brew install git terraform docker awscli
+brew install git terraform awscli
 ```
 
 **Windows (PowerShell):**
 ```powershell
 winget install -e --id Git.Git
 winget install -e --id HashiCorp.Terraform
-winget install -e --id Docker.DockerDesktop
 winget install -e --id Amazon.AWSCLI
 ```
 </details>
@@ -104,28 +101,14 @@ If you are using an AWS Workshop Studio account:
 > [!IMPORTANT]
 > **Use the new Confluent Cloud account you created for GKO**
 >
-> Confluent Cloud accounts have a soft limit of 20 environments. Using a shared account may cause us to hit this limit.  
+> Confluent Cloud accounts have a soft limit of 20 environments. Using a shared account may cause us to hit this limit.
 > Make sure you use the Cloud Resource Management API keys for the new Confluent Cloud account created for GKO.
+>
+> ![API Key Cloud](./assets/cloud_resource_management.png)
 
 
 
 ### Step 4: Deploy Infrastructure
-
-> [!IMPORTANT]
-> **Container Runtime Must Be Running**
->
-> Before running Terraform, verify your container runtime is active. Run the appropriate command for your setup:
->
-> | Runtime | Verify Command | Expected Output |
-> |---------|----------------|-----------------|
-> | **Docker Desktop** | `docker info` | Shows server version and status |
-> | **Podman** | `podman info` | Shows host and store info |
-> | **Colima** | `colima status` | Shows "colima is running" |
->
-> If your container runtime isn't running, start it before proceeding:
-> - **Docker Desktop**: Open the Docker Desktop application
-> - **Podman**: Run `podman machine start`
-> - **Colima**: Run `colima start`
 
 Run these commands to initialize, validate and build-out your cloud infrastructure:
 
@@ -144,6 +127,7 @@ terraform apply -auto-approve
 > - AWS PostgreSQL database
 > - S3 buckets for data lake
 > - Schema Registry and Stream Governance
+> - ECS services running pre-built container images
 
 ---
 
@@ -152,9 +136,11 @@ terraform apply -auto-approve
 Once deployment completes, start the hands-on labs:
 
 ### [**LAB 1: Payment Processing & Tableflow**](./LAB1/LAB1-README.md)
+
 Validate payments in real-time, compute daily trends, and materialize Kafka topics as Iceberg tables.
 
 ### [**LAB 2: Customer360 & Product Sales Analytics**](./LAB2/LAB2-README.md) ⏱️ *Optional - Time Permitting*
+
 Learn to join streaming data with Flink SQL, mask PII data, and create enriched customer profiles.
 
 > [!TIP]
@@ -190,6 +176,7 @@ Disable Tableflow on the `completed_orders` topic:
 > If you completed [LAB 2](./LAB2/LAB2-README.md), then repeat above steps 1-8 with the `product_sales` and `thirty_day_customer_snapshot` topics.
 
 ### Step 1.1: Delete Catalog Integration
+
 1. Navigate back to the Tableflow tab
 2. Find your Catalog Integration (`my-glue-integration`) and click the trash icon to delete it.
 
