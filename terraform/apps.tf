@@ -43,6 +43,28 @@ resource "aws_iam_user_policy" "payments_app_iam_policy" {
 # -------------------------------
 #  VPC and Subnets
 # -------------------------------
+# Pick an AZ that supports the Postgres instance type.
+data "aws_availability_zones" "available" {
+  state = "available"
+}
+
+data "aws_ec2_instance_type_offerings" "postgres" {
+  location_type = "availability-zone"
+
+  filter {
+    name   = "instance-type"
+    values = [var.postgres_instance_type]
+  }
+
+  filter {
+    name   = "location"
+    values = data.aws_availability_zones.available.names
+  }
+}
+
+locals {
+  public_subnet_az = length(data.aws_ec2_instance_type_offerings.postgres.locations) > 0 ? data.aws_ec2_instance_type_offerings.postgres.locations[0] : data.aws_availability_zones.available.names[0]
+}
 
 # VPC
 resource "aws_vpc" "ecs_vpc" {
@@ -55,7 +77,7 @@ resource "aws_vpc" "ecs_vpc" {
 resource "aws_subnet" "public_subnet" {
   vpc_id                  = aws_vpc.ecs_vpc.id
   cidr_block              = "10.0.1.0/24"
-  availability_zone       = "${var.cloud_region}a" # Forces AZ suffix "a"
+  availability_zone       = local.public_subnet_az
   map_public_ip_on_launch = true
 }
 
