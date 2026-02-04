@@ -1,2 +1,5 @@
 confluent_cloud_api_key    = "<API_KEY>"
 confluent_cloud_api_secret = "<API_SECRET>"
+
+cloud_region = "us-west-2"
+# Pick us-west-2 or us-east-1

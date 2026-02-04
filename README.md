@@ -26,12 +26,11 @@ Before starting, make sure you have:
 
 | Requirement | Check |
 |-------------|-------|
-| **Confluent Cloud account** with [API Keys](https://docs.confluent.io/cloud/current/security/authenticate/workload-identities/service-accounts/api-keys/overview.html#resource-scopes) (Org Admin permissions) | [Sign up here](https://www.confluent.io/get-started/) |
+| **Confluent Cloud account** with [API Keys](https://docs.confluent.io/cloud/current/security/authenticate/workload-identities/service-accounts/api-keys/overview.html#resource-scopes) (`Cloud resource management` permissions) | [Sign up here](https://www.confluent.io/get-started/) |
 | **AWS account** with credentials set | Set AWS env variables |
 | **Terraform** installed | `brew install terraform` or [download](https://www.terraform.io/downloads) |
 | **GIT CLI** installed | `brew install git`  |
 | **AWS CLI** installed | `brew install awscli`  |
-
 
 <details>
 <summary>📦 Quick Install Commands</summary>
@@ -104,6 +103,8 @@ If you are using an AWS Workshop Studio account:
 >
 > Confluent Cloud accounts have a soft limit of 20 environments. Using a shared account may cause us to hit this limit.
 > Make sure you use the Cloud Resource Management API keys for the new Confluent Cloud account created for GKO.
+>
+> ![API Key Cloud](./assets/cloud_resource_management.png)
 
 
 

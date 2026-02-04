@@ -7,7 +7,6 @@ variable "prefix" {
 variable "cloud_region" {
   description = "AWS Cloud Region"
   type        = string
-  default     = "us-east-1"
 }
 
 variable "db_username" {

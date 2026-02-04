@@ -119,12 +119,11 @@ Before joining payment and order streams, we need to ensure there are no duplica
 
 ---
 
-### 🎯 [CHALLENGE] Creating Completed Orders with Interval Joins
+### Creating Completed Orders with Interval Joins
 
-Now let's validate order completions by joining payments with orders. Our business rule is straightforward: an order is complete if we receive valid payment within **96** hours of the order timestamp. This scenario is perfect for Flink's interval joins, powerful feature designed specifically for correlating time-bounded events in streaming data.
+Now let's validate order completions by joining payments with orders. Our business rule is straightforward: an order is complete if we receive valid payment within 96 hours of the order timestamp. This scenario is perfect for Flink's interval joins, powerful feature designed specifically for correlating time-bounded events in streaming data.
 
-1. Replace the placeholders below (`<ENTER_FIELD>` and `<NUMBER_OF_HOURS>`) with the appropriate values, run the statement to create the `completed_orders` table.
-
+1. Create the `completed_orders` table:
    ```sql
    SET 'client.statement-name' = 'completed-orders-materializer';
    CREATE TABLE completed_orders (
@@ -141,8 +140,8 @@ Now let's validate order completions by joining payments with orders. Our busine
       pymt.confirmation_code,
       pymt.ts
    FROM unique_payments pymt, `shiftleft.public.orders` ord
-   WHERE pymt.order_id = ord.<ENTER_FIELD>
-   AND orderdate BETWEEN pymt.ts - INTERVAL '<NUMBER_OF_HOURS>' HOUR AND pymt.ts;
+   WHERE pymt.order_id = ord.orderid
+   AND orderdate BETWEEN pymt.ts - INTERVAL '96' HOUR AND pymt.ts;
    ```
 
 > [!NOTE]
@@ -209,7 +208,7 @@ Now we'll connect Tableflow to AWS Glue Data Catalog so our Iceberg tables are d
 
 5. Click **Launch**
 
-6. The status will show **Pending** at first but will eventually update to **Connected**
+6. The status will show **Pending** at first, but will eventually update to **Connected**. Do not wait for it to change, proceed to the next step.
 
    ![Catalog Connected](../LAB2/assets/catalog-connected.png)
 
@@ -414,6 +413,11 @@ We'll add a `payment_method` field to track how customers pay. We'll evolve the 
      "namespace": "org.apache.flink.avro.generated.record",
      "fields": [
        {
+         "name": "order_id",
+         "type": ["null", "int"],
+         "default": null
+       },
+       {
          "name": "amount",
          "type": ["null", "double"],
          "default": null
@@ -453,6 +457,7 @@ Now we'll start a new Flink statement that writes data including the `payment_me
 
    INSERT INTO completed_orders
    SELECT
+      pymt.order_id AS key_order_id,
       pymt.order_id,
       pymt.amount,
       pymt.confirmation_code,
