@@ -60,7 +60,7 @@ We make sure of this with **[Data Quality Rules](https://docs.confluent.io/cloud
 
 3. Inspect a few recent records—you'll see the `cc_number` field is in plain text
 
-   ![Unencrypted Messages](./assets/plain_text_cc_number.png)
+   <img src="./assets/plain_text_cc_number.png" alt="Unencrypted Messages" width="600">
 
 This is a security risk! Let's fix it by adding a PII tag and an encryption rule.
 
@@ -104,7 +104,7 @@ We'll tag the `cc_number` field as PII and create an encryption rule in a single
     * **Encrypt fields with:** `PII`
     * **using:** Select the AWS KMS key created by Terraform (likely named `CSFLE_Key`)
 
-    ![CSFLE Rule](./assets/csfle_rule.png)
+    <img src="./assets/csfle_rule.png" alt="CSFLE Rule" width="600">
 
 12. Keep default selections for the remaining sections
 
@@ -114,7 +114,7 @@ We'll tag the `cc_number` field as PII and create an encryption rule in a single
 
 Your *Domain Rules* section should look like this:
 
-![data contracts with two rules](./assets/data_contracts_rules.png)
+<img src="./assets/data_contracts_rules.png" alt="Data contracts with two rules" width="600">
 
 **What this rule does:**
 * Tags `cc_number` as PII so governance policies can identify it
@@ -161,7 +161,7 @@ For the CSFLE encryption rule and Data Quality rule to take effect, we need to r
 
 4. The `cc_number` field should now display encrypted data instead of plain text
 
-   ![Encrypted Field](./assets/encrypted_cc_number.png)
+   <img src="./assets/encrypted_cc_number.png" alt="Encrypted Field" width="600">
 
 5. Compare this with older messages (before the restart) which still show unencrypted credit card numbers
 
