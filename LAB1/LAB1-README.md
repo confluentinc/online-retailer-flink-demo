@@ -571,6 +571,8 @@ You're now ready to query your Tableflow-managed Iceberg tables from Snowflake!
    LIMIT 10;
    ```
 
+
+
 > [!IMPORTANT]
 > **Athena Query Output Location**
 >
