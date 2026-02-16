@@ -328,9 +328,7 @@ You should see 20 rows with values for `order_id`, `amount`, `confirmation_code`
 > [!NOTE]
 > **Invalid Confirmation Codes**
 >
-> You may notice that some of the records contain a `0` for their confirmation code.
->
-> These are invalid, and the Data Quality rule you created in Part 1 will redirect messages with invalid confirmation codes to the `error-payments` Dead Letter Queue (DLQ)!
+> You may notice that some of the records contain a `0` for their confirmation code. These messages were written before we applied the DQR rule in Part 1. All new messages will have a valid confirmation code — any payment with an invalid confirmation code will now get routed to the `error-payments` Dead Letter Queue (DLQ).
 
 ---
 
