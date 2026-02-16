@@ -398,6 +398,11 @@ Now we'll enable Tableflow to automatically materialize the `completed_orders` t
 
 > **Key Point:** Tableflow automatically infers the schema from Schema Registry. No manual schema mapping required!
 
+> [!NOTE]
+> **Grab a coffee and take a 10 min break!** ☕
+>
+> After enabling Tableflow, it may take 5-15 minutes for data to become available for querying.
+
 ---
 
 ## Part 4: Tableflow Deepdive
@@ -542,11 +547,6 @@ You're now ready to query your Tableflow-managed Iceberg tables from Snowflake!
 ---
 
 ### Querying Your Data
-
-> [!NOTE]
-> **5-15 minutes for Data Materialization**
->
-> After enabling Tableflow, it may take 5-15 minutes for data to become available for querying.
 
 <details>
 <summary>Query with Amazon Athena</summary>
