@@ -104,7 +104,7 @@ We'll tag the `cc_number` field as PII and create an encryption rule in a single
     * **Encrypt fields with:** `PII`
     * **using:** Select the AWS KMS key created by Terraform (likely named `CSFLE_Key`)
 
-    <img src="./assets/csfle_rule.png" alt="CSFLE Rule" width="600">
+    <img src="./assets/csfle_rule.png" alt="CSFLE Rule" width="400">
 
 12. Keep default selections for the remaining sections
 
