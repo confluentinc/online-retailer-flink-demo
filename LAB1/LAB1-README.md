@@ -565,13 +565,13 @@ You're now ready to query your Tableflow-managed Iceberg tables from Snowflake!
 
 5. Run a basic query to verify data is flowing:
 
+   > **Athena Query Output Location:** You may need to supply an output location for your Athena query if you haven't configured this before. Instructions can be found [here](https://docs.aws.amazon.com/athena/latest/ug/creating-databases-prerequisites.html). Feel free to use the same S3 bucket we are using for Tableflow data.
+
    ```sql
    SELECT *
    FROM "completed_orders"
    LIMIT 10;
    ```
-
-> **Athena Query Output Location:** You may need to supply an output location for your Athena query if you haven't configured this before. Instructions can be found [here](https://docs.aws.amazon.com/athena/latest/ug/creating-databases-prerequisites.html). Feel free to use the same S3 bucket we are using for Tableflow data.
 
 </details>
 
