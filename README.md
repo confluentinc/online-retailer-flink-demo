@@ -33,6 +33,7 @@ Before starting, make sure you have:
 | **GIT CLI** installed | `brew install git`  |
 | **AWS CLI** installed | `brew install awscli`  |
 | **Snowflake account** *(optional)* | With ACCOUNTADMIN privileges. For querying Iceberg tables as an alternative to Athena |
+| **Confluent CLI** *(optional)* | Required for CSFLE cleanup. `brew install confluentinc/tap/confluent` or [download](https://docs.confluent.io/confluent-cli/current/install.html) |
 
 <details>
 <summary>📦 Quick Install Commands</summary>
@@ -99,14 +100,6 @@ If you are using an AWS Workshop Studio account:
 
 1. Find the `terraform.tfvars.template` file located in `online-retailer-flink-demo/terraform` and rename it to `terraform.tfvars`
 2. Replace the placeholders with your Confluent Cloud API Key and Secret
-
-> [!IMPORTANT]
-> **Use the new Confluent Cloud account you created for GKO**
->
-> Confluent Cloud accounts have a soft limit of 20 environments. Using a shared account may cause us to hit this limit.
-> Make sure you use the Cloud Resource Management API keys for the new Confluent Cloud account created for GKO.
->
-> ![API Key Cloud](./assets/cloud_resource_management.png)
 
 
 
