@@ -92,11 +92,6 @@ We'll tag the `cc_number` field as PII and create an encryption rule in a single
 
 10. Click **+ Add rules**
 
-    > [!NOTE]
-    > **No "Add rules" Button?**
-    >
-    > You may need to click **Evolve** to see the **Add rules** button.
-
 11. Configure the encryption rule:
     * **Category:** `Field level encryption rule`
     * **Rule name:** `Encrypt_PII`
