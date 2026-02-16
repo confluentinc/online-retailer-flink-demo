@@ -1,5 +1,6 @@
 terraform/terraform.tfstate
 terraform/terraform.tfstate.backup
+terraform/terraform.tfvars
 terraform/.terraform/
 code/payments-app/target/
 code/postgresql-data-feeder/target/
@@ -11,3 +12,4 @@ code/payments-app/src/main/resources/cc-orders.properties
 code/payments-app/src/main/datacontracts/avro/payments-value-dqr.json
 .DS_Store
 *my-personal-terraform.tfvars*
+CLAUDE.md

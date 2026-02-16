@@ -109,23 +109,22 @@ public class DataFeeder {
 
     private static Properties getProperties() {
         Properties properties = new Properties();
-        try {
-            // Load the property file from the resources directory
-            InputStream inputStream = DataFeeder.class.getClassLoader().getResourceAsStream("db.properties");
 
-            // Check if the property file exists
-            if (inputStream != null) {
-                // Load the properties from the InputStream
-                properties.load(inputStream);
+        // Load from environment variables (required)
+        String dbUrl = System.getenv("DB_URL");
+        String dbUser = System.getenv("DB_USER");
+        String dbPassword = System.getenv("DB_PASSWORD");
 
-                // Close the InputStream
-                inputStream.close();
-            } else {
-                System.out.println("Property file not found!");
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
+        if (dbUrl == null || dbUser == null || dbPassword == null) {
+            System.err.println("ERROR: Required environment variables not set.");
+            System.err.println("Please set: DB_URL, DB_USER, DB_PASSWORD");
+            System.exit(1);
         }
+
+        System.out.println("Loading database configuration from environment variables");
+        properties.setProperty("db.url", dbUrl);
+        properties.setProperty("db.user", dbUser);
+        properties.setProperty("db.password", dbPassword);
         return properties;
     }
 
@@ -322,4 +321,3 @@ public class DataFeeder {
         return data;
     }
 }
-

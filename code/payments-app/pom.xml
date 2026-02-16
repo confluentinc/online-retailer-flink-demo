@@ -185,7 +185,6 @@
                     <configuration>
                         <mainClass>io.confluent.examples.datacontract.ProducerApp</mainClass>
                         <arguments>
-                            <argument>./src/main/resources/cc-orders.properties</argument>
                             <argument>1</argument>
                         </arguments>
                     </configuration>
