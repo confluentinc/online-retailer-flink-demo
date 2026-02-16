@@ -706,17 +706,7 @@ We'll add a `payment_method` field to track how customers pay. We'll evolve the 
 1. Navigate to your `completed_orders` topic in Confluent Cloud
 2. Click the **Data contract** tab.
 3. Click **Evolve** to evolve the schema.
-4. You'll see the current schema. Add the new `payment_method` field to the fields array (insert it after `confirmation_code` and before `ts`):
-
-   ```json
-   {
-      "name": "payment_method",
-      "type": ["null", "string"],
-      "default": null
-   },
-   ```
-
-   Or you can replace the existing schema with this entire json:
+4. You'll see the current schema. Replace it with the following JSON that includes the new `payment_method` field:
 
    ```json
    {
