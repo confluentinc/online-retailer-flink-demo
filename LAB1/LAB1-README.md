@@ -881,6 +881,7 @@ Once you have snapshot IDs from the query above, you can query historical data:
    FROM "completed_orders"
    FOR VERSION AS OF <<snapshot-id>>;
    ```
+---
 
 > [!TIP]
 > **Snapshot Timestamp**
@@ -907,6 +908,7 @@ SELECT COUNT(*) as record_count, SUM(amount) as total_revenue
 FROM completed_orders
 AT(TIMESTAMP => '2025-01-15 10:00:00'::TIMESTAMP_TZ);
 ```
+---
 
 > [!NOTE]
 > **Snowflake Iceberg Metadata Tables**
