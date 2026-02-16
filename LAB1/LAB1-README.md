@@ -572,6 +572,7 @@ You're now ready to query your Tableflow-managed Iceberg tables from Snowflake!
    ```
 
 
+</details>
 
 > [!IMPORTANT]
 > **Athena Query Output Location**
@@ -582,8 +583,6 @@ You're now ready to query your Tableflow-managed Iceberg tables from Snowflake!
 > **0 Results Returned**
 >
 > If 0 results are returned from the query above, you may need to wait a few more minutes for Tableflow to materialize the `completed_orders` data into S3.
-
-</details>
 
 <details>
 <summary>Query with Snowflake</summary>
