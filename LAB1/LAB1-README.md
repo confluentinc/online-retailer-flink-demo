@@ -571,23 +571,13 @@ You're now ready to query your Tableflow-managed Iceberg tables from Snowflake!
    LIMIT 10;
    ```
 
+> **Athena Query Output Location:** You may need to supply an output location for your Athena query if you haven't configured this before. Instructions can be found [here](https://docs.aws.amazon.com/athena/latest/ug/creating-databases-prerequisites.html). Feel free to use the same S3 bucket we are using for Tableflow data.
 
 </details>
-
-> [!IMPORTANT]
-> **Athena Query Output Location**
->
-> You may need to supply an output location for your Athena query if you haven't configured this before. Instructions can be found [here](https://docs.aws.amazon.com/athena/latest/ug/creating-databases-prerequisites.html). Feel free to use the same S3 bucket we are using for Tableflow data.
-
-> [!NOTE]
-> **0 Results Returned**
->
-> If 0 results are returned from the query above, you may need to wait a few more minutes for Tableflow to materialize the `completed_orders` data into S3.
 
 <details>
 <summary>Query with Snowflake</summary>
 
-> [!NOTE]
 > Make sure you've completed the [Snowflake initial setup](#part-4-tableflow-deepdive) (collapsible section above) before proceeding.
 
 Query your Iceberg table in Snowflake:
@@ -598,12 +588,12 @@ FROM completed_orders
 LIMIT 10;
 ```
 
+</details>
+
 > [!NOTE]
 > **0 Results Returned**
 >
-> If 0 results are returned, you may need to wait a few more minutes for Tableflow to materialize the data into S3, or refresh the Iceberg table metadata in Snowflake.
-
-</details>
+> If 0 results are returned from the query above, you may need to wait a few more minutes for Tableflow to materialize the data into S3.
 
 ---
 
