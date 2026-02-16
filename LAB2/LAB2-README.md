@@ -396,6 +396,25 @@ Now we'll enable Tableflow to automatically materialize the `completed_orders` t
 
 8. Verify that the Tableflow status changes to **Syncing**
 
+<details>
+<summary>If using Snowflake: Create Iceberg Tables for New Topics</summary>
+
+If you set up Snowflake in LAB 1, create Iceberg tables for the two new Tableflow-enabled topics:
+
+```sql
+CREATE OR REPLACE ICEBERG TABLE product_sales
+  EXTERNAL_VOLUME = 'iceberg_external_volume'
+  CATALOG = 'glueCatalogInt'
+  CATALOG_TABLE_NAME = 'product_sales';
+
+CREATE OR REPLACE ICEBERG TABLE thirty_day_customer_snapshot
+  EXTERNAL_VOLUME = 'iceberg_external_volume'
+  CATALOG = 'glueCatalogInt'
+  CATALOG_TABLE_NAME = 'thirty_day_customer_snapshot';
+```
+
+</details>
+
 ---
 
 ### Exploring Iceberg Tables in AWS Glue
@@ -419,14 +438,17 @@ Let's see what Tableflow created in our data catalog.
    * Metadata includes Iceberg table properties
    * Storage location points to your S3 bucket
 
-## Querying with Amazon Athena
+## Querying Your Data Products
 
 Now let's perform some analytics on our new data products.
 
 > [!NOTE]
 > **5-15 minutes for Data Materialization**
 >
-> After enabling Tableflow, it may take 5-15 minutes for data to become available in Athena.
+> After enabling Tableflow, it may take 5-15 minutes for data to become available for querying.
+
+<details>
+<summary>Query with Amazon Athena</summary>
 
 Navigate back to Amazon Athena and run these queries:
 
@@ -456,6 +478,39 @@ Navigate back to Amazon Athena and run these queries:
    FROM thirty_day_customer_snapshot;
    ```
 
+</details>
+
+<details>
+<summary>Query with Snowflake</summary>
+
+1. Geographic sales distribution (from `product_sales`):
+
+   ```sql
+   SELECT
+      shipping_address_state AS state,
+      COUNT(DISTINCT orderid) AS orders,
+      COUNT(DISTINCT customerid) AS unique_customers,
+      SUM(total_amount) AS revenue
+   FROM product_sales
+   GROUP BY shipping_address_state
+   ORDER BY revenue DESC
+   LIMIT 10;
+   ```
+
+2. Customer spending maximum, minimum, and average (from `thirty_day_customer_snapshot`):
+
+   ```sql
+   SELECT
+      COUNT(*) AS total_customers,
+      ROUND(AVG(total_amount), 2) AS avg_spend,
+      ROUND(MIN(total_amount), 2) AS min_spend,
+      ROUND(MAX(total_amount), 2) AS max_spend,
+      ROUND(AVG(number_of_orders), 1) AS avg_orders
+   FROM thirty_day_customer_snapshot;
+   ```
+
+</details>
+
 ---
 
 ## What We've Built
@@ -478,8 +533,6 @@ All three tables are:
 ## Topics
 
 **🔙 Previous topic:** [Lab 1 - Payment Validation and Tableflow Deep Dive](../LAB1/LAB1-README.md)
-
-**🎯 Bonus (Optional):** [Data Contracts and Encryption](../BONUS/BONUS-README.md)
 
 **🏁 Finished?** [Cleanup](../README.md#clean-up)
 

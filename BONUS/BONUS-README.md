@@ -1,5 +1,9 @@
 # 🎯 Bonus: Data Contracts and Encryption (Extra Credit)
 
+> [!NOTE]
+> **This content has been integrated into [LAB 1](../LAB1/LAB1-README.md).**
+> This page is kept for reference only.
+
 > **⚠️ This lab is completely optional.** Only proceed if you've completed [LAB2](../LAB2/LAB2-README.md) and want to explore advanced Stream Governance features like Client-Side Field Level Encryption.
 
 In this bonus lab, you'll learn how to:

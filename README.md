@@ -14,9 +14,10 @@ By the end of this workshop, you'll have:
 
 - ✅ **Real-time customer data** streaming from PostgreSQL to Confluent Cloud
 - ✅ **Live product analytics** using Flink SQL joins and aggregations
+- ✅ **Client-Side Field Level Encryption (CSFLE)** protecting sensitive credit card data with zero code changes
 - ✅ **Apache Iceberg tables** with Tableflow for instant data lake integration
-- ✅ **Data governance** with schema validation and field-level encryption
-- ✅ **Analytics-ready datasets** in your data analysis engine
+- ✅ **Data governance** with schema validation, data quality rules, and field-level encryption
+- ✅ **Analytics-ready datasets** queryable from Amazon Athena and optionally Snowflake
 
 **Time commitment:** 90 minutes total (30 min setup + 60 min labs)
 
@@ -31,6 +32,7 @@ Before starting, make sure you have:
 | **Terraform** installed | `brew install terraform` or [download](https://www.terraform.io/downloads) |
 | **GIT CLI** installed | `brew install git`  |
 | **AWS CLI** installed | `brew install awscli`  |
+| **Snowflake account** *(optional)* | With ACCOUNTADMIN privileges. For querying Iceberg tables as an alternative to Athena |
 
 <details>
 <summary>📦 Quick Install Commands</summary>
@@ -131,15 +133,19 @@ terraform apply -auto-approve
 
 ---
 
-## Workshop Labs
+## Workshop Paths
 
-Once deployment completes, start the hands-on labs:
+Once deployment completes, choose your path:
 
-### [**LAB 1: Payment Processing & Tableflow**](./LAB1/LAB1-README.md)
+### Path 1: Hands-On Labs (Recommended for workshops)
 
-Validate payments in real-time, compute daily trends, and materialize Kafka topics as Iceberg tables.
+Work through the labs step-by-step. Each lab builds on the previous one, with challenge sections and detailed instructions.
 
-### [**LAB 2: Customer360 & Product Sales Analytics**](./LAB2/LAB2-README.md) ⏱️ *Optional - Time Permitting*
+#### [**LAB 1: Payment Processing & Tableflow**](./LAB1/LAB1-README.md)
+
+Set up data governance (CSFLE encryption + data quality rules), validate payments in real-time with Flink, and materialize Kafka topics as Iceberg tables with Tableflow. Query your data from Amazon Athena or optionally Snowflake.
+
+#### [**LAB 2: Customer360 & Product Sales Analytics**](./LAB2/LAB2-README.md) ⏱️ *Optional - Time Permitting*
 
 Learn to join streaming data with Flink SQL, mask PII data, and create enriched customer profiles.
 
@@ -147,6 +153,17 @@ Learn to join streaming data with Flink SQL, mask PII data, and create enriched 
 > **Focus on LAB 1 first!**
 >
 > LAB 2 is optional and can be completed after the workshop if you run short on time.
+
+> [!TIP]
+> **Snowflake Users**
+>
+> Both labs include collapsible Snowflake sections as an alternative to Amazon Athena for querying Iceberg tables. A Snowflake account with ACCOUNTADMIN privileges is required for the one-time setup.
+
+### Path 2: End-to-End Demo (Recommended for self-paced exploration)
+
+#### [**Shift Left Demo**](./shiftleft/README.md)
+
+A continuous end-to-end walkthrough covering data quality, deduplication, PII encryption, enriched data products, and Tableflow — all in one narrative. Independent of LAB 1 and LAB 2.
 
 ---
 
@@ -175,10 +192,37 @@ Disable Tableflow on the `completed_orders` topic:
 >
 > If you completed [LAB 2](./LAB2/LAB2-README.md), then repeat above steps 1-8 with the `product_sales` and `thirty_day_customer_snapshot` topics.
 
-### Step 1.1: Delete Catalog Integration
+### Step 1.1: Delete Payments Schema (Required for CSFLE Cleanup)
+
+The CSFLE encryption rules you added in LAB 1 will conflict with Terraform during destroy. You must manually delete the payments schema first.
+
+1. In Confluent Cloud, navigate to your environment
+2. Click **Schema Registry** in the left sidebar
+3. Click on the **Data contracts** tab
+4. Find the `payments-value` schema in the list
+5. Click on the schema to open it
+6. Click the **Delete** button (trash icon or delete option)
+7. Confirm the deletion
+
+### Step 1.2: Delete Catalog Integration
 
 1. Navigate back to the Tableflow tab
 2. Find your Catalog Integration (`my-glue-integration`) and click the trash icon to delete it.
+
+### Step 1.3: Snowflake Cleanup (If Used)
+
+If you set up Snowflake during the workshop, clean up the Snowflake resources:
+
+```sql
+-- In Snowflake, run these commands to remove workshop resources
+DROP ICEBERG TABLE IF EXISTS completed_orders;
+DROP ICEBERG TABLE IF EXISTS product_sales;
+DROP ICEBERG TABLE IF EXISTS thirty_day_customer_snapshot;
+DROP EXTERNAL VOLUME IF EXISTS iceberg_external_volume;
+DROP CATALOG INTEGRATION IF EXISTS glueCatalogInt;
+```
+
+Also remove the Snowflake trust policy entries you added to the IAM role in the AWS Console (under **IAM > Roles > Trust Relationships**).
 
 ### Step 2: Destroy Infrastructure
 

@@ -207,23 +207,61 @@ The connector wizard has separate fields for hostname and port - don't combine t
 
 ---
 
-### Data in Redshift/Snowflake is Missing or Outdated
+### Snowflake Cannot Read Iceberg Tables
 
-**Problem:** Sink connector is running, but data warehouse has no/old data
+**Problem:** Snowflake queries on Iceberg tables fail with permission or access errors
 
 **Solutions:**
 
-1. **Check sink connector status and tasks:**
-   - Ensure all tasks are "Running" (not failed)
-   - Check the number of messages processed in the connector metrics
+1. **Verify IAM trust policy entries:**
+   - Navigate to the IAM role in the AWS Console (from `terraform output resource-ids`)
+   - Click **Trust Relationships** and verify there are entries for both the Glue catalog integration (`GLUE_AWS_IAM_USER_ARN`) and the external volume (`STORAGE_AWS_IAM_USER_ARN`)
+   - Each entry should have the correct `sts:ExternalId` condition
 
-2. **Verify the connector topic subscription:**
-   - Make sure the connector is subscribed to the correct topic
-   - Check topic name matches exactly (case-sensitive)
+2. **Test external volume connectivity:**
+   ```sql
+   SELECT SYSTEM$VERIFY_EXTERNAL_VOLUME('iceberg_external_volume');
+   ```
+   - If this returns an error, the S3 storage trust policy entry is missing or incorrect
 
-3. **Check data warehouse permissions:**
-   - Ensure the database user has INSERT/UPDATE permissions
-   - Verify the target table exists with the correct schema
+3. **Table not found in Snowflake:**
+   - First verify the table exists in AWS Glue Data Catalog
+   - Check that Tableflow status shows **Syncing** in Confluent Cloud
+   - Ensure the `CATALOG_TABLE_NAME` in your `CREATE ICEBERG TABLE` matches the exact Glue table name
+
+4. **Permission denied errors:**
+   - Both the Catalog Integration and External Volume require separate trust policy entries on the same IAM role
+   - Run `DESCRIBE CATALOG INTEGRATION glueCatalogInt;` and `DESC EXTERNAL VOLUME iceberg_external_volume;` to verify the ARNs and external IDs match what's in the IAM trust policy
+
+---
+
+### CSFLE Encryption Not Working
+
+**Problem:** After setting up CSFLE, credit card numbers are still appearing in plain text
+
+**Solutions:**
+
+1. **Wait for ECS deployment:**
+   - After restarting the ECS service, wait 1-2 minutes for the new task to start
+   - Check the ECS service in the AWS Console to verify the deployment completed
+
+2. **Verify encryption rule in Data Contracts:**
+   - Navigate to the `payments` topic > **Data Contracts** tab
+   - Check that the `Encrypt_PII` rule appears under **Domain Rules**
+   - Ensure the rule is using the correct KMS key (`CSFLE_Key`)
+
+3. **Verify PII tag on cc_number:**
+   - In the schema editor (Tree View), confirm that the `cc_number` field has the `PII` tag applied
+   - If the tag is missing, add it and save the schema before restarting ECS
+
+4. **Check KMS key permissions:**
+   - Verify the KMS key exists in the AWS Console (search for `CSFLE_Key`)
+   - Ensure the ECS task role has permissions to use the KMS key for encryption
+   - Check the KMS key policy allows the service account to perform `kms:Encrypt` and `kms:GenerateDataKey` operations
+
+5. **Check older vs. newer messages:**
+   - Only messages produced **after** the ECS restart will be encrypted
+   - Look at message timestamps to distinguish old (unencrypted) from new (encrypted) messages
 
 ---
 

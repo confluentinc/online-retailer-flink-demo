@@ -28,6 +28,13 @@ output "resource-ids" {
   External ID:  ${module.provider_integration.provider_integration_external_id}
 
 ------------------------------
+   SNOWFLAKE SETUP INFO (Optional)
+------------------------------
+  IAM Role ARN:   ${module.provider_integration.provider_integration_role_arn}
+  AWS Account ID: ${data.aws_caller_identity.current.account_id}
+  AWS Region:     ${var.cloud_region}
+
+------------------------------
    SERVICE ACCOUNTS & API KEYS
 ------------------------------
   App Manager: ${confluent_service_account.app-manager.display_name}

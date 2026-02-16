@@ -8,7 +8,173 @@ In this lab, we'll use Confluent Cloud and Apache Flink to validate payments, cr
 
 ---
 
-## Part 1: Payment Processing with Flink
+## Part 1: Data Governance
+
+Before we start processing payments with Flink, let's set up data governance rules. We'll create a Data Quality Rule to validate confirmation codes and encrypt sensitive credit card data using Client-Side Field Level Encryption (CSFLE). Both rules are defined in Schema Registry and enforced automatically—**no code changes required on the client side**.
+
+### 🎯 [CHALLENGE] Data Quality Rules
+
+Every payment event needs a **valid `confirmation_code`**—no exceptions!
+
+We make sure of this with **[Data Quality Rules](https://docs.confluent.io/cloud/current/sr/fundamentals/data-contracts.html#data-quality-rules)**, defined in **Schema Registry** and automatically enforced for all clients.
+
+1. Navigate to the *Schema Registry* in your workshop *Environment*
+
+2. Click on the **Data contracts** tab
+
+3. Search for `payments-value` Data Contract and click on it
+
+4. Click the **Evolve** button
+
+5. Click on the **Rules** tab
+
+6. Click **Add rules**
+
+7. Input these values into the *Add rules* form:
+   * **Category**: `Data quality rule`
+   * **Rule name**: `validateConfirmationCode`
+   * **Description**: Validate that the confirmation code is uppercase alphanumeric and only 8 characters
+   * **Rule expression**: `message.confirmation_code.matches('^[A-Z0-9]{8}$')`
+   * **On failure**: `DLQ`
+   * **Parameters**:
+      * `dlq.topic` = `error-payments`
+      * `dlq.auto.flush` = `true`
+
+8. Click **Add**
+
+9. Click **Save**
+
+   > **What this rule does:** Validates that `confirmation_code` is exactly 8 uppercase alphanumeric characters (e.g., `ABC12345`). Invalid payments are routed to the `error-payments` dead letter queue.
+
+---
+
+### Client-Side Field Level Encryption (CSFLE)
+
+[Client-Side Field Level Encryption (CSFLE)](https://docs.confluent.io/cloud/current/security/encrypt/csfle/client-side.html) protects sensitive data like credit card numbers by encrypting fields at the client before they reach Kafka. The encryption rules are defined in Schema Registry and enforced automatically using AWS KMS keys.
+
+#### Step 1: Verify Credit Card Data is Currently Unencrypted
+
+1. Navigate to the [`payments`](https://confluent.cloud/go/topics) topic in Confluent Cloud
+
+2. Click the **Messages** tab
+
+3. Inspect a few recent records—you'll see the `cc_number` field is in plain text
+
+   ![Unencrypted Messages](./assets/plain_text_cc_number.png)
+
+This is a security risk! Let's fix it by adding a PII tag and an encryption rule.
+
+---
+
+#### Step 2: Tag the Field as PII and Create the Encryption Rule
+
+We'll tag the `cc_number` field as PII and create an encryption rule in a single schema evolution.
+
+1. In the `payments` topic, click the **Data Contracts** tab
+
+2. Click **Evolve** to modify the schema
+
+3. In the schema editor, switch to **Tree View** (if not already in tree view)
+
+4. Locate the `cc_number` field in the tree
+
+5. Click the **+ (plus sign)** next to the `cc_number` field
+
+6. Select **Create Tag**
+
+7. In the tag dialog:
+   * **Tag name:** `PII`
+   * **Description:** `Personally Identifiable Information`
+
+8. Click **Create** to apply the tag
+
+9. Now click the **Rules** section
+
+10. Click **+ Add rules**
+
+    > [!NOTE]
+    > **No "Add rules" Button?**
+    >
+    > You may need to click **Evolve** to see the **Add rules** button.
+
+11. Configure the encryption rule:
+    * **Category:** `Field level encryption rule`
+    * **Rule name:** `Encrypt_PII`
+    * **Description:** `Encrypt all fields with the PII tag`
+    * **Encrypt fields with:** `PII`
+    * **using:** Select the AWS KMS key created by Terraform (likely named `CSFLE_Key`)
+
+    ![CSFLE Rule](./assets/csfle_rule.png)
+
+12. Keep default selections for the remaining sections
+
+13. Click **Add**
+
+14. Click **Save**
+
+Your *Domain Rules* section should look like this:
+
+![data contracts with two rules](./assets/data_contracts_rules.png)
+
+**What this rule does:**
+* Tags `cc_number` as PII so governance policies can identify it
+* Instructs the Avro serializer to encrypt any field tagged as `PII`
+* Uses the AWS KMS symmetric key for encryption
+* Applies automatically to all producers without code changes
+
+---
+
+### Restart & Verify
+
+For the CSFLE encryption rule and Data Quality rule to take effect, we need to restart the payment producer application so it picks up the new schema and rules.
+
+1. Get the ECS restart command from Terraform:
+   ```bash
+   terraform output ecs-service-restart-command
+   ```
+
+2. Copy the output value within the double quotes
+
+3. Run the command (it will look similar to this):
+   ```bash
+   aws ecs update-service --cluster <ECS_CLUSTER_NAME> --service payment-app-service --force-new-deployment
+   ```
+
+4. Wait 1-2 minutes for the new task to start and begin producing data with the new rules applied.
+
+#### Verify Data Quality Rule
+
+1. Navigate back to your workshop cluster and check the `error-payments` topic for any non-compliant payments. What `confirmation_code` values do you see there?
+
+> [!NOTE]
+> **Invalid Confirmation Codes**
+>
+> You should see records with invalid confirmation codes (e.g., `0` or other non-compliant values) being routed to the `error-payments` dead letter queue.
+
+#### Verify CSFLE Encryption
+
+1. Return to the `payments` topic in Confluent Cloud
+
+2. Click the **Messages** tab
+
+3. Look at newly produced messages (they'll have recent timestamps)
+
+4. The `cc_number` field should now display encrypted data instead of plain text
+
+   ![Encrypted Field](./assets/encrypted_cc_number.png)
+
+5. Compare this with older messages (before the restart) which still show unencrypted credit card numbers
+
+**What happened:**
+* Schema Registry pushed the encryption rule to the producer client
+* The producer's Avro serializer automatically encrypts the `cc_number` field before sending to Kafka
+* The encryption happens client-side using AWS KMS—the data never reaches Kafka unencrypted
+* Authorized consumers with KMS permissions can decrypt the field; unauthorized consumers see encrypted bytes
+* **Zero code changes** were required in the payment application
+
+---
+
+## Part 2: Payment Processing with Flink
 
 ### Get Started with Flink SQL
 
@@ -169,11 +335,11 @@ You should see 20 rows with values for `order_id`, `amount`, `confirmation_code`
 >
 > You may notice that some of the records contain a `0` for their confirmation code.
 >
-> These are invalid, and later in this lab you will implement a Data Quality rule to redirect messages with invalid confirmation codes to a Dead Letter Queue (DLQ)!
+> These are invalid, and the Data Quality rule you created in Part 1 will redirect messages with invalid confirmation codes to the `error-payments` Dead Letter Queue (DLQ)!
 
 ---
 
-## Part 2: Setting up Tableflow
+## Part 3: Setting up Tableflow
 
 ### Setting Up Tableflow Infrastructure
 
@@ -241,67 +407,156 @@ Now we'll enable Tableflow to automatically materialize the `completed_orders` t
 
 ---
 
-## 🎯 [CHALLENGE] Part 3: Data Quality Rules
-
-While we wait for data to be made available in Athena, let's create a Data Quality rule on payments.
-
-Every payment event needs a **valid `confirmation_code`**—no exceptions! 🚀
-
-We make sure of this with **[Data Quality Rules](https://docs.confluent.io/cloud/current/sr/fundamentals/data-contracts.html#data-quality-rules)**, defined in **Schema Registry** and automatically enforced for all clients.
-
-1. Navigate to the *Schema Registry* in your workshop *Environment*
-
-2. Click on the **Data contracts** tab
-
-3. Search for `payments-value` Data Contract and click on it
-
-4. Click the **Evolve** button
-
-5. Click on the **Rules** tab
-
-6. Click **Add rules**
-
-7. Input these values into the *Add rules* form:
-   * **Category**: `Data quality rule`
-   * **Rule name**: `validateConfirmationCode`
-   * **Description**: Validate that the confirmation code is uppercase alphanumeric and only 8 characters
-   * **Rule expression**: `message.confirmation_code.matches('^[A-Z0-9]{8}$')`
-   * **On failure**: `DLQ`
-   * **Parameters**:
-      * `dlq.topic` = `error-payments`
-      * `dlq.auto.flush` = `true`
-
-8. Click **Add**
-
-9.  Click **Save**
-
-   > **What this rule does:** Validates that `confirmation_code` is exactly 8 uppercase alphanumeric characters (e.g., `ABC12345`). Invalid payments are routed to the `error-payments` dead letter queue.
-
-10. For the changes to take effect, we need to restart the payment producer application so it picks up the new schema and encryption rules.
-
-   1. Get the ECS restart command from Terraform:
-      ```bash
-      terraform output ecs-service-restart-command
-      ```
-
-   2. Copy the output value within the double quotes
-
-   3. Run the command (it will look similar to this):
-      ```bash
-      aws ecs update-service --cluster <ECS_CLUSTER_NAME> --service payment-app-service --force-new-deployment
-      ```
-
-11. Navigate back to your workshop cluster and check the `error-payments` topic for any non-compliant payments. What `confirmation_code` values do you see there?
----
-
 ## Part 4: Tableflow Deepdive
 
-### Querying with Amazon Athena
+<details>
+<summary>Optional: Initial Setup for Querying with Snowflake</summary>
+
+If you'd like to query your Iceberg tables from Snowflake in addition to (or instead of) Amazon Athena, complete this one-time setup first. Snowflake needs access to both your AWS Glue catalog (for table metadata) and your S3 bucket (for data files).
+
+### Prerequisites
+- Snowflake account with ACCOUNTADMIN privileges
+
+### Step 1: Configure Snowflake Catalog Integration (Glue access)
+
+1. Open the Snowflake UI and create a new worksheet.
+2. Run the following SQL to create a catalog integration with Glue. Replace the placeholders with your actual values (available from `terraform output resource-ids`):
+
+   ```sql
+   CREATE CATALOG INTEGRATION glueCatalogInt
+     CATALOG_SOURCE = GLUE
+     CATALOG_NAMESPACE = '<cluster-id>'
+     TABLE_FORMAT = ICEBERG
+     GLUE_AWS_ROLE_ARN = 'arn:aws:iam::<account-id>:role/<role-name>'
+     GLUE_CATALOG_ID = '<aws-account-id>'
+     GLUE_REGION = '<region>'
+     ENABLED = TRUE;
+   ```
+
+   - **cluster-id**: Your Kafka Cluster ID (found in Confluent Cloud under Cluster Settings)
+   - **role-name**: The Provider Integration Role ARN from `terraform output resource-ids`
+   - **aws-account-id**: Your AWS Account ID (also the Glue Catalog ID)
+   - **region**: Your AWS region (e.g., `us-east-1`)
+
+3. Verify the integration and copy the values we'll need for IAM configuration:
+
+   ```sql
+   DESCRIBE CATALOG INTEGRATION glueCatalogInt;
+   ```
+
+4. From the output, copy these two values:
+   - **GLUE_AWS_IAM_USER_ARN**
+   - **GLUE_AWS_EXTERNAL_ID**
+
+   ![Copy Glue Role values](./assets/snowflake_copy-glue-role.png)
+
+5. Navigate to the IAM Role in the AWS Console (search for the role name from `terraform output resource-ids`)
+
+6. Under the Role page, click the **Trust Relationships** tab and click **Edit Trust Policy**
+
+7. Add the following trust entry after the existing entries (replace placeholders with values from step 4):
+
+   ```json
+   {
+       "Effect": "Allow",
+       "Principal": {
+           "AWS": "<<GLUE_AWS_IAM_USER_ARN>>"
+       },
+       "Action": "sts:AssumeRole",
+       "Condition": {
+           "StringEquals": {
+               "sts:ExternalId": "<<GLUE_AWS_EXTERNAL_ID>>"
+           }
+       }
+   }
+   ```
+
+8. Click **Update Policy**
+
+### Step 2: Create External Volume (S3 access)
+
+1. Create an external volume in Snowflake that points to your S3 bucket:
+
+   ```sql
+   CREATE OR REPLACE EXTERNAL VOLUME iceberg_external_volume
+   STORAGE_LOCATIONS = (
+     (
+        NAME = 'my-iceberg-external-volume'
+        STORAGE_PROVIDER = 'S3'
+        STORAGE_BASE_URL = 's3://<your-s3-bucket>'
+        STORAGE_AWS_ROLE_ARN = '<<ROLE-ARN-FROM-STEP-1>>'
+        STORAGE_AWS_EXTERNAL_ID = '<<EXTERNAL-ID-FROM-STEP-1>>'
+     )
+   );
+   ```
+
+2. Verify the external volume and copy the values:
+
+   ```sql
+   DESC EXTERNAL VOLUME iceberg_external_volume;
+   ```
+
+3. From the output, copy:
+   - **STORAGE_AWS_IAM_USER_ARN**
+   - **STORAGE_AWS_EXTERNAL_ID**
+
+4. Navigate back to the same IAM role and **Edit Trust Policy** again
+
+5. Add another trust entry with the storage values:
+
+   ```json
+   {
+       "Effect": "Allow",
+       "Principal": {
+           "AWS": "<<STORAGE_AWS_IAM_USER_ARN>>"
+       },
+       "Action": "sts:AssumeRole",
+       "Condition": {
+           "StringEquals": {
+               "sts:ExternalId": "<<STORAGE_AWS_EXTERNAL_ID>>"
+           }
+       }
+   }
+   ```
+
+6. Click **Update Policy**. Your final trust policy should have entries for Confluent Cloud, the Glue catalog integration, and the storage volume:
+
+   ![Final trust policy](./assets/snowflake_final-trust-policy.png)
+
+7. Optionally, test the connection:
+
+   ```sql
+   SELECT SYSTEM$VERIFY_EXTERNAL_VOLUME('iceberg_external_volume');
+   ```
+
+   You should see `{success: true}`.
+
+### Step 3: Create Iceberg Table
+
+Create the Iceberg table for `completed_orders` in Snowflake:
+
+```sql
+CREATE OR REPLACE ICEBERG TABLE completed_orders
+  EXTERNAL_VOLUME = 'iceberg_external_volume'
+  CATALOG = 'glueCatalogInt'
+  CATALOG_TABLE_NAME = 'completed_orders';
+```
+
+You're now ready to query your Tableflow-managed Iceberg tables from Snowflake!
+
+</details>
+
+---
+
+### Querying Your Data
 
 > [!NOTE]
 > **5-15 minutes for Data Materialization**
 >
-> After enabling Tableflow, it may take 5-15 minutes for data to become available in Athena.
+> After enabling Tableflow, it may take 5-15 minutes for data to become available for querying.
+
+<details>
+<summary>Query with Amazon Athena</summary>
 
 1. Navigate to the [AWS Glue Data Catalog Tables page](https://console.aws.amazon.com/glue/home#/v2/data-catalog/tables)
 
@@ -332,11 +587,38 @@ We make sure of this with **[Data Quality Rules](https://docs.confluent.io/cloud
 > **0 Results Returned**
 >
 > If 0 results are returned from the query above, you may need to wait a few more minutes for Tableflow to materialize the `completed_orders` data into S3.
+
+</details>
+
+<details>
+<summary>Query with Snowflake</summary>
+
+> [!NOTE]
+> Make sure you've completed the [Snowflake initial setup](#part-4-tableflow-deepdive) (collapsible section above) before proceeding.
+
+Query your Iceberg table in Snowflake:
+
+```sql
+SELECT *
+FROM completed_orders
+LIMIT 10;
+```
+
+> [!NOTE]
+> **0 Results Returned**
+>
+> If 0 results are returned, you may need to wait a few more minutes for Tableflow to materialize the data into S3, or refresh the Iceberg table metadata in Snowflake.
+
+</details>
+
 ---
 
 ### Analyzing Sales Trends
 
 Now let's perform some real analytics on our streaming data.
+
+<details>
+<summary>Query with Amazon Athena</summary>
 
 1. Calculate hourly sales trends:
    ```sql
@@ -372,6 +654,51 @@ Now let's perform some real analytics on our streaming data.
       MAX(amount) as max_order
    FROM "completed_orders";
    ```
+
+</details>
+
+<details>
+<summary>Query with Snowflake</summary>
+
+1. Calculate hourly sales trends:
+   ```sql
+   SELECT
+      DATE_TRUNC('hour', ts) AS window_start,
+      DATEADD('hour', 1, DATE_TRUNC('hour', ts)) AS window_end,
+      COUNT(*) AS total_orders,
+      SUM(amount) AS total_revenue
+   FROM completed_orders
+   GROUP BY DATE_TRUNC('hour', ts)
+   ORDER BY window_start;
+   ```
+
+2. Find the highest value orders:
+   ```sql
+   SELECT
+      order_id,
+      amount,
+      confirmation_code,
+      ts
+   FROM completed_orders
+   ORDER BY amount DESC
+   LIMIT 10;
+   ```
+
+3. Calculate total revenue:
+   ```sql
+   SELECT
+      COUNT(*) as total_orders,
+      SUM(amount) as total_revenue,
+      AVG(amount) as avg_order_value,
+      MIN(amount) as min_order,
+      MAX(amount) as max_order
+   FROM completed_orders;
+   ```
+
+![Snowflake query results](./assets/snowflake_query-results.png)
+
+</details>
+
 ---
 
 ### Schema Evolution with Tableflow
@@ -474,7 +801,7 @@ Now we'll start a new Flink statement that writes data including the `payment_me
 
 > **Key Point:** We didn't need to drop and recreate the table! Since we evolved the schema in Schema Registry first, Flink automatically writes data with the new schema. Tableflow stays enabled and will automatically detect the schema change.
 
-##### Step 4: Verify in AWS Glue and Athena
+##### Step 4: Verify Schema Evolution
 
 Wait 2-3 minutes for the schema to propagate to Glue.
 
@@ -482,18 +809,47 @@ Wait 2-3 minutes for the schema to propagate to Glue.
 2. Find the `completed_orders` table in your cluster database
 3. Verify the `payment_method` column appears in the schema
 
-4. Open [Amazon Athena](https://console.aws.amazon.com/athena) and query the updated table:
-   ```sql
-   SELECT
-      payment_method,
-      COUNT(*) as order_count,
-      SUM(amount) as total_revenue
-   FROM "completed_orders"
-   GROUP BY payment_method
-   ORDER BY total_revenue DESC;
-   ```
+Now query the updated data:
+
+<details>
+<summary>Query with Amazon Athena</summary>
+
+Open [Amazon Athena](https://console.aws.amazon.com/athena) and query the updated table:
+
+```sql
+SELECT
+   payment_method,
+   COUNT(*) as order_count,
+   SUM(amount) as total_revenue
+FROM "completed_orders"
+GROUP BY payment_method
+ORDER BY total_revenue DESC;
+```
 
 You'll see records with diverse payment methods: PAYPAL, APPLE_PAY, CREDIT_CARD, WIRE_TRANSFER, VENMO, GOOGLE_PAY, and DEBIT_CARD.
+
+</details>
+
+<details>
+<summary>Query with Snowflake</summary>
+
+In your Snowflake worksheet, refresh the table metadata and query:
+
+```sql
+ALTER ICEBERG TABLE completed_orders REFRESH;
+
+SELECT
+   payment_method,
+   COUNT(*) as order_count,
+   SUM(amount) as total_revenue
+FROM completed_orders
+GROUP BY payment_method
+ORDER BY total_revenue DESC;
+```
+
+You'll see records with diverse payment methods: PAYPAL, APPLE_PAY, CREDIT_CARD, WIRE_TRANSFER, VENMO, GOOGLE_PAY, and DEBIT_CARD.
+
+</details>
 
 **What happened:**
 * Schema Registry was the source of truth - we evolved the schema there first
@@ -508,11 +864,10 @@ Iceberg tables support querying historical snapshots. Let's explore this capabil
 
 #### Query Snapshot History
 
-You can query the Iceberg metadata tables. There are two ways:
+<details>
+<summary>Query with Amazon Athena</summary>
 
-**Method 1: Using AWS Glue table name (recommended)**
-
-In AWS Glue, find your `completed_orders` table and note its exact name. Then query snapshots:
+You can query the Iceberg metadata tables. In AWS Glue, find your `completed_orders` table and note its exact name. Then query snapshots:
 
 ```sql
 SELECT
@@ -558,6 +913,34 @@ Once you have snapshot IDs from the query above, you can query historical data:
 >
 > Use timestamps from the `committed_at` column in the `$snapshots` query above to see exactly when each snapshot was created.
 
+</details>
+
+<details>
+<summary>Query with Snowflake</summary>
+
+Snowflake supports time travel for Iceberg tables using timestamp-based syntax:
+
+```sql
+-- Query data as it existed 30 minutes ago
+SELECT COUNT(*) as record_count, SUM(amount) as total_revenue
+FROM completed_orders
+AT(OFFSET => -60*30);
+```
+
+```sql
+-- Query data as it existed at a specific timestamp
+SELECT COUNT(*) as record_count, SUM(amount) as total_revenue
+FROM completed_orders
+AT(TIMESTAMP => '2025-01-15 10:00:00'::TIMESTAMP_TZ);
+```
+
+> [!NOTE]
+> **Snowflake Iceberg Metadata Tables**
+>
+> The `$snapshots` metadata table syntax is not available for externally managed Iceberg tables in Snowflake. Use the timestamp-based or offset-based time travel syntax shown above instead.
+
+</details>
+
 > **Key Insight:** Time travel enables:
 > * Auditing and compliance (see exactly what data looked like at any point)
 > * Reproducing historical analysis
@@ -569,6 +952,9 @@ Once you have snapshot IDs from the query above, you can query historical data:
 ### Understanding Partitioning and File Layout
 
 Tableflow automatically partitions data for optimal query performance. Apache Iceberg uses **hidden partitioning**, which means you cannot use traditional Hive-style commands like `SHOW PARTITIONS`. Instead, you inspect partitions by querying the table's metadata tables using standard SQL.
+
+<details>
+<summary>Query with Amazon Athena</summary>
 
 #### Viewing Partition Information
 
@@ -604,7 +990,12 @@ FROM "completed_orders$files"
 LIMIT 10;
 ```
 
+</details>
+
 #### Testing File Pruning with Column Statistics
+
+<details>
+<summary>Query with Amazon Athena</summary>
 
 First, run a full table scan to establish a baseline:
 
@@ -630,6 +1021,30 @@ Compare the **"Data scanned"** metrics in Athena—the time-windowed query shoul
 >
 > Range predicates can be pushed down to Iceberg's column statistics for file pruning.
 
+</details>
+
+<details>
+<summary>Query with Snowflake</summary>
+
+First, run a full table scan to establish a baseline:
+
+```sql
+SELECT COUNT(*), SUM(amount)
+FROM completed_orders;
+```
+
+Now run a query with a narrow time window:
+
+```sql
+SELECT COUNT(*), SUM(amount)
+FROM completed_orders
+WHERE ts >= DATEADD('minute', -45, CURRENT_TIMESTAMP());
+```
+
+Snowflake handles micro-partition pruning internally. You can check the query profile in the Snowflake UI to see how many partitions were scanned vs. pruned.
+
+</details>
+
 ---
 
 ### Monitoring Tableflow Operations
@@ -647,18 +1062,19 @@ Tableflow performs background tasks like compaction and optimization. Let's see 
    * Rows Rejected
    * Rows written
 
-5. Check compaction history in Athena:
+<details>
+<summary>Query compaction history with Amazon Athena</summary>
 
-   ```sql
-   SELECT
-      committed_at,
-      snapshot_id,
-      operation,
-      summary
-   FROM "completed_orders$snapshots"
-   ORDER BY committed_at DESC
-   LIMIT 20;
-   ```
+```sql
+SELECT
+   committed_at,
+   snapshot_id,
+   operation,
+   summary
+FROM "completed_orders$snapshots"
+ORDER BY committed_at DESC
+LIMIT 20;
+```
 
 > [!TIP]
 > **Query Not Working**
@@ -669,6 +1085,8 @@ Tableflow performs background tasks like compaction and optimization. Let's see 
 
 Look for operations like `append`, `replace`, and `overwrite` which indicate compaction activities.
 
+</details>
+
 > [!IMPORTANT]
 > **Compaction May Not Occur Yet**
 >
@@ -678,13 +1096,15 @@ Look for operations like `append`, `replace`, and `overwrite` which indicate com
 
 ## Key Takeaways
 
-In this lab, you learned how Tableflow:
+In this lab, you learned:
 
-1. **Eliminates ETL Complexity:** No custom connectors or transformation jobs needed
-2. **Handles Schema Evolution:** Automatically adapts to schema changes without breaking queries
-3. **Enables Time Travel:** Query historical data states for auditing and analysis
-4. **Optimizes Storage:** Automatic partitioning and compaction improve query performance
-5. **Works with Any Engine:** Standard Iceberg format works with Athena, Snowflake, Spark, etc.
+1. **Client-Side Encryption:** Protect sensitive fields at the source with zero code changes using CSFLE
+2. **Data Quality Rules:** Validate data at the source and route invalid records to a Dead Letter Queue
+3. **Eliminates ETL Complexity:** No custom connectors or transformation jobs needed
+4. **Handles Schema Evolution:** Automatically adapts to schema changes without breaking queries
+5. **Enables Time Travel:** Query historical data states for auditing and analysis
+6. **Optimizes Storage:** Automatic partitioning and compaction improve query performance
+7. **Works with Any Engine:** Standard Iceberg format works with Athena, Snowflake, Spark, and more
 
 All of this happens automatically—Confluent manages the infrastructure, compaction, and optimization for you.
 
