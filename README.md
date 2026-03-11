@@ -41,7 +41,8 @@ Before starting, make sure you have:
 **macOS:**
 ```bash
 brew tap hashicorp/tap
-brew install git hashicorp/tap/terraform awscli
+brew tap confluentinc/tap
+brew install git hashicorp/tap/terraform awscli confluentinc/tap/confluent
 ```
 
 > **Note:** If you previously installed Terraform from the community tap (`homebrew/core`), you may get a naming conflict. Run `brew uninstall terraform` first, then install from the HashiCorp tap as shown above.
@@ -51,6 +52,7 @@ brew install git hashicorp/tap/terraform awscli
 winget install -e --id Git.Git
 winget install -e --id HashiCorp.Terraform
 winget install -e --id Amazon.AWSCLI
+winget install -e --id Confluent.ConfluentCLI
 ```
 </details>
 
