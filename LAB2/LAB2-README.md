@@ -358,7 +358,7 @@ Now we'll connect Tableflow to AWS Glue Data Catalog so our Iceberg tables are d
 
    ![Set up Glue Integration](../LAB2/assets/set-up-glue-integration.png)
 
-3. Select the provider integration created by Terraform (you can find it in `terraform output resource-ids`)
+3. Select the provider integration created by Terraform (you can find the name in `terraform output snowflake-setup` or `terraform output resource-ids`)
 
 4. Click **Continue**
 
@@ -385,7 +385,7 @@ Now we'll enable Tableflow to automatically materialize the `completed_orders` t
    You can find your S3 bucket name:
 
    ```bash
-   terraform output resource-ids | grep tableflow-bucket
+   terraform output athena-setup
    ```
 
 5. Click **Continue**
@@ -426,10 +426,10 @@ Let's see what Tableflow created in our data catalog.
 2. Find your database (it's named after your Confluent Cloud cluster ID). You can get the cluster ID from:
 
    ```bash
-   terraform output resource-ids
+   terraform output athena-setup
    ```
 
-   Look for the `Cluster ID` value under "Environment & Cluster Info"
+   Look for the `Glue Database Name` value
 
 3. Click into the database and you should see the `product_sales` and `thirty_day_customer_snapshot` tables.
 

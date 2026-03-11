@@ -80,6 +80,55 @@ output "ecr-public-images" {
   }
 }
 
+output "snowflake-setup" {
+  description = "Values needed for Snowflake catalog integration and external volume setup"
+  value = <<-EOT
+
+==============================
+   SNOWFLAKE SETUP VALUES
+==============================
+
+------------------------------
+   Catalog Integration (Glue)
+------------------------------
+  CATALOG_NAMESPACE:   ${confluent_kafka_cluster.standard.id}
+  GLUE_AWS_ROLE_ARN:   ${module.provider_integration.provider_integration_role_arn}
+  GLUE_CATALOG_ID:     ${data.aws_caller_identity.current.account_id}
+  GLUE_REGION:         ${var.cloud_region}
+
+------------------------------
+   External Volume (S3)
+------------------------------
+  STORAGE_BASE_URL:          s3://${module.aws_s3_bucket.bucket_name}
+  STORAGE_AWS_ROLE_ARN:      ${module.provider_integration.provider_integration_role_arn}
+  STORAGE_AWS_EXTERNAL_ID:   ${module.provider_integration.provider_integration_external_id}
+
+------------------------------
+   IAM Role (for Trust Policy)
+------------------------------
+  Role ARN:   ${module.provider_integration.provider_integration_role_arn}
+
+  EOT
+
+  sensitive = true
+}
+
+output "athena-setup" {
+  description = "Values needed for querying Iceberg tables in Amazon Athena"
+  value = <<-EOT
+
+==============================
+   ATHENA SETUP VALUES
+==============================
+  Glue Database Name:   ${confluent_kafka_cluster.standard.id}
+  S3 Bucket (for Tableflow data & Athena query output):   s3://${module.aws_s3_bucket.bucket_name}
+  AWS Region:           ${var.cloud_region}
+
+  EOT
+
+  sensitive = true
+}
+
 # Create destroy.sh file based on variables used in this script
 resource "local_file" "destroy_sh" {
   count    = local.is_windows ? 0 : 1

@@ -238,7 +238,7 @@ The connector wizard has separate fields for hostname and port - don't combine t
 **Solutions:**
 
 1. **Verify IAM trust policy entries:**
-   - Navigate to the IAM role in the AWS Console (from `terraform output resource-ids`)
+   - Navigate to the IAM role in the AWS Console (from `terraform output snowflake-setup`)
    - Click **Trust Relationships** and verify there are entries for both the Glue catalog integration (`GLUE_AWS_IAM_USER_ARN`) and the external volume (`STORAGE_AWS_IAM_USER_ARN`)
    - Each entry should have the correct `sts:ExternalId` condition
 

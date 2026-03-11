@@ -362,7 +362,7 @@ Now we'll connect Tableflow to AWS Glue Data Catalog so our Iceberg tables are d
 
    ![Set up Glue Integration](../LAB2/assets/set-up-glue-integration.png)
 
-3. Select the provider integration created by Terraform (you can find it in `terraform output resource-ids`)
+3. Select the provider integration created by Terraform (you can find the name in `terraform output snowflake-setup` or `terraform output resource-ids`)
 
 4. Click **Continue**
 
@@ -387,7 +387,7 @@ Now we'll enable Tableflow to automatically materialize the `completed_orders` t
    You can find your S3 bucket name:
 
    ```bash
-   terraform output resource-ids | grep tableflow-bucket
+   terraform output athena-setup
    ```
 
 5. Click **Continue**
@@ -419,25 +419,26 @@ If you'd like to query your Iceberg tables from Snowflake in addition to (or ins
 ### Step 1: Configure Snowflake Catalog Integration (Glue access)
 
 1. Open the Snowflake UI and create a new worksheet.
-2. Run the following SQL to create a catalog integration with Glue. Replace the placeholders with your actual values (available from `terraform output resource-ids`):
+2. Get the values needed for Snowflake setup:
+
+   ```bash
+   terraform output snowflake-setup
+   ```
+
+3. Run the following SQL to create a catalog integration with Glue. Replace the placeholders with values from the output above:
 
    > **Naming Note:** Catalog integrations are account-level objects in Snowflake. If multiple workshop participants share the same Snowflake account, append a unique suffix (e.g., your initials) to avoid naming conflicts: `glueCatalogInt_<your_initials>`.
 
    ```sql
    CREATE CATALOG INTEGRATION glueCatalogInt_<your_initials>
      CATALOG_SOURCE = GLUE
-     CATALOG_NAMESPACE = '<cluster-id>'
+     CATALOG_NAMESPACE = '<CATALOG_NAMESPACE>'
      TABLE_FORMAT = ICEBERG
-     GLUE_AWS_ROLE_ARN = 'arn:aws:iam::<account-id>:role/<role-name>'
-     GLUE_CATALOG_ID = '<aws-account-id>'
-     GLUE_REGION = '<region>'
+     GLUE_AWS_ROLE_ARN = '<GLUE_AWS_ROLE_ARN>'
+     GLUE_CATALOG_ID = '<GLUE_CATALOG_ID>'
+     GLUE_REGION = '<GLUE_REGION>'
      ENABLED = TRUE;
    ```
-
-   - **cluster-id**: Your Kafka Cluster ID (found in Confluent Cloud under Cluster Settings)
-   - **role-name**: The Provider Integration Role ARN from `terraform output resource-ids`
-   - **aws-account-id**: Your AWS Account ID (also the Glue Catalog ID)
-   - **region**: Your AWS region (e.g., `us-east-1`)
 
 3. Verify the integration and copy the values we'll need for IAM configuration:
 
@@ -451,7 +452,7 @@ If you'd like to query your Iceberg tables from Snowflake in addition to (or ins
 
    ![Copy Glue Role values](./assets/snowflake_copy-glue-role.png)
 
-5. Navigate to the IAM Role in the AWS Console (search for the role name from `terraform output resource-ids`)
+5. Navigate to the IAM Role in the AWS Console (search for the role name from `terraform output snowflake-setup` under "IAM Role")
 
 6. Under the Role page, click the **Trust Relationships** tab and click **Edit Trust Policy**
 
@@ -478,7 +479,7 @@ If you'd like to query your Iceberg tables from Snowflake in addition to (or ins
 
    > **Naming Note:** External volumes are also account-level objects. If sharing a Snowflake account, append a unique suffix: `iceberg_external_volume_<your_initials>`.
 
-1. Create an external volume in Snowflake that points to your S3 bucket:
+1. Create an external volume in Snowflake that points to your S3 bucket. Use the values from `terraform output snowflake-setup`:
 
    ```sql
    CREATE OR REPLACE EXTERNAL VOLUME iceberg_external_volume_<your_initials>
@@ -486,15 +487,12 @@ If you'd like to query your Iceberg tables from Snowflake in addition to (or ins
      (
         NAME = 'my-iceberg-external-volume'
         STORAGE_PROVIDER = 'S3'
-        STORAGE_BASE_URL = 's3://<your-s3-bucket>'
-        STORAGE_AWS_ROLE_ARN = '<<Provider-Integration-ROLE-ARN>>'
-        STORAGE_AWS_EXTERNAL_ID = '<<Provider-Integration-EXTERNAL-ID>>'
+        STORAGE_BASE_URL = '<STORAGE_BASE_URL>'
+        STORAGE_AWS_ROLE_ARN = '<STORAGE_AWS_ROLE_ARN>'
+        STORAGE_AWS_EXTERNAL_ID = '<STORAGE_AWS_EXTERNAL_ID>'
      )
    );
    ```
-
-   - **Provider-Integration-ROLE-ARN**: The Provider Integration Role ARN from `terraform output resource-ids`
-   - **Provider-Integration-EXTERNAL-ID**: The Provider Integration External ID from `terraform output resource-ids`
 
 2. Verify the external volume and copy the values:
 
@@ -569,21 +567,27 @@ You're now ready to query your Tableflow-managed Iceberg tables from Snowflake!
 <details>
 <summary>Query with Amazon Athena</summary>
 
-1. Navigate to the [AWS Glue Data Catalog Tables page](https://console.aws.amazon.com/glue/home#/v2/data-catalog/tables)
+1. Get the Athena setup values:
 
-2. Search for your cluster ID database, then find the `completed_orders` table
+   ```bash
+   terraform output athena-setup
+   ```
 
-3. Click **Table data** under the *View data* column. This opens Amazon Athena.
+2. Navigate to the [AWS Glue Data Catalog Tables page](https://console.aws.amazon.com/glue/home#/v2/data-catalog/tables)
+
+3. Search for your Glue Database Name (from the output above), then find the `completed_orders` table
+
+4. Click **Table data** under the *View data* column. This opens Amazon Athena.
 
    ![Search for Cluster ID](assets/search-for-cluster-id.png)
 
-4. In the *Data* left panel, select your Confluent Cloud Cluster ID from the **Database** dropdown
+5. In the *Data* left panel, select your Glue Database Name from the **Database** dropdown
 
    ![Set database in](assets/athena_select_database.png)
 
-5. Run a basic query to verify data is flowing:
+6. Run a basic query to verify data is flowing:
 
-   > **Athena Query Output Location:** You may need to supply an output location for your Athena query if you haven't configured this before. Instructions can be found [here](https://docs.aws.amazon.com/athena/latest/ug/creating-databases-prerequisites.html). Feel free to use the same S3 bucket we are using for Tableflow data.
+   > **Athena Query Output Location:** You may need to supply an output location for your Athena query if you haven't configured this before. Instructions can be found [here](https://docs.aws.amazon.com/athena/latest/ug/creating-databases-prerequisites.html). Feel free to use the S3 bucket from `terraform output athena-setup`.
 
    ```sql
    SELECT *
