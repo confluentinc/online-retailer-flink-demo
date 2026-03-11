@@ -46,6 +46,10 @@ resource "aws_iam_user_policy" "payments_app_iam_policy" {
 # Pick an AZ that supports the Postgres instance type.
 data "aws_availability_zones" "available" {
   state = "available"
+  filter {
+    name   = "opt-in-status"
+    values = ["opt-in-not-required"]
+  }
 }
 
 data "aws_ec2_instance_type_offerings" "postgres" {

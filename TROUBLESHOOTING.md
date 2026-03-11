@@ -76,6 +76,30 @@ aws sts get-caller-identity
 
 ## Connector Issues
 
+### PostgreSQL CDC Connector Fails on Initial Deploy
+
+**Problem:** During `terraform apply`, the PostgreSQL CDC connector fails with connection refused errors:
+
+```
+Error: connector provisioning status is "FAILED": Unable to validate configuration.
+database.hostname: Connection to <ip>:5432 refused. Check that the hostname and port are correct
+and that the postmaster is accepting TCP/IP connections.
+```
+
+**Cause:** The PostgreSQL instance may not be fully ready to accept connections when the connector tries to connect, even though Terraform reports the instance as created.
+
+**Solution:**
+
+Re-run the connector provisioning:
+
+```bash
+terraform apply -replace="confluent_connector.postgre-sql-cdc-source" -auto-approve
+```
+
+This recreates only the connector resource while leaving everything else intact. The PostgreSQL instance should be ready by this point.
+
+---
+
 ### Selected SOURCE Connector Instead of SINK
 
 **Problem:** You accidentally created a PostgreSQL Source connector when you needed a Sink connector (or vice versa)
@@ -220,7 +244,7 @@ The connector wizard has separate fields for hostname and port - don't combine t
 
 2. **Test external volume connectivity:**
    ```sql
-   SELECT SYSTEM$VERIFY_EXTERNAL_VOLUME('iceberg_external_volume');
+   SELECT SYSTEM$VERIFY_EXTERNAL_VOLUME('iceberg_external_volume_<your_initials>');
    ```
    - If this returns an error, the S3 storage trust policy entry is missing or incorrect
 
@@ -231,7 +255,7 @@ The connector wizard has separate fields for hostname and port - don't combine t
 
 4. **Permission denied errors:**
    - Both the Catalog Integration and External Volume require separate trust policy entries on the same IAM role
-   - Run `DESCRIBE CATALOG INTEGRATION glueCatalogInt;` and `DESC EXTERNAL VOLUME iceberg_external_volume;` to verify the ARNs and external IDs match what's in the IAM trust policy
+   - Run `DESCRIBE CATALOG INTEGRATION glueCatalogInt_<your_initials>;` and `DESC EXTERNAL VOLUME iceberg_external_volume_<your_initials>;` to verify the ARNs and external IDs match what's in the IAM trust policy
 
 ---
 

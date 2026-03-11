@@ -29,7 +29,7 @@ Before starting, make sure you have:
 |-------------|-------|
 | **Confluent Cloud account** with [API Keys](https://docs.confluent.io/cloud/current/security/authenticate/workload-identities/service-accounts/api-keys/overview.html#resource-scopes) (`Cloud resource management` permissions) | [Sign up here](https://www.confluent.io/get-started/) |
 | **AWS account** with credentials set | Set AWS env variables |
-| **Terraform** installed | `brew install terraform` or [download](https://www.terraform.io/downloads) |
+| **Terraform** installed | `brew install hashicorp/tap/terraform` or [download](https://www.terraform.io/downloads) |
 | **GIT CLI** installed | `brew install git`  |
 | **AWS CLI** installed | `brew install awscli`  |
 | **Snowflake account** *(optional)* | With ACCOUNTADMIN privileges. For querying Iceberg tables as an alternative to Athena |
@@ -40,8 +40,11 @@ Before starting, make sure you have:
 
 **macOS:**
 ```bash
-brew install git terraform awscli
+brew tap hashicorp/tap
+brew install git hashicorp/tap/terraform awscli
 ```
+
+> **Note:** If you previously installed Terraform from the community tap (`homebrew/core`), you may get a naming conflict. Run `brew uninstall terraform` first, then install from the HashiCorp tap as shown above.
 
 **Windows (PowerShell):**
 ```powershell
@@ -176,8 +179,8 @@ If you set up Snowflake during the workshop, clean up the Snowflake resources:
 DROP ICEBERG TABLE IF EXISTS completed_orders;
 DROP ICEBERG TABLE IF EXISTS product_sales;
 DROP ICEBERG TABLE IF EXISTS thirty_day_customer_snapshot;
-DROP EXTERNAL VOLUME IF EXISTS iceberg_external_volume;
-DROP CATALOG INTEGRATION IF EXISTS glueCatalogInt;
+DROP EXTERNAL VOLUME IF EXISTS iceberg_external_volume_<your_initials>;
+DROP CATALOG INTEGRATION IF EXISTS glueCatalogInt_<your_initials>;
 ```
 
 Also remove the Snowflake trust policy entries you added to the IAM role in the AWS Console (under **IAM > Roles > Trust Relationships**).

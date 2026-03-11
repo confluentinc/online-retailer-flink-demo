@@ -421,8 +421,10 @@ If you'd like to query your Iceberg tables from Snowflake in addition to (or ins
 1. Open the Snowflake UI and create a new worksheet.
 2. Run the following SQL to create a catalog integration with Glue. Replace the placeholders with your actual values (available from `terraform output resource-ids`):
 
+   > **Naming Note:** Catalog integrations are account-level objects in Snowflake. If multiple workshop participants share the same Snowflake account, append a unique suffix (e.g., your initials) to avoid naming conflicts: `glueCatalogInt_<your_initials>`.
+
    ```sql
-   CREATE CATALOG INTEGRATION glueCatalogInt
+   CREATE CATALOG INTEGRATION glueCatalogInt_<your_initials>
      CATALOG_SOURCE = GLUE
      CATALOG_NAMESPACE = '<cluster-id>'
      TABLE_FORMAT = ICEBERG
@@ -440,7 +442,7 @@ If you'd like to query your Iceberg tables from Snowflake in addition to (or ins
 3. Verify the integration and copy the values we'll need for IAM configuration:
 
    ```sql
-   DESCRIBE CATALOG INTEGRATION glueCatalogInt;
+   DESCRIBE CATALOG INTEGRATION glueCatalogInt_<your_initials>;
    ```
 
 4. From the output, copy these two values:
@@ -474,25 +476,30 @@ If you'd like to query your Iceberg tables from Snowflake in addition to (or ins
 
 ### Step 2: Create External Volume (S3 access)
 
+   > **Naming Note:** External volumes are also account-level objects. If sharing a Snowflake account, append a unique suffix: `iceberg_external_volume_<your_initials>`.
+
 1. Create an external volume in Snowflake that points to your S3 bucket:
 
    ```sql
-   CREATE OR REPLACE EXTERNAL VOLUME iceberg_external_volume
+   CREATE OR REPLACE EXTERNAL VOLUME iceberg_external_volume_<your_initials>
    STORAGE_LOCATIONS = (
      (
         NAME = 'my-iceberg-external-volume'
         STORAGE_PROVIDER = 'S3'
         STORAGE_BASE_URL = 's3://<your-s3-bucket>'
-        STORAGE_AWS_ROLE_ARN = '<<ROLE-ARN-FROM-STEP-1>>'
-        STORAGE_AWS_EXTERNAL_ID = '<<EXTERNAL-ID-FROM-STEP-1>>'
+        STORAGE_AWS_ROLE_ARN = '<<Provider-Integration-ROLE-ARN>>'
+        STORAGE_AWS_EXTERNAL_ID = '<<Provider-Integration-EXTERNAL-ID>>'
      )
    );
    ```
 
+   - **Provider-Integration-ROLE-ARN**: The Provider Integration Role ARN from `terraform output resource-ids`
+   - **Provider-Integration-EXTERNAL-ID**: The Provider Integration External ID from `terraform output resource-ids`
+
 2. Verify the external volume and copy the values:
 
    ```sql
-   DESC EXTERNAL VOLUME iceberg_external_volume;
+   DESC EXTERNAL VOLUME iceberg_external_volume_<your_initials>;
    ```
 
 3. From the output, copy:
@@ -525,19 +532,29 @@ If you'd like to query your Iceberg tables from Snowflake in addition to (or ins
 7. Optionally, test the connection:
 
    ```sql
-   SELECT SYSTEM$VERIFY_EXTERNAL_VOLUME('iceberg_external_volume');
+   SELECT SYSTEM$VERIFY_EXTERNAL_VOLUME('iceberg_external_volume_<your_initials>');
    ```
 
    You should see `{success: true}`.
 
-### Step 3: Create Iceberg Table
+### Step 3: Create Database and Schema
+
+Before creating Iceberg tables, you need a database and schema in Snowflake:
+
+```sql
+CREATE DATABASE IF NOT EXISTS confluent_workshop;
+USE DATABASE confluent_workshop;
+USE SCHEMA public;
+```
+
+### Step 4: Create Iceberg Table
 
 Create the Iceberg table for `completed_orders` in Snowflake:
 
 ```sql
 CREATE OR REPLACE ICEBERG TABLE completed_orders
-  EXTERNAL_VOLUME = 'iceberg_external_volume'
-  CATALOG = 'glueCatalogInt'
+  EXTERNAL_VOLUME = 'iceberg_external_volume_<your_initials>'
+  CATALOG = 'glueCatalogInt_<your_initials>'
   CATALOG_TABLE_NAME = 'completed_orders';
 ```
 
@@ -894,17 +911,17 @@ Once you have snapshot IDs from the query above, you can query historical data:
 Snowflake supports time travel for Iceberg tables using timestamp-based syntax:
 
 ```sql
--- Query data as it existed 30 minutes ago
+-- Query data as it existed 10 minutes ago
 SELECT COUNT(*) as record_count, SUM(amount) as total_revenue
 FROM completed_orders
-AT(OFFSET => -60*30);
+AT(OFFSET => -60*10);
 ```
 
 ```sql
--- Query data as it existed at a specific timestamp
+-- Query data as it existed at a specific timestamp (adjust to a recent time)
 SELECT COUNT(*) as record_count, SUM(amount) as total_revenue
 FROM completed_orders
-AT(TIMESTAMP => '2025-01-15 10:00:00'::TIMESTAMP_TZ);
+AT(TIMESTAMP => DATEADD('minute', -15, CURRENT_TIMESTAMP())::TIMESTAMP_TZ);
 ```
 
 > ℹ️ **Snowflake Iceberg Metadata Tables:** The `$snapshots` metadata table syntax is not available for externally managed Iceberg tables in Snowflake. Use the timestamp-based or offset-based time travel syntax shown above instead.

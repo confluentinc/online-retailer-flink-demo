@@ -258,6 +258,11 @@ resource "confluent_kafka_acl" "app-manager-read-on-group" {
 # Connectors
 # ------------------------------------------------------
 
+resource "time_sleep" "wait_for_postgres" {
+  depends_on      = [module.postgres, aws_ecs_service.dbfeeder_app_service]
+  create_duration = "30s"
+}
+
 resource "confluent_connector" "postgre-sql-cdc-source" {
   environment {
     id = confluent_environment.staging.id
@@ -296,8 +301,7 @@ resource "confluent_connector" "postgre-sql-cdc-source" {
     confluent_kafka_acl.app-manager-describe-on-cluster,
     confluent_kafka_acl.app-manager-write-on-topic,
     confluent_kafka_acl.app-manager-create-topic,
-    aws_ecs_service.dbfeeder_app_service,
-    module.postgres,
+    time_sleep.wait_for_postgres,
   ]
 }
 

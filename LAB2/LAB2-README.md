@@ -403,13 +403,13 @@ If you set up Snowflake in LAB 1, create Iceberg tables for the two new Tableflo
 
 ```sql
 CREATE OR REPLACE ICEBERG TABLE product_sales
-  EXTERNAL_VOLUME = 'iceberg_external_volume'
-  CATALOG = 'glueCatalogInt'
+  EXTERNAL_VOLUME = 'iceberg_external_volume_<your_initials>'
+  CATALOG = 'glueCatalogInt_<your_initials>'
   CATALOG_TABLE_NAME = 'product_sales';
 
 CREATE OR REPLACE ICEBERG TABLE thirty_day_customer_snapshot
-  EXTERNAL_VOLUME = 'iceberg_external_volume'
-  CATALOG = 'glueCatalogInt'
+  EXTERNAL_VOLUME = 'iceberg_external_volume_<your_initials>'
+  CATALOG = 'glueCatalogInt_<your_initials>'
   CATALOG_TABLE_NAME = 'thirty_day_customer_snapshot';
 ```
 
@@ -482,6 +482,13 @@ Navigate back to Amazon Athena and run these queries:
 
 <details>
 <summary>Query with Snowflake</summary>
+
+First, refresh the Iceberg tables to pick up the latest data from Tableflow:
+
+```sql
+ALTER ICEBERG TABLE product_sales REFRESH;
+ALTER ICEBERG TABLE thirty_day_customer_snapshot REFRESH;
+```
 
 1. Geographic sales distribution (from `product_sales`):
 
