@@ -12,7 +12,7 @@ public class SalesDataGen {
     private static final String CONF_CODE_CHAR_LIST = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
     private static final int CONF_CODE_LENGTH = 8;
 
-    private static int orderId = 2500;
+    private static int orderId = 3000;
 
     static int getRandomNumber(int max)
     {

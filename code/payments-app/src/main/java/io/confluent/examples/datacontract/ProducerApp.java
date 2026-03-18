@@ -22,11 +22,11 @@ public class ProducerApp implements Runnable {
     private Properties props;
     private String topic, dlq;
 
-    ProducerApp(
-            String propertiesFile,
-            String clientId) {
+    ProducerApp(String clientId) {
         try {
-            props = ClientsUtils.loadConfig(propertiesFile);
+            // Load configuration from environment variables (required)
+            props = ClientsUtils.loadConfigFromEnv();
+
             if (clientId != null) {
                 props.put(ProducerConfig.CLIENT_ID_CONFIG, clientId);
             }
@@ -42,6 +42,7 @@ public class ProducerApp implements Runnable {
         } catch (Exception e) {
             e.printStackTrace();
             logger.error("Error in ProducerApp.constructor: " + e);
+            throw new RuntimeException(e);
         }
     }
 
@@ -79,9 +80,9 @@ public class ProducerApp implements Runnable {
                         }
                     }).get();
                     System.out.println(sales);
-                    
+
                     // 10% of the time generate a duplicate
-                    if (random.nextInt(10) == 0) {     
+                    if (random.nextInt(10) == 0) {
                         producer.send(record, new Callback() {
                             public void onCompletion(RecordMetadata metadata, Exception e) {
                                 if(e != null) {
@@ -90,12 +91,12 @@ public class ProducerApp implements Runnable {
                                     System.out.println("The offset of the order record we just sent is: " + metadata.offset());
                                 }
                             }
-                        }).get(); 
+                        }).get();
                         System.out.println("Duplicate sale event produced " + sales);
-                    }       
-                    
+                    }
+
                     counter++;
-                    
+
                     Thread.sleep(2000);
                     } catch (Exception e) {
                         // Catch and log the serialization error but continue to next record
@@ -107,21 +108,19 @@ public class ProducerApp implements Runnable {
             } catch(Exception e){
                 logger.error("Error in ProducerApp.run: ", e);
             }
-            
+
         }
 
 
         public static void main ( final String[] args) throws Exception {
-            if (args.length < 2) {
-                logger.error(
-                        "Provide the propertiesFile clientId  as arguments");
-                System.exit(1);
-            }
-            ExecutorService exec = Executors.newFixedThreadPool(Integer.parseInt(args[1]));
-            for(int i = 0; i < Integer.parseInt(args[1]); i++) {
+            // Determine thread count: from args or default to 1
+            int threadCount = args.length >= 1 ? Integer.parseInt(args[0]) : 1;
+
+            ExecutorService exec = Executors.newFixedThreadPool(threadCount);
+            for(int i = 0; i < threadCount; i++) {
                 exec.submit(new Runnable() {
                     public void run() {
-                        ProducerApp producer = new ProducerApp(args[0], "Pos_Store_"+(new Faker().address().cityName()));
+                        ProducerApp producer = new ProducerApp("Pos_Store_"+(new Faker().address().cityName()));
                         System.out.println("Starting new Thread ");
                         producer.run();
 

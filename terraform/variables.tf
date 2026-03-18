@@ -1,71 +1,79 @@
-variable "email" {
-  description = "Your email to tag all AWS resources"
-  type        = string
-}
-
-
 variable "prefix" {
   description = "Prefix for resource names"
   type        = string
   default     = "shiftleft"
 }
 
-variable "cloud_region"{
+variable "cloud_region" {
   description = "AWS Cloud Region"
   type        = string
-  default     = "us-east-1"    
 }
 
-variable "db_username"{
+variable "db_username" {
   description = "Postgres DB username"
   type        = string
-  default     = "postgres"  
+  default     = "postgres"
 }
 
-variable "db_password"{
+variable "db_password" {
   description = "Postgres DB password"
   type        = string
-  default     = "Admin123456!!"  
+  default     = "Admin123456!!"
 }
 
-
-variable "confluent_cloud_api_key"{
-    description = "Confluent Cloud API Key"
-    type        = string
-}
-
-variable "confluent_cloud_api_secret"{
-    description = "Confluent Cloud API Secret"
-    type        = string     
-}
-
-variable "data_warehouse" {
-  description = "Type of data warehouse to use (either 'redshift' or 'snowflake')"
+variable "postgres_instance_type" {
+  description = "EC2 instance type for PostgreSQL"
   type        = string
-  default     = "redshift"
+  default     = "t3.medium"
+}
+
+variable "confluent_cloud_api_key" {
+  description = "Confluent Cloud API Key"
+  type        = string
+}
+
+variable "confluent_cloud_api_secret" {
+  description = "Confluent Cloud API Secret"
+  type        = string
+}
+
+variable "image_tag" {
+  description = "Docker image tag to deploy from ECR Public (e.g., 'latest', 'v1.0.0')"
+  type        = string
+  default     = "latest"
+}
+
+variable "cpu_architecture" {
+  description = "CPU architecture for ECS tasks (must match the architecture of pre-built Docker images). Valid values: X86_64, ARM64"
+  type        = string
+  default     = "X86_64"
+
   validation {
-    condition     = contains(["redshift", "snowflake"], var.data_warehouse)
-    error_message = "The data_warehouse variable must be either 'redshift' or 'snowflake'."
+    condition     = contains(["X86_64", "ARM64"], var.cpu_architecture)
+    error_message = "cpu_architecture must be either X86_64 or ARM64"
   }
 }
 
-variable "snowflake_account" {
-  description = "Snowflake account identifier"
+# -------------------------------
+# ECR Public Image Configuration
+# -------------------------------
+# Images are pre-built and hosted on ECR Public by the workshop maintainer.
+# Participants do not need to build or push images.
+
+variable "ecr_public_alias" {
+  description = "ECR Public registry alias (e.g., 'a1b2c3d4' from public.ecr.aws/a1b2c3d4/)"
   type        = string
-  default     = "redshift_selected"
+  default     = "v3a9u0p7"
 }
 
-variable "snowflake_username" {
-  description = "Snowflake username"
+variable "payments_app_image_name" {
+  description = "ECR Public repository name for payments app"
   type        = string
-  default     = ""
+  default     = "payments-app"
 }
 
-variable "snowflake_password" {
-  description = "Snowflake password"
+variable "data_feeder_image_name" {
+  description = "ECR Public repository name for postgresql data feeder app"
   type        = string
-  default     = ""
+  default     = "postgresql-data-feeder"
 }
-
-
-

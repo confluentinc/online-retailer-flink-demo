@@ -1,13 +1,12 @@
 # AWS provider configuration
 # This is required to manage AWS resources. The region is dynamically set via a variable.
 provider "aws" {
-  region = var.cloud_region  
+  region = var.cloud_region
   # Default tags to apply to all resources
   default_tags {
     tags = {
       Created_by = "Shift-left Terraform script"
-      Project     = "Shift-left Demo"
-      owner_email       = var.email
+      Project    = "Shift-left Demo"
     }
   }
 }
@@ -17,15 +16,7 @@ terraform {
   required_providers {
     confluent = {
       source  = "confluentinc/confluent"
-      version = "2.32.0"                  
-    }
-    snowflake = {
-      source = "snowflakedb/snowflake"
-      version = "0.98.0"  
-    }
-    docker = {
-      source  = "kreuzwerker/docker"
-      version = "~> 3.0"
+      version = "2.32.0"
     }
     external = {
       source  = "hashicorp/external"
@@ -43,69 +34,8 @@ provider "confluent" {
 # This is useful for tasks like rendering templates, reading local files, etc.
 provider "local" {}
 
-# TLS provider for generating RSA key-pairs used by Snowflake Connector and certificates.
+# TLS provider for generating SSH key pairs.
 provider "tls" {}
 
-data "aws_ecr_authorization_token" "ecr" {}
-
-provider "docker" {
-  registry_auth {
-    address  = replace(data.aws_ecr_authorization_token.ecr.proxy_endpoint, "https://", "")
-    username = data.aws_ecr_authorization_token.ecr.user_name
-    password = data.aws_ecr_authorization_token.ecr.password
-  }
-}
-
-
-module "redshift" {
-  source = "./modules/redshift"
-  count  = var.data_warehouse == "redshift" ? 1 : 0  # Only deploy module if Redshift is selected
-  
-  prefix     = var.prefix
-  random_id  = random_id.env_display_id.hex
-  subnet_id  = aws_subnet.public_subnet.id
-  vpc_id     = aws_vpc.ecs_vpc.id
-}
-
-/*
-# UNCOMMENT THE FOLLOWING 2 CONFIG BLOCKS, IF YOU WANT TO DEPLOY THE DEMO WITH SNOWFLAKE
-
-# Snowflake provider configuration
-
-provider "snowflake" {
-  alias = "snowflake"
-  account  = var.data_warehouse == "snowflake" ? var.snowflake_account : "na"
-  user     = var.data_warehouse == "snowflake" ? var.snowflake_username : "na"
-  password = var.data_warehouse == "snowflake" ? var.snowflake_password : "na"
-}
-
-
-module "snowflake" {
-  source = "./modules/snowflake"
-  count  = var.data_warehouse == "snowflake" ? 1 : 0  # Only deploy module if Snowflake is selected
-  providers = {
-    snowflake = snowflake.snowflake
-  }
-  # Pass the variables required for Snowflake resources
-  snowflake_account  = var.snowflake_account
-  snowflake_username = var.snowflake_username
-  snowflake_password = var.snowflake_password
-  public_key_no_headers = local.public_key_no_headers
-}
-*/
-
-resource "tls_private_key" "rsa_key" {
-  algorithm = "RSA"
-}
-
-# Define local variables to strip PEM headers and footers
-locals {
-  # Remove the PEM headers and footers for the private key
-  private_key_no_headers = replace(replace(tls_private_key.rsa_key.private_key_pem, "-----BEGIN RSA PRIVATE KEY-----", ""), "-----END RSA PRIVATE KEY-----", "")
-  
-  # Remove the PEM headers and footers for the public key
-  public_key_no_headers = replace(replace(tls_private_key.rsa_key.public_key_pem, "-----BEGIN PUBLIC KEY-----", ""), "-----END PUBLIC KEY-----", "")
-}
-
-
-
+# NOTE: Docker provider removed - images are now built externally and pushed to ECR.
+# See REMOVE_DOCKER_BUILD.md for instructions on building and pushing images.

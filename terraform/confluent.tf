@@ -55,7 +55,7 @@ resource "confluent_service_account" "app-manager" {
 resource "confluent_role_binding" "app-manager-kafka-cluster-admin" {
   principal   = "User:${confluent_service_account.app-manager.id}"
   role_name   = "EnvironmentAdmin"
-  crn_pattern = confluent_environment.staging.resource_name  
+  crn_pattern = confluent_environment.staging.resource_name
 }
 
 
@@ -258,6 +258,11 @@ resource "confluent_kafka_acl" "app-manager-read-on-group" {
 # Connectors
 # ------------------------------------------------------
 
+resource "time_sleep" "wait_for_postgres" {
+  depends_on      = [module.postgres, aws_ecs_service.dbfeeder_app_service]
+  create_duration = "30s"
+}
+
 resource "confluent_connector" "postgre-sql-cdc-source" {
   environment {
     id = confluent_environment.staging.id
@@ -273,10 +278,10 @@ resource "confluent_connector" "postgre-sql-cdc-source" {
     "name"                     = "PostgresCdcSourceConnector_0"
     "kafka.auth.mode"          = "SERVICE_ACCOUNT"
     "kafka.service.account.id" = confluent_service_account.app-manager.id
-    "database.hostname"        = aws_db_instance.postgres_db.address
-    "database.port"            = aws_db_instance.postgres_db.port
+    "database.hostname"        = module.postgres.public_ip
+    "database.port"            = module.postgres.port
     "database.user"            = var.db_username
-    "database.dbname"          = aws_db_instance.postgres_db.db_name
+    "database.dbname"          = "onlinestoredb"
     "database.server.name"     = local.database_server_name
     "topic.prefix"             = var.prefix
     "after.state.only"         = "true"
@@ -296,8 +301,7 @@ resource "confluent_connector" "postgre-sql-cdc-source" {
     confluent_kafka_acl.app-manager-describe-on-cluster,
     confluent_kafka_acl.app-manager-write-on-topic,
     confluent_kafka_acl.app-manager-create-topic,
-    aws_ecs_service.dbfeeder_app_service,
-    docker_container.psql_init,
+    time_sleep.wait_for_postgres,
   ]
 }
 
@@ -350,20 +354,6 @@ resource "confluent_schema" "avro-payments" {
     key    = confluent_api_key.app-manager-schema-registry-api-key.id
     secret = confluent_api_key.app-manager-schema-registry-api-key.secret
   }
-  ruleset {
-    domain_rules {
-      name = "validateConfirmationCode"
-      kind = "CONDITION"
-      mode = "WRITEREAD"
-      type = "CEL"
-      expr = "message.confirmation_code.matches('^[A-Z0-9]{8}$')"
-      on_failure = "DLQ"
-      params = {
-        "dlq.topic" = "error-payments"
-        "dlq.auto.flush" = "true"
-        }
-    }
-  }
   depends_on = [
     confluent_role_binding.app-manager-kafka-cluster-admin,
     confluent_schema_registry_kek.aws_key
@@ -390,6 +380,3 @@ resource "confluent_schema_registry_kek" "aws_key" {
   kms_key_id = aws_kms_key.kms_key.arn
   hard_delete = true
 }
-
-
-
