@@ -2,9 +2,9 @@
 
 **Build a Data Streaming Platform with Confluent Cloud & Apache Flink**
 
-## 🎉👋 Welcome to GKO 2026!
+## Welcome to the Online Retailer Flink Workshop!
 
-In this hands-on workshop, you'll build a real-time analytics platform for an online retailer using Confluent Cloud and Apache Flink.
+In this hands-on workshop, you'll step into the role of a data engineer at an online retailer tasked with building a real-time analytics platform. You'll capture live customer, order, and payment data from the retailer's operational database, clean and validate it to ensure data quality, protect sensitive credit card information with encryption, and create analytics-ready data products — all powered by Confluent Cloud and Apache Flink. By the end, you'll have streaming data flowing directly into a data lakehouse, queryable from Amazon Athena or Snowflake, without building a single ETL pipeline.
 
 ![Architecture](./assets/HLD.png)
 
@@ -67,33 +67,21 @@ winget install -e --id Confluent.ConfluentCLI
 ### Step 1: Clone and Navigate
 
 ```bash
-git clone -b gko-2026-snowflake https://github.com/confluentinc/online-retailer-flink-demo.git
+git clone https://github.com/confluentinc/online-retailer-flink-demo.git
 cd online-retailer-flink-demo/terraform
 ```
 
 ### Step 2: Configure AWS Account
 
-If you are using an AWS Workshop Studio account:
-
-1. Click on the provided link to claim your AWS Workshop Studio account
-2. Once claimed, navigate to your AWS event home screen
-3. Click on the **Get AWS CLI credentials**
-
-   ![Menu for AWS CLI](assets/aws_cli_credentials.png)
-
-4. Copy the environment variable export commands for your operating system
-5. **Paste and execute the export commands in the same shell** where you will run your terraform commands.
-6. Verify you are using the correct AWS account by running:
+1. Ensure your AWS credentials are configured in the shell where you will run Terraform. You can set them via environment variables:
+   ```bash
+   export AWS_ACCESS_KEY_ID="<your-access-key>"
+   export AWS_SECRET_ACCESS_KEY="<your-secret-key>"
+   export AWS_SESSION_TOKEN="<your-session-token>"  # if using temporary credentials
+   ```
+2. Verify you are using the correct AWS account by running:
    ```
    aws sts get-caller-identity
-   ```
-   If you are using AWS Workshop Studio, you should have an output that looks like this:
-   ```
-   {
-   "UserId": "AROA4AFJ7PWFSQYLGZ3YL:Participant",
-   "Account": "xxxxxxxxxx",
-   "Arn": "arn:aws:sts::xxxxxxxxxx:assumed-role/WSParticipantRole/Participant"
-   }
    ```
 
 > [!IMPORTANT]
